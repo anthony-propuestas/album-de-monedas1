@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(rsync -a --exclude=\".git\" \"c:\\\\Users\\\\dell\\\\Desktop\\\\PPORGAMACION\\\\proyectos de prueva\\\\album-de-monedas-temp/\" \"c:\\\\Users\\\\dell\\\\Desktop\\\\PPORGAMACION\\\\proyectos de prueva\\\\album de monedas/\")",
-      "Bash(npx shadcn@latest init --defaults -y)"
+      "Bash(npx shadcn@latest init --defaults -y)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(npm create *)",
+      "Bash(rm -rf node_modules)",
+      "Bash(npm install *)",
+      "Bash(npm ls *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:5174)",
+      "Bash(curl -s http://localhost:5175)",
+      "Bash(curl -s http://localhost:5177)"
     ]
   }
 }
