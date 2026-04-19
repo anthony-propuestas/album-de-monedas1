@@ -66,7 +66,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 const navItems = [
-  { label: "Mi colección", href: "/collection" },
+  { label: "Mi colección", href: "/mycollection" },
   { label: "Grandes colecciones", href: "/collections" },
   { label: "Mercados", href: "/markets" },
 ];
@@ -84,7 +84,7 @@ const drawerItems = [
   },
   {
     label: "Mi Colección",
-    href: "/collection",
+    href: "/mycollection",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="8" />

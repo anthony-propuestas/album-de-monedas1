@@ -37,7 +37,7 @@ describe("Home component", () => {
     render(<Home />);
     const links = screen.getAllByRole("link");
     const hrefs = links.map((l) => l.getAttribute("href"));
-    expect(hrefs).toContain("/collection");
+    expect(hrefs).toContain("/mycollection");
     expect(hrefs).toContain("/collections");
     expect(hrefs).toContain("/markets");
   });
