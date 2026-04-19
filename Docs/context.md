@@ -13,12 +13,12 @@ Estás ayudando a desarrollar una red social de numismática llamada album de mo
 ## Stack tecnológico
 
 ### Frontend
-- Next.js 14 (App Router), desplegado en Cloudflare Pages via `@cloudflare/next-on-pages`
+- Remix v2 (Vite), desplegado en Cloudflare Pages
 - Tailwind CSS
 - shadcn/ui (componentes)
 
 ### Backend
-- Cloudflare Workers (API serverless nativa, reemplaza Next.js API Routes)
+- Cloudflare Workers (API serverless nativa)
 - Drizzle ORM (compatible con Cloudflare D1)
 
 ### Autenticación

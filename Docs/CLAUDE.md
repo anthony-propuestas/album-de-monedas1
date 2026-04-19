@@ -4,7 +4,7 @@
 Red social MVP para coleccionistas de monedas (numismática).
 
 ## Stack
-- **Frontend**: Next.js 14 App Router · Tailwind CSS · shadcn/ui → Cloudflare Pages
+- **Frontend**: Remix v2 (Vite) · Tailwind CSS · shadcn/ui → Cloudflare Pages
 - **Backend**: Cloudflare Workers (API serverless)
 - **DB**: Cloudflare D1 (SQLite) + Drizzle ORM
 - **Auth**: NextAuth.js · Google OAuth · Cloudflare KV (sesiones)

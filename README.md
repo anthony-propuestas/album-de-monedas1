@@ -4,10 +4,10 @@ Red social MVP para coleccionistas de monedas (numismática).
 
 ## Stack
 
-- **Frontend**: Next.js 15 · Tailwind CSS · shadcn/ui → Cloudflare Pages
+- **Frontend**: Remix v2 (Vite) · Tailwind CSS · shadcn/ui → Cloudflare Pages
 - **Backend**: Cloudflare Workers
 - **DB**: Cloudflare D1 (SQLite) + Drizzle ORM
-- **Auth**: NextAuth.js · Google OAuth · Cloudflare KV
+- **Auth**: Auth.js · Google OAuth · Cloudflare KV
 - **Chat**: Cloudflare Durable Objects (WebSockets)
 - **Imágenes**: Cloudflare R2 + Cloudflare Images
 
@@ -21,7 +21,7 @@ npm run dev
 
 ```bash
 # Build para Cloudflare
-npm run pages:build
+npm run build
 
 # Preview local con Wrangler
 npm run preview
@@ -29,5 +29,3 @@ npm run preview
 # Deploy
 npm run deploy
 ```
-
-> Cada route handler que use APIs de Node.js debe exportar `export const runtime = 'edge'`.
