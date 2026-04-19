@@ -1,8 +1,9 @@
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
-import { redirect } from "@remix-run/cloudflare";
+import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
+import { json, redirect } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
+import { ProfileSetupModal } from "~/components/ProfileSetupModal";
 
 export const meta: MetaFunction = () => [
   { title: "Inicio — Album de Monedas" },
@@ -12,7 +13,56 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const { authenticator } = createAuth(context.cloudflare.env);
   const user = await authenticator.isAuthenticated(request);
   if (!user) throw redirect("/");
-  return { user };
+
+  const db = context.cloudflare.env.DB;
+  const existing = await db
+    .prepare("SELECT profile_completed FROM users WHERE id = ?")
+    .bind(user.id)
+    .first<{ profile_completed: number }>();
+
+  if (!existing) {
+    await db
+      .prepare(
+        "INSERT INTO users (id, email, name, picture) VALUES (?, ?, ?, ?)"
+      )
+      .bind(user.id, user.email, user.name, user.picture ?? null)
+      .run();
+  }
+
+  const profileCompleted = existing ? existing.profile_completed === 1 : false;
+  return json({ user, profileCompleted });
+}
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  const { authenticator } = createAuth(context.cloudflare.env);
+  const user = await authenticator.isAuthenticated(request);
+  if (!user) throw redirect("/");
+
+  const form = await request.formData();
+  const intent = form.get("intent");
+
+  if (intent === "complete_profile") {
+    const name = form.get("name")?.toString().trim();
+    const country = form.get("country")?.toString().trim();
+    const collectingSince = form.get("collecting_since")?.toString().trim();
+    const goals = form.get("goals")?.toString().trim();
+
+    if (!name || !country || !collectingSince || !goals) {
+      return json({ error: "Todos los campos son obligatorios." });
+    }
+
+    const db = context.cloudflare.env.DB;
+    await db
+      .prepare(
+        "UPDATE users SET name = ?, country = ?, collecting_since = ?, goals = ?, profile_completed = 1 WHERE id = ?"
+      )
+      .bind(name, country, collectingSince, goals, user.id)
+      .run();
+
+    return json({ success: true });
+  }
+
+  return json({ error: "Acción no reconocida." });
 }
 
 const navItems = [
@@ -85,11 +135,14 @@ const drawerItems = [
 ];
 
 export default function Home() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user, profileCompleted } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <main className="min-h-screen text-[#F2ECE0] flex flex-col items-center justify-center px-6">
+      {!profileCompleted && (
+        <ProfileSetupModal defaultName={user.name ?? ""} email={user.email} />
+      )}
       {/* Hamburger button */}
       <button
         onClick={() => setDrawerOpen(true)}

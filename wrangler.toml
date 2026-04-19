@@ -2,3 +2,8 @@ name = "album-de-monedas"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "build/client"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "album-monedas-db"
+database_id = "0789c17d-50e6-4ce4-8acf-f8e308093136"

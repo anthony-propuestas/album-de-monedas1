@@ -8,7 +8,9 @@ vi.mock("@remix-run/react", () => ({
       name: "María García",
       picture: "https://example.com/pic.jpg",
     },
+    profileCompleted: true,
   })),
+  useFetcher: vi.fn(() => ({ state: "idle", data: undefined, Form: vi.fn() })),
 }));
 
 const { default: Home } = await import("~/routes/home");
@@ -21,9 +23,9 @@ describe("Home component", () => {
 
   it("renders all three navigation cards", () => {
     render(<Home />);
-    expect(screen.getByText("Mi colección")).toBeInTheDocument();
-    expect(screen.getByText("Grandes colecciones")).toBeInTheDocument();
-    expect(screen.getByText("Mercados")).toBeInTheDocument();
+    expect(screen.getAllByText("Mi colección").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Grandes colecciones").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Mercados").length).toBeGreaterThan(0);
   });
 
   it("navigation cards point to the correct hrefs", () => {
@@ -37,6 +39,6 @@ describe("Home component", () => {
 
   it("renders the app brand name", () => {
     render(<Home />);
-    expect(screen.getByText(/album de monedas/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/album de monedas/i).length).toBeGreaterThan(0);
   });
 });

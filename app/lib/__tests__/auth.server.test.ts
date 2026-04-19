@@ -5,6 +5,7 @@ const mockEnv: Env = {
   GOOGLE_CLIENT_ID: "test-client-id",
   GOOGLE_CLIENT_SECRET: "test-client-secret",
   SESSION_SECRET: "test-session-secret-32-chars-long!",
+  DB: {} as unknown as D1Database,
 };
 
 describe("createAuth", () => {
