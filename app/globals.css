@@ -27,6 +27,9 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 :root {
@@ -52,24 +55,24 @@
 }
 
 .dark {
-  --background: oklch(0.21 0 0);
-  --foreground: oklch(0.87 0 0);
-  --card: oklch(0.27 0 0);
-  --card-foreground: oklch(0.87 0 0);
-  --popover: oklch(0.27 0 0);
-  --popover-foreground: oklch(0.87 0 0);
-  --primary: oklch(0.87 0 0);
-  --primary-foreground: oklch(0.21 0 0);
-  --secondary: oklch(0.32 0 0);
-  --secondary-foreground: oklch(0.87 0 0);
-  --muted: oklch(0.27 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.32 0 0);
-  --accent-foreground: oklch(0.87 0 0);
+  --background: oklch(0.07 0.006 55);
+  --foreground: oklch(0.95 0.015 82);
+  --card: oklch(0.10 0.005 55 / 92%);
+  --card-foreground: oklch(0.95 0.015 82);
+  --popover: oklch(0.10 0.005 55 / 96%);
+  --popover-foreground: oklch(0.95 0.015 82);
+  --primary: oklch(0.72 0.08 72);
+  --primary-foreground: oklch(0.07 0.006 55);
+  --secondary: oklch(0.14 0.008 55);
+  --secondary-foreground: oklch(0.95 0.015 82);
+  --muted: oklch(0.14 0.008 55);
+  --muted-foreground: oklch(0.95 0.015 82 / 40%);
+  --accent: oklch(0.72 0.08 72 / 12%);
+  --accent-foreground: oklch(0.72 0.08 72);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 18%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.60 0 0);
+  --border: oklch(0.75 0.06 70 / 18%);
+  --input: oklch(0.75 0.06 70 / 14%);
+  --ring: oklch(0.72 0.08 72 / 50%);
 }
 
 @layer base {
@@ -77,6 +80,12 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    font-family: var(--font-body);
+    background:
+      radial-gradient(circle at 20% 30%, rgba(201,164,106,0.08), transparent 60%),
+      radial-gradient(circle at 80% 80%, rgba(184,115,51,0.06), transparent 60%),
+      var(--background);
+    min-height: 100vh;
   }
 }
