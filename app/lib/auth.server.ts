@@ -10,7 +10,11 @@ export type UserProfile = {
   picture: string;
 };
 
-export function createAuth(env: Env) {
+export function createAuth(env: Env, request?: Request) {
+  const callbackURL = request
+    ? `${new URL(request.url).origin}/auth/google/callback`
+    : "/auth/google/callback";
+
   const sessionStorage = createCookieSessionStorage<{ user: UserProfile }>({
     cookie: {
       name: "__session",
@@ -30,7 +34,7 @@ export function createAuth(env: Env) {
       {
         clientID: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
-        callbackURL: "/auth/google/callback",
+        callbackURL,
       },
       async ({ profile }) => ({
         id: profile.id,
