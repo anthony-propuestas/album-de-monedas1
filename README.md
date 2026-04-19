@@ -8,7 +8,8 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
 
-> **Roadmap (pendiente):** D1 (SQLite/Drizzle) · Durable Objects (chat) · R2 + Cloudflare Images · KV · WAF · Turnstile
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario
+> **Pendiente:** Durable Objects (chat) · R2 + Cloudflare Images · KV · WAF · Turnstile
 
 ## Variables de entorno
 
@@ -37,7 +38,7 @@ npm run deploy    # build + deploy a Cloudflare Pages
 | `/` | Landing pública: Hero + "Cómo funciona" + login |
 | `/auth/google` | Inicia flujo OAuth con Google (action POST) |
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
-| `/home` | Dashboard protegido (requiere sesión) |
+| `/home` | Dashboard protegido: menú lateral + modal de configuración de perfil |
 
 ## Arquitectura
 
@@ -52,15 +53,19 @@ app/
     auth.google.tsx           # action POST → inicia OAuth Google
     auth.google.callback.tsx  # loader → callback OAuth, redirige a /home
     home.tsx                  # Dashboard protegido
-  components/ui/
-    button.tsx                # Button shadcn/ui
+  components/
+    ui/button.tsx             # Button shadcn/ui
+    ProfileSetupModal.tsx     # Modal de configuración de perfil (país, objetivos, desde cuándo colecciona)
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage
+    countries.ts              # Lista de países para el formulario de perfil
     utils.ts                  # cn() — merge de clases Tailwind
   types/
     env.d.ts                  # Env interface
 functions/
   [[path]].ts                 # Entry point Cloudflare Pages Functions
+migrations/
+  0001_create_users.sql       # Tabla users: id, email, name, picture, country, collecting_since, goals, profile_completed
 ```
 
 ## Notas

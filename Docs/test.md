@@ -103,7 +103,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/routes/__tests__/home.component.test.tsx`
 **Qué prueba:** el componente React `Home` de `app/routes/home.tsx`.
 
-> `useLoaderData` se mockea para inyectar un usuario de prueba sin necesitar el contexto de Remix.
+> `useLoaderData` y `useFetcher` se mockean para inyectar estado sin necesitar el contexto de Remix.
+
+#### Contenido principal
 
 | Test | Descripción |
 |---|---|
@@ -111,6 +113,45 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | renders all three navigation cards | Las tres cards (Mi colección, Grandes colecciones, Mercados) están en el DOM |
 | navigation cards point to the correct hrefs | Los links apuntan a `/collection`, `/collections` y `/markets` |
 | renders the app brand name | El nombre "Album de Monedas" está visible |
+
+#### Visibilidad del ProfileSetupModal
+
+| Test | Descripción |
+|---|---|
+| renders ProfileSetupModal when profileCompleted is false | Si el perfil no está completo, el modal aparece en el DOM |
+| does not render ProfileSetupModal when profileCompleted is true | Si el perfil está completo, el modal no se renderiza |
+
+#### Menú lateral (drawer)
+
+| Test | Descripción |
+|---|---|
+| renders the hamburger menu button | El botón "Abrir menú" está en el DOM |
+| drawer is hidden by default | El drawer tiene la clase `-translate-x-full` al cargar |
+| opens drawer when hamburger is clicked | Al hacer click en el hamburguesa, el drawer pierde `-translate-x-full` |
+| closes drawer when close button is clicked | El botón "Cerrar menú" devuelve el drawer a `-translate-x-full` |
+| closes drawer when overlay is clicked | El overlay oscuro cierra el drawer al hacer click |
+| drawer contains all navigation items | Noticias, Favoritos y Ajustes están presentes en el drawer |
+| drawer nav links point to correct hrefs | Links del drawer apuntan a `/news`, `/favorites`, `/settings` |
+| drawer shows '@coleccionista' handle for the user | El handle fijo `@coleccionista` aparece en la sección de perfil del drawer |
+
+---
+
+### `app/routes/__tests__/home.action.test.ts`
+**Qué prueba:** el `action` de `app/routes/home.tsx`, que recibe el formulario de perfil y actualiza la base de datos D1.
+
+> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con un objeto con `prepare → bind → run/first` en cadena.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when user is not authenticated | Sin sesión activa, el action lanza `Response` 302 → `/` |
+| returns error for unknown intent | Si `intent` no es `complete_profile`, retorna `{ error: "Acción no reconocida." }` |
+| returns error when name is missing | Campo `name` vacío → `{ error: "Todos los campos son obligatorios." }` |
+| returns error when country is missing | Campo `country` vacío → mismo error de validación |
+| returns error when goals is missing | Campo `goals` vacío → mismo error de validación |
+| returns { success: true } when all fields are provided | Con todos los campos válidos retorna `{ success: true }` |
+| calls DB UPDATE with correct field values | Verifica que `prepare` recibe la query UPDATE y `bind` los 5 valores en orden correcto |
+| does not call DB when validation fails | Si la validación falla, `run()` no se llama nunca |
+| trims whitespace from fields | Los espacios al inicio/fin se recortan antes de guardar en la DB |
 
 ---
 
@@ -143,6 +184,49 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/lib/__tests__/countries.test.ts`
+**Qué prueba:** la lista exportada `countries` de `app/lib/countries.ts` (datos de países para el formulario de perfil).
+
+| Test | Descripción |
+|---|---|
+| has at least 150 entries | La lista tiene cobertura mundial (≥ 150 países) |
+| each entry has non-empty string value and label | Todos los objetos tienen `value` y `label` como strings no vacíos |
+| all values are 2-letter uppercase ISO codes | Cada código cumple el formato ISO 3166-1 alpha-2 (`/^[A-Z]{2}$/`) |
+| values are unique (no duplicate codes) | No hay códigos repetidos |
+| labels are unique (no duplicate names) | No hay nombres repetidos |
+| includes key Latin American and Spanish-speaking countries | AR, MX, ES, CO, CL, PE, VE, UY están presentes |
+| Argentina maps to 'Argentina' | El valor `AR` corresponde al label `"Argentina"` |
+| US maps to 'Estados Unidos' | El valor `US` corresponde al label `"Estados Unidos"` |
+
+---
+
+### `app/components/__tests__/ProfileSetupModal.test.tsx`
+**Qué prueba:** el componente `ProfileSetupModal` de `app/components/ProfileSetupModal.tsx`, que recoge los datos de perfil del usuario tras el primer login.
+
+> `useFetcher` se mockea con una implementación que incluye un `Form` que renderiza un `<form>` nativo, permitiendo interactuar con los inputs reales.
+
+| Test | Descripción |
+|---|---|
+| renders the modal title | El título "Completa tu perfil" está en el DOM |
+| prefills name input with defaultName | El input de nombre muestra el valor recibido por prop |
+| renders email as readonly | El input de email tiene el atributo `readonly` |
+| renders country options from the countries list | Las opciones Argentina, España y México están en el select de país |
+| renders collecting_since options | Las opciones Iniciante, Más de 1 año y Más de 3 años están en su select |
+| renders all goal options | Los 6 goals (Organizar, Networking, Comprar/vender, Aprender, Identificar, Encontrar) están en el DOM |
+| submit button is disabled when no goals selected | Sin goals seleccionados, el botón de submit está deshabilitado |
+| shows hint to select at least one goal | Aparece el texto "Selecciona al menos una opción" |
+| enables submit button after selecting a goal | Al seleccionar un goal, el botón queda habilitado |
+| hides hint after selecting a goal | El hint desaparece tras seleccionar el primer goal |
+| toggling a goal twice re-disables the submit button | Seleccionar y deseleccionar el mismo goal vuelve a deshabilitar el submit |
+| multiple goals can be selected simultaneously | Se pueden seleccionar varios goals a la vez |
+| shows 'Guardando...' when fetcher state is submitting | Mientras el fetcher está en estado `submitting`, el botón muestra "Guardando..." |
+| submit button is disabled while submitting | El botón está deshabilitado durante el envío |
+| shows error message from fetcher.data.error | Si `fetcher.data.error` tiene valor, se muestra el mensaje de error |
+| hidden input sets intent to complete_profile | El input oculto `intent` tiene el valor `"complete_profile"` |
+| hidden goals input updates when goals are toggled | El input oculto `goals` refleja los goals seleccionados como string separado por comas |
+
+---
+
 ### `app/routes/__tests__/_index.test.tsx`
 **Qué prueba:** el componente `Index` de `app/routes/_index.tsx` (la landing pública).
 
@@ -163,9 +247,10 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ## Estrategia de mocking
 
-Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean dos cosas:
+Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cosas:
 
 - **`~/lib/auth.server`** — se reemplaza `createAuth` con `vi.mock` para controlar qué devuelve `isAuthenticated` o `authenticate` en cada test.
-- **`@remix-run/react`** — en tests de componentes que usan `Form` o `useLoaderData`, se inyectan valores directamente sin necesitar el router de Remix.
+- **`@remix-run/react`** — en tests de componentes que usan `Form`, `useLoaderData` o `useFetcher`, se inyectan valores directamente sin necesitar el router de Remix. El mock de `useFetcher` incluye un `Form` funcional que renderiza un `<form>` nativo real.
+- **D1 Database (`DB`)** — se simula con un objeto que encadena `prepare → bind → run/first` mediante `vi.fn()`, permitiendo verificar qué queries y valores se envían sin conectar a una base de datos real.
 
 Esto mantiene los tests rápidos, deterministas y sin efectos secundarios de red.

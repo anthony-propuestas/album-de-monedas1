@@ -1,6 +1,6 @@
 # Seguridad — Album de Monedas
 
-Estado actual: MVP con autenticación Google OAuth funcional.
+Estado actual: MVP con autenticación Google OAuth funcional y base de datos D1 (perfil de usuario).
 
 ---
 
@@ -26,8 +26,37 @@ Estado actual: MVP con autenticación Google OAuth funcional.
 
 ### Protección de rutas
 
-- `home.tsx` llama a `authenticator.isAuthenticated(request)` y lanza `redirect("/")` si no hay sesión.
+- `home.tsx` llama a `authenticator.isAuthenticated(request)` tanto en el `loader` como en el `action`, y lanza `redirect("/")` si no hay sesión. Esto evita que un request directo al endpoint de perfil omita la autenticación.
 - Las rutas `/auth/google` y `/auth/google/callback` no requieren sesión.
+
+---
+
+## Base de datos D1
+
+### Queries parametrizadas
+
+Todas las interacciones con D1 usan el método `.bind()` de la API de D1, que separa la query del dato y previene SQL injection:
+
+```ts
+db.prepare("SELECT profile_completed FROM users WHERE id = ?").bind(user.id).first()
+db.prepare("INSERT INTO users (id, email, name, picture) VALUES (?, ?, ?, ?)").bind(...).run()
+db.prepare("UPDATE users SET name = ?, country = ?, ... WHERE id = ?").bind(...).run()
+```
+
+Nunca se interpola input del usuario directamente en un string de query.
+
+### Validación de entrada en el action
+
+El `action` de `/home` valida que `name`, `country`, `collecting_since` y `goals` sean strings no vacíos (tras `.trim()`) antes de escribir en la DB. Si falta cualquiera, retorna `{ error }` sin tocar la base de datos.
+
+### Datos almacenados
+
+| Campo | Fuente | Riesgo |
+|-------|--------|--------|
+| `id`, `email`, `name`, `picture` | Token OAuth de Google (servidor) | Bajo — datos verificados por Google |
+| `country`, `collecting_since` | Input de formulario | Bajo — validado como no vacío; React escapa al renderizar |
+| `goals` | Input de formulario (comma-separated) | Bajo — mismo tratamiento; no se ejecuta como código |
+| `profile_completed` | Servidor (siempre `1` en UPDATE) | Ninguno — el cliente no puede enviarlo directamente |
 
 ---
 
@@ -63,7 +92,9 @@ Estado actual: MVP con autenticación Google OAuth funcional.
 | Sin CSRF token explícito | Aceptado (Remix) | `sameSite: lax` mitiga casos comunes; Remix Forms incluye protección nativa |
 | Sin logout implementado | Pendiente | Añadir ruta `/auth/logout` que destruya la sesión |
 | Sin scope mínimo verificado | Pendiente | Verificar que solo se solicitan `openid email profile` |
-| D1/R2 sin implementar | N/A | Aplicar principio de mínimo privilegio cuando se conecte |
+| Sin validación de longitud máxima en inputs de perfil | Pendiente | Añadir límite de caracteres en `name` y `goals` para prevenir payloads gigantes en D1 |
+| Sin validación de valores permitidos en `country` y `collecting_since` | Pendiente | Verificar contra la lista de valores válidos (enum) en el action |
+| R2 + Cloudflare Images sin implementar | N/A | Aplicar principio de mínimo privilegio cuando se conecte |
 
 ---
 
@@ -76,3 +107,6 @@ Estado actual: MVP con autenticación Google OAuth funcional.
 - [ ] Activar Cloudflare WAF y Turnstile.
 - [ ] Implementar `/auth/logout`.
 - [ ] Revisar headers de seguridad (CSP, HSTS) vía Cloudflare o middleware.
+- [ ] Añadir validación de longitud máxima en `name` y `goals` en el action de `/home`.
+- [ ] Validar `country` contra la lista de códigos ISO y `collecting_since` contra los valores del enum antes de escribir en D1.
+- [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
