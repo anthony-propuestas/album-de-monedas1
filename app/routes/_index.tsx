@@ -1,4 +1,5 @@
 import type { MetaFunction } from "@remix-run/cloudflare";
+import { Form } from "@remix-run/react";
 import { BookOpen, Upload, Users } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
@@ -54,9 +55,14 @@ export default function Index() {
           otros coleccionistas y descubre el valor real de tus piezas.
         </p>
 
-        <Button className="mt-10 h-12 cursor-pointer bg-amber-500 px-8 text-base text-zinc-950 hover:bg-amber-400">
-          Iniciar sesión con Google
-        </Button>
+        <Form method="post" action="/auth/google">
+          <Button
+            type="submit"
+            className="mt-10 h-12 cursor-pointer bg-amber-500 px-8 text-base text-zinc-950 hover:bg-amber-400"
+          >
+            Iniciar sesión con Google
+          </Button>
+        </Form>
       </section>
 
       {/* Cómo funciona */}
