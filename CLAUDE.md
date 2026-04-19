@@ -19,11 +19,10 @@ npm run deploy       # build + deploy a Cloudflare Pages
 ## Stack
 
 - **Frontend**: Remix v2 (Vite) · Tailwind CSS v4 · shadcn/ui (@base-ui/react) → Cloudflare Pages
-- **Auth**: NextAuth.js · Google OAuth · Cloudflare KV (sesiones)
-- **DB**: Cloudflare D1 (SQLite) + Drizzle ORM
-- **Chat**: Cloudflare Durable Objects (WebSockets)
-- **Imágenes**: Cloudflare R2 + Cloudflare Images
-- **Seguridad**: Cloudflare WAF · Turnstile (anti-bot)
+- **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
+- **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
+
+> **Pendiente de implementar:** D1 (SQLite/Drizzle) · Durable Objects (chat) · R2 + Cloudflare Images · KV · WAF · Turnstile
 
 ## Reglas
 
@@ -39,21 +38,28 @@ npm run deploy       # build + deploy a Cloudflare Pages
 
 ```
 app/
-  root.tsx              # Layout: <html dark>, fuentes Geist, Outlet
-  globals.css           # Tokens shadcn/ui + @import tailwindcss
-  entry.client.tsx      # Hydration React en browser
-  entry.server.tsx      # SSR con renderToReadableStream (Cloudflare)
+  root.tsx                      # Layout: <html dark>, Outlet
+  globals.css                   # Tokens shadcn/ui + @import tailwindcss
+  entry.client.tsx              # Hydration React en browser
+  entry.server.tsx              # SSR con renderToReadableStream (Cloudflare)
   routes/
-    _index.tsx          # Landing pública: Hero + "Cómo funciona"
+    _index.tsx                  # Landing pública: Hero + "Cómo funciona" + login
+    auth.google.tsx             # action POST → inicia OAuth Google
+    auth.google.callback.tsx    # loader → callback OAuth, redirige a /home
+    home.tsx                    # Dashboard protegido (requiere sesión)
   components/ui/
-    button.tsx          # Button shadcn/ui
+    button.tsx                  # Button shadcn/ui
   lib/
-    utils.ts            # cn() — merge de clases Tailwind
+    auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
+    utils.ts                    # cn() — merge de clases Tailwind
+  types/
+    env.d.ts                    # Env interface (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET)
 functions/
-  [[path]].ts           # Entry point Cloudflare Pages Functions
-public/                 # Assets estáticos
-vite.config.ts          # Remix plugin + Tailwind v4 plugin + tsconfigPaths
-wrangler.toml           # Config Cloudflare Pages (output: build/client)
+  [[path]].ts                   # Entry point Cloudflare Pages Functions
+public/                         # Assets estáticos
+vite.config.ts                  # Remix plugin + Tailwind v4 plugin + tsconfigPaths
+wrangler.toml                   # Config Cloudflare Pages (output: build/client)
+.dev.vars                       # Variables de entorno locales (no commitear)
 ```
 
 ## Routing en Remix
