@@ -24,8 +24,8 @@ export default function Home() {
   const { user } = useLoaderData<typeof loader>();
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center px-6">
-      <div className="mb-6 flex items-center gap-3 text-amber-500">
+    <main className="min-h-screen bg-zinc-800 text-zinc-300 flex flex-col items-center justify-center px-6">
+      <div className="mb-6 flex items-center gap-3 text-amber-400">
         <span className="text-4xl leading-none">🪙</span>
         <span className="text-sm font-semibold tracking-[0.25em] uppercase">
           Album de Monedas
@@ -37,7 +37,7 @@ export default function Home() {
           <a
             key={item.href}
             href={item.href}
-            className="flex items-center justify-center rounded-xl bg-amber-500 text-zinc-950 font-bold text-xl h-40 hover:bg-amber-400 transition-colors text-center px-4"
+            className="flex items-center justify-center rounded-xl bg-amber-400 text-zinc-900 font-bold text-xl h-40 hover:bg-amber-300 transition-colors text-center px-4"
           >
             {item.label}
           </a>
