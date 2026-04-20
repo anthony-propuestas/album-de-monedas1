@@ -35,6 +35,7 @@ export function createAuth(env: Env, request?: Request) {
         clientID: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
         callbackURL,
+        scope: ["openid", "email", "profile"],
       },
       async ({ profile }) => ({
         id: profile.id,

@@ -10,6 +10,7 @@ import { AddCoinModal } from "~/components/AddCoinModal";
 import { CoinCard } from "~/components/CoinCard";
 import { CoinFilters } from "~/components/CoinFilters";
 import { createAuth } from "~/lib/auth.server";
+import { COINS_BY_COUNTRY } from "~/lib/coins";
 import type { Coin } from "~/components/CoinCard";
 
 export const meta: MetaFunction = () => [
@@ -78,11 +79,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const uploadPhoto = async (slot: string): Promise<string | null> => {
     const file = form.get(slot);
     if (!file || !(file instanceof File) || file.size === 0) return null;
+    if (file.size > 5 * 1024 * 1024) return null;
     if (!images) return null;
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return null;
     const key = `${user.id}/${coinId}/${slot}`;
-    await images.put(key, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type },
-    });
+    await images.put(key, buffer, { httpMetadata: { contentType: "image/jpeg" } });
     return key;
   };
 
@@ -94,7 +97,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
       uploadPhoto("photo_detail"),
     ]);
 
-  const name = form.get("name")?.toString() ?? "";
+  const name = form.get("name")?.toString().trim() ?? "";
+  if (!name) return json({ error: "El nombre es obligatorio." }, { status: 400 });
   const country = form.get("country")?.toString() || null;
   const yearRaw = form.get("year")?.toString();
   const year = yearRaw ? parseInt(yearRaw, 10) : null;
@@ -105,6 +109,39 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const estimatedRaw = form.get("estimated_value")?.toString();
   const estimatedValue = estimatedRaw ? parseFloat(estimatedRaw) : null;
   const notes = form.get("notes")?.toString() || null;
+
+  if (name.length > 200 || (notes && notes.length > 1000)) {
+    return json({ error: "Texto demasiado largo." }, { status: 400 });
+  }
+
+  const VALID_CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"] as const;
+  if (condition && !(VALID_CONDITIONS as readonly string[]).includes(condition)) {
+    return json({ error: "Condición inválida." }, { status: 400 });
+  }
+
+  const coinsForCountry = country ? COINS_BY_COUNTRY[country] : null;
+  if (coinsForCountry) {
+    const validDenominations = [...new Set(coinsForCountry.map(c => c.denominacion))];
+    if (denomination && !validDenominations.includes(denomination)) {
+      return json({ error: "Denominación inválida." }, { status: 400 });
+    }
+    const validNames = coinsForCountry
+      .filter(c => !denomination || c.denominacion === denomination)
+      .map(c => c.nombre);
+    if (!validNames.includes(name)) {
+      return json({ error: "Nombre de moneda inválido." }, { status: 400 });
+    }
+  }
+
+  const MAX_COINS = 500;
+  const row = await db
+    .prepare("SELECT COUNT(*) as count FROM coins WHERE user_id = ?")
+    .bind(user.id)
+    .first<{ count: number }>();
+  const coinCount = row?.count ?? 0;
+  if (coinCount >= MAX_COINS) {
+    return json({ error: "Límite de monedas alcanzado." }, { status: 429 });
+  }
 
   await db
     .prepare(

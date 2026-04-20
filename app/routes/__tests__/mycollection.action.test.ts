@@ -6,7 +6,10 @@ vi.mock("~/lib/auth.server");
 const { action } = await import("~/routes/mycollection");
 
 function makeMockDb() {
-  const bindObj = { run: vi.fn().mockResolvedValue({}) };
+  const bindObj = {
+    run: vi.fn().mockResolvedValue({}),
+    first: vi.fn().mockResolvedValue({ count: 0 }),
+  };
   const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
   const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
   return { db, prepareObj, bindObj };
@@ -131,7 +134,7 @@ describe("mycollection action", () => {
     });
 
     expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO coins"));
-    const bindArgs: unknown[] = prepareObj.bind.mock.calls[0];
+    const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
     expect(bindArgs).toContain(mockUser.id);
     expect(bindArgs).toContain("1 Peso 1964");
     expect(bindObj.run).toHaveBeenCalled();
@@ -150,7 +153,7 @@ describe("mycollection action", () => {
       params: {},
     });
 
-    const bindArgs: unknown[] = prepareObj.bind.mock.calls[0];
+    const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
     expect(bindArgs.slice(-4)).toEqual([null, null, null, null]);
   });
 
@@ -162,7 +165,8 @@ describe("mycollection action", () => {
 
     const images = makeMockImages();
     const { db, prepareObj } = makeMockDb();
-    const file = new File(["img-data"], "front.jpg", { type: "image/jpeg" });
+    const jpegBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]);
+    const file = new File([jpegBytes], "front.jpg", { type: "image/jpeg" });
     const body = new FormData();
     body.append("intent", "add_coin");
     body.append("name", "Peso");
@@ -176,7 +180,7 @@ describe("mycollection action", () => {
       expect.any(ArrayBuffer),
       { httpMetadata: { contentType: "image/jpeg" } }
     );
-    const bindArgs: unknown[] = prepareObj.bind.mock.calls[0];
+    const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
     const photoObverse = bindArgs[bindArgs.length - 4] as string;
     expect(photoObverse).not.toBeNull();
     expect(photoObverse).toContain(mockUser.id);
@@ -196,7 +200,7 @@ describe("mycollection action", () => {
       params: {},
     });
 
-    const bindArgs: unknown[] = prepareObj.bind.mock.calls[0];
+    const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
     expect(bindArgs).toContain(1964);
     expect(bindArgs).toContain(25.5);
   });
@@ -214,7 +218,7 @@ describe("mycollection action", () => {
       params: {},
     });
 
-    const bindArgs: unknown[] = prepareObj.bind.mock.calls[0];
+    const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
     // country, denomination, condition, mint, catalog_ref are null when not submitted
     expect(bindArgs).toContain(null);
   });

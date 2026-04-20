@@ -11,6 +11,7 @@ const mockUser = {
 
 vi.mock("@remix-run/react", () => ({
   useLoaderData: vi.fn(() => ({ user: mockUser, profileCompleted: true })),
+  Form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
   useFetcher: vi.fn(() => ({
     state: "idle",
     data: undefined,

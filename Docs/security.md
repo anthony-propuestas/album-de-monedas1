@@ -9,7 +9,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 ### Flujo OAuth Google
 
 1. El usuario hace POST a `/auth/google` (form de Remix).
-2. `remix-auth` redirige al servidor de Google con los scopes `openid email profile`.
+2. `remix-auth` redirige al servidor de Google con los scopes por defecto de `remix-auth-google` (`openid email profile`); el código no los especifica explícitamente en la configuración de `GoogleStrategy`.
 3. Google redirige a `/auth/google/callback` con el authorization code.
 4. El servidor intercambia el code por tokens, extrae el perfil y crea la sesión.
 5. El usuario queda redirigido a `/home`.
@@ -28,7 +28,8 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 
 - `home.tsx` y `mycollection.tsx` llaman a `authenticator.isAuthenticated(request)` tanto en el `loader` como en el `action`, y lanzan `redirect("/")` si no hay sesión.
 - Las rutas `/auth/google` y `/auth/google/callback` no requieren sesión.
-- `/images/*` no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
+- `/images/*` (implementado en `app/routes/images.$.tsx`) no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
+- `/admin` (implementado en `app/routes/admin.tsx`) requiere sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirige a `/`.
 
 ---
 
@@ -51,12 +52,12 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 ### Validación de entrada en los actions
 
 - El `action` de `/home` valida que `name`, `country`, `collecting_since` y `goals` sean strings no vacíos (tras `.trim()`) antes de escribir en la DB.
-- El `action` de `/mycollection` requiere que `intent === "add_coin"` y que el campo `name` tenga valor. Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
+- El `action` de `/mycollection` requiere que `intent === "add_coin"`. El campo `name` se lee con `?? ""` pero **no se valida** que sea no vacío antes del INSERT — se puede insertar una moneda con `name = ""`. Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
 
 ### Almacenamiento de imágenes en R2
 
 - La clave de cada imagen es `{userId}/{coinId}/{slot}` — el `coinId` es un UUID v4 generado en el servidor, haciendo las claves no predecibles.
-- Antes de subirse, cada foto pasa por el editor `ImageCropEditor`: el navegador la redibuja en un `<canvas>` 512×512 y la exporta con `canvas.toBlob(..., "image/jpeg", 0.92)`. Esto significa que el archivo que llega al servidor **siempre es un JPEG re-encodado**, independientemente del formato original (PNG, HEIC, WebP, etc.). El `contentType` enviado a R2 es `"image/jpeg"` en todos los casos.
+- Antes de subirse, cada foto pasa por el editor `ImageCropEditor`: el navegador la redibuja en un `<canvas>` 512×512 y la exporta con `canvas.toBlob(..., "image/jpeg", 0.92)`. En el flujo normal el archivo que llega al servidor es un JPEG re-encodado, independientemente del formato original (PNG, HEIC, WebP, etc.). El `contentType` enviado a R2 es `file.type` del objeto `File` recibido por el servidor — en el flujo normal coincide con `"image/jpeg"` porque el blob del canvas lleva ese tipo, pero un cliente que bypasee el canvas puede declarar cualquier `Content-Type`.
 - Esto mitiga parcialmente el riesgo de tipo MIME: el servidor recibe JPEG en lugar del tipo declarado por el navegador. Sin embargo, no se validan magic bytes server-side ni se limita el tamaño antes de llamar a R2.
 - No existe límite de tamaño de archivo enforced en el servidor más allá del límite de Cloudflare Pages Functions (100 MB por request).
 
@@ -122,6 +123,7 @@ Ninguna superficie de ataque nueva. En particular:
 | `GOOGLE_CLIENT_ID` | Identifica la app ante Google | Bajo (es pública en OAuth) |
 | `GOOGLE_CLIENT_SECRET` | Autentica la app ante Google | **Alto** — permite impersonar la app |
 | `SESSION_SECRET` | Firma las cookies de sesión | **Crítico** — permite forjar sesiones |
+| `ADMIN_EMAIL` | Email del único usuario administrador (`/admin`) | **Alto** — permite saber qué cuenta tiene acceso admin |
 
 - En local: `.dev.vars` (ignorado por git vía `.gitignore`).
 - En producción: configurar en el dashboard de Cloudflare Pages (nunca en el repo).
@@ -146,7 +148,7 @@ Ninguna superficie de ataque nueva. En particular:
 | Sin rate limiting en `/auth/google` | Pendiente | Regla de rate limit en Cloudflare |
 | Sin CSRF token explícito | Aceptado (Remix) | `sameSite: lax` mitiga casos comunes; Remix Forms incluye protección nativa |
 | Sin logout implementado | Pendiente | Añadir ruta `/auth/logout` que destruya la sesión |
-| Sin scope mínimo verificado | Pendiente | Verificar que solo se solicitan `openid email profile` |
+| Sin scope mínimo verificado explícitamente | Pendiente | Los scopes `openid email profile` son los defaults de `remix-auth-google` pero no están hardcodeados en `GoogleStrategy`; especificar `scope` explícitamente y verificar en el callback |
 | Sin validación de longitud máxima en inputs de perfil/moneda | Pendiente | Añadir límite de caracteres en `name`, `notes`, `goals` para prevenir payloads gigantes en D1 |
 | Sin validación de valores permitidos en `country` y `condition` de monedas | Pendiente | Verificar `country` contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action |
 | Sin validación server-side de `denomination`, `name` y `mint` contra los módulos de monedas | Pendiente | Cuando `COINS_BY_COUNTRY[country]` existe, verificar que `denomination` y `name` son valores del módulo; rechazar con 400 si no coinciden |
@@ -161,6 +163,7 @@ Ninguna superficie de ataque nueva. En particular:
 
 - [ ] `SESSION_SECRET` de al menos 32 caracteres aleatorios.
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` configurados en Cloudflare Pages.
+- [ ] `ADMIN_EMAIL` configurado en Cloudflare Pages (nunca en el repo).
 - [ ] Dominio de callback registrado en Google Cloud Console.
 - [ ] `secure: true` en cookie (automático si `NODE_ENV=production`).
 - [ ] Activar Cloudflare WAF y Turnstile.
@@ -171,5 +174,6 @@ Ninguna superficie de ataque nueva. En particular:
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] Validar `country` de monedas contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action de `/mycollection`.
 - [ ] Cuando `COINS_BY_COUNTRY[country]` existe, validar server-side que `denomination` y `name` son valores reconocidos del módulo antes de escribir en D1.
+- [ ] Añadir validación en el `action` de `/mycollection` que rechace `name` vacío antes del INSERT.
 - [ ] Añadir validación de magic bytes server-side (el canvas garantiza JPEG, pero una segunda verificación es recomendable) y límite de tamaño máximo por foto antes de subir a R2.
 - [ ] Definir un límite de monedas por usuario para prevenir abuso de almacenamiento en D1 y R2.

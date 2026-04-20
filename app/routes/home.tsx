@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
-import { useLoaderData } from "@remix-run/react";
+import { Form, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
 import { ProfileSetupModal } from "~/components/ProfileSetupModal";
@@ -49,6 +49,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (!name || !country || !collectingSince || !goals) {
       return json({ error: "Todos los campos son obligatorios." });
+    }
+
+    if (name.length > 100 || goals.length > 500) {
+      return json({ error: "Texto demasiado largo." }, { status: 400 });
     }
 
     const db = context.cloudflare.env.DB;
@@ -210,6 +214,23 @@ export default function Home() {
             </a>
           ))}
         </nav>
+
+        {/* Logout */}
+        <div className="px-3 pb-2">
+          <Form method="post" action="/auth/logout">
+            <button
+              type="submit"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[rgba(242,236,224,0.55)] hover:bg-[rgba(201,164,106,0.1)] hover:text-[#C9A46A] transition-colors text-sm"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Cerrar sesión
+            </button>
+          </Form>
+        </div>
 
         {/* Footer branding */}
         <div className="px-5 py-4 border-t border-[rgba(210,180,130,0.12)] flex items-center gap-2 text-[rgba(242,236,224,0.25)]">

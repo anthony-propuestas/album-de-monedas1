@@ -3,6 +3,8 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   ADMIN_EMAIL: string;
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_SITE_KEY?: string;
   DB: D1Database;
   IMAGES?: R2Bucket;
 }
