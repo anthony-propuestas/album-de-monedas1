@@ -60,8 +60,9 @@ app/
   components/
     ui/button.tsx             # Button shadcn/ui
     ProfileSetupModal.tsx     # Modal de configuración de perfil
-    AddCoinModal.tsx          # Modal multipart: 4 slots de foto + datos numismáticos + preview cliente
-    CoinCard.tsx              # Tarjeta de galería: foto anverso, nombre, país/año, badge de condición
+    AddCoinModal.tsx          # Modal multipart: 4 slots de foto + editor de recorte + datos numismáticos
+    ImageCropEditor.tsx       # Editor circular: drag-to-pan, zoom, crop via Canvas 512×512 → JPEG
+    CoinCard.tsx              # Tarjeta de galería: foto anverso circular, nombre, país/año, badge de condición
     CoinFilters.tsx           # Barra de filtros: búsqueda, país, año, condición (URL search params)
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage

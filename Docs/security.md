@@ -56,7 +56,8 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 ### Almacenamiento de imágenes en R2
 
 - La clave de cada imagen es `{userId}/{coinId}/{slot}` — el `coinId` es un UUID v4 generado en el servidor, haciendo las claves no predecibles.
-- El `contentType` enviado a R2 proviene de `file.type` (declarado por el navegador). No se valida server-side contra una lista de tipos permitidos.
+- Antes de subirse, cada foto pasa por el editor `ImageCropEditor`: el navegador la redibuja en un `<canvas>` 512×512 y la exporta con `canvas.toBlob(..., "image/jpeg", 0.92)`. Esto significa que el archivo que llega al servidor **siempre es un JPEG re-encodado**, independientemente del formato original (PNG, HEIC, WebP, etc.). El `contentType` enviado a R2 es `"image/jpeg"` en todos los casos.
+- Esto mitiga parcialmente el riesgo de tipo MIME: el servidor recibe JPEG en lugar del tipo declarado por el navegador. Sin embargo, no se validan magic bytes server-side ni se limita el tamaño antes de llamar a R2.
 - No existe límite de tamaño de archivo enforced en el servidor más allá del límite de Cloudflare Pages Functions (100 MB por request).
 
 ### Datos almacenados
@@ -117,7 +118,7 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 | Sin scope mínimo verificado | Pendiente | Verificar que solo se solicitan `openid email profile` |
 | Sin validación de longitud máxima en inputs de perfil/moneda | Pendiente | Añadir límite de caracteres en `name`, `notes`, `goals` para prevenir payloads gigantes en D1 |
 | Sin validación de valores permitidos en `country` y `condition` de monedas | Pendiente | Verificar `country` contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action |
-| Sin validación server-side del tipo MIME de imágenes | Pendiente | Verificar magic bytes del archivo antes de subir a R2; rechazar tipos no permitidos |
+| Sin validación server-side del tipo MIME de imágenes | Parcialmente mitigado | El canvas re-encodea siempre a JPEG antes del upload; falta verificar magic bytes server-side como segunda línea de defensa |
 | Sin límite de tamaño de archivo enforced | Pendiente | Validar `file.size` en el action (ej. máx. 5 MB por foto) antes de llamar a R2 |
 | Sin control de cuántas monedas puede crear un usuario | Pendiente | Añadir límite por `user_id` en el action de `/mycollection` para prevenir abuso de almacenamiento |
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
@@ -137,5 +138,5 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 - [ ] Validar `country` contra la lista de códigos ISO y `collecting_since` contra los valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] Validar `country` de monedas contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action de `/mycollection`.
-- [ ] Añadir validación de tipo MIME (magic bytes) y tamaño máximo por foto antes de subir a R2.
+- [ ] Añadir validación de magic bytes server-side (el canvas garantiza JPEG, pero una segunda verificación es recomendable) y límite de tamaño máximo por foto antes de subir a R2.
 - [ ] Definir un límite de monedas por usuario para prevenir abuso de almacenamiento en D1 y R2.

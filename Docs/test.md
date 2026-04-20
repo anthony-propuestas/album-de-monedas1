@@ -303,6 +303,52 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/components/__tests__/ImageCropEditor.test.tsx`
+**Qué prueba:** el componente `ImageCropEditor` de `app/components/ImageCropEditor.tsx`, que permite centrar y hacer zoom a una imagen antes de subirla, produciendo un recorte circular vía Canvas.
+
+> `HTMLCanvasElement.prototype.getContext` y `toBlob` se mockean porque happy-dom no implementa Canvas. `URL.createObjectURL/revokeObjectURL` también se mockean.
+
+| Test | Descripción |
+|---|---|
+| renders the slot label | El heading muestra `"Ajustar — {slotLabel}"` con el label recibido por prop |
+| shows initial zoom as 1.0× | Al montar, el indicador de zoom muestra `"1.0×"` |
+| shows hint text | Aparece el texto `"Arrastra para centrar · Scroll para zoom"` |
+| clicking + increases zoom by 0.1 | Al hacer click en `+`, el indicador pasa de `1.0×` a `1.1×` |
+| clicking − decreases zoom by 0.1 | Al hacer click en `−` tras dos `+`, vuelve de `1.2×` a `1.1×` |
+| zoom does not exceed 5.0× | 50 clicks en `+` dejan el indicador en `5.0×` (límite superior) |
+| zoom does not go below 0.5× | 20 clicks en `−` dejan el indicador en `0.5×` (límite inferior) |
+| Cancelar calls onCancel | El botón "Cancelar" invoca `onCancel` exactamente una vez |
+| Confirmar recorte calls onConfirm with a File | El botón "Confirmar recorte" llama a `onConfirm` con una instancia de `File` |
+| File passed to onConfirm has jpeg type | El `File` producido por el crop tiene `type: "image/jpeg"` y `name: "photo.jpg"` |
+| renders different slot label passed as prop | Con `slotLabel="Reverso"`, el heading muestra `"Ajustar — Reverso"` |
+
+---
+
+### `app/components/__tests__/AddCoinModal.test.tsx`
+**Qué prueba:** el componente `AddCoinModal` de `app/components/AddCoinModal.tsx`, incluyendo el flujo de selección de foto, apertura del editor de crop y actualización del preview circular.
+
+> `@remix-run/react` se mockea (Form + useNavigation). `ImageCropEditor` se reemplaza por un stub que expone botones `mock-confirm` y `mock-cancel`. `URL.createObjectURL/revokeObjectURL` y `DataTransfer` se mockean.
+
+| Test | Descripción |
+|---|---|
+| renders nothing when closed | Con `isOpen=false`, el modal no está en el DOM |
+| renders the modal title when open | Con `isOpen=true`, aparece el título "Nueva pieza" |
+| renders all 4 photo slot labels | Los labels Anverso, Reverso, Canto y Detalle están presentes |
+| does not show crop editor initially | Al montar, el editor de crop no está visible |
+| opens crop editor after selecting a file | Al seleccionar un archivo en el primer slot, aparece `data-testid="crop-editor"` |
+| crop editor shows the correct slot label for Anverso | El stub del editor muestra `"Anverso"` al usar el primer input |
+| crop editor shows Reverso label for the second slot | El stub del editor muestra `"Reverso"` al usar el segundo input |
+| closes crop editor after confirming crop | Tras `mock-confirm`, el editor desaparece del DOM |
+| shows circular preview after confirming crop | Tras confirmar, aparece un `<img>` dentro de `.rounded-full` con `src="blob:mock"` |
+| closes crop editor after canceling | Tras `mock-cancel`, el editor desaparece del DOM |
+| does not show preview after canceling crop | Tras cancelar, no hay `<img>` dentro de `.rounded-full` |
+| shows 'Guardando...' while submitting | Con `navigation.state="submitting"`, el botón muestra "Guardando..." |
+| submit button is disabled while submitting | El botón de submit está deshabilitado durante el envío |
+| calls onClose when clicking the X button | El botón X del header llama a `onClose` |
+| calls onClose when clicking Cancelar | El botón "Cancelar" del footer llama a `onClose` |
+
+---
+
 ### `app/components/__tests__/CoinCard.test.tsx`
 **Qué prueba:** el componente `CoinCard` de `app/components/CoinCard.tsx`, que muestra la tarjeta de una moneda en la galería.
 
@@ -321,6 +367,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | does not render condition badge when condition is null | Sin condición, no hay badge |
 | renders condition badge for grade X (×8) | Cada uno de los 8 grados (`MS`, `AU`, `XF`, `VF`, `F`, `VG`, `G`, `P`) renderiza su badge |
 | renders placeholder icon when no photo | Sin foto, no hay `<img>` en el DOM |
+| image is wrapped inside a rounded-full container | Con foto, el `<img>` está dentro de un elemento con clase `rounded-full` |
+| placeholder is inside the rounded-full container | Sin foto, el texto "Sin foto" está dentro del contenedor `rounded-full` |
 
 ---
 

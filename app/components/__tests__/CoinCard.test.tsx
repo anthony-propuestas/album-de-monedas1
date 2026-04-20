@@ -94,4 +94,20 @@ describe("CoinCard", () => {
     expect(screen.getByText("Sin foto")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it("image is wrapped inside a rounded-full container", () => {
+    const { container } = render(
+      <CoinCard coin={makeCoin({ photo_obverse: "user-1/coin-1/photo_obverse" })} />
+    );
+    const roundedDiv = container.querySelector(".rounded-full");
+    expect(roundedDiv).toBeInTheDocument();
+    expect(roundedDiv?.querySelector("img")).toBeInTheDocument();
+  });
+
+  it("placeholder is inside the rounded-full container", () => {
+    const { container } = render(<CoinCard coin={makeCoin({ photo_obverse: null })} />);
+    const roundedDiv = container.querySelector(".rounded-full");
+    expect(roundedDiv).toBeInTheDocument();
+    expect(roundedDiv).toHaveTextContent("Sin foto");
+  });
 });
