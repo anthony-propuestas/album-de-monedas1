@@ -2,6 +2,7 @@ import { Form, useNavigation } from "@remix-run/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { countries } from "~/lib/countries";
 import { ImageCropEditor } from "~/components/ImageCropEditor";
+import { COINS_BY_COUNTRY } from "~/lib/coins/index";
 
 const CONDITIONS = [
   { value: "MS", label: "MS — Mint State" },
@@ -38,6 +39,18 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
   const [cropTarget, setCropTarget] = useState<{ slot: string; label: string; src: string } | null>(null);
   const wasSubmitting = useRef(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedDenomination, setSelectedDenomination] = useState("");
+  const [selectedName, setSelectedName] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+
+  const countryCoins = COINS_BY_COUNTRY[selectedCountry] ?? [];
+  const hasCoinData = countryCoins.length > 0;
+  const denominations = [...new Set(countryCoins.map((c) => c.denominacion))];
+  const names = [...new Set(countryCoins.filter((c) => c.denominacion === selectedDenomination).map((c) => c.nombre))];
+  const years = countryCoins.filter((c) => c.nombre === selectedName).map((c) => c.anio).sort((a, b) => a - b);
+  const autoMint = countryCoins.find((c) => c.nombre === selectedName && c.anio === Number(selectedYear))?.casa_acunacion ?? "";
 
   useEffect(() => {
     if (navigation.state === "submitting") {
@@ -121,48 +134,52 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
           >
             <input type="hidden" name="intent" value="add_coin" />
 
-            {/* Nombre */}
+            {/* País */}
             <div className="flex flex-col gap-1.5">
-              <label className={LABEL}>Nombre de la pieza *</label>
-              <input
-                name="name"
-                required
-                placeholder="Ej: 1 Peso 1964 México"
+              <label className={LABEL}>País</label>
+              <select
+                name="country"
                 className={INPUT}
-              />
-            </div>
-
-            {/* País + Año */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={LABEL}>País</label>
-                <select name="country" className={INPUT}>
-                  <option value="">Seleccionar país</option>
-                  {countries.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={LABEL}>Año</label>
-                <input
-                  name="year"
-                  type="number"
-                  min={1}
-                  max={2100}
-                  placeholder="Ej: 1964"
-                  className={INPUT}
-                />
-              </div>
+                value={selectedCountry}
+                onChange={(e) => {
+                  setSelectedCountry(e.target.value);
+                  setSelectedDenomination("");
+                  setSelectedName("");
+                  setSelectedYear("");
+                }}
+              >
+                <option value="">Seleccionar país</option>
+                {countries.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Denominación + Condición */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className={LABEL}>Denominación</label>
-                <input name="denomination" placeholder="Ej: 1 Peso" className={INPUT} />
+                {hasCoinData ? (
+                  <select
+                    name="denomination"
+                    className={INPUT}
+                    value={selectedDenomination}
+                    onChange={(e) => {
+                      setSelectedDenomination(e.target.value);
+                      setSelectedName("");
+                      setSelectedYear("");
+                    }}
+                  >
+                    <option value="">Seleccionar denominación</option>
+                    {denominations.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input name="denomination" placeholder="Ej: 1 Peso" className={INPUT} />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className={LABEL}>Estado / Condición</label>
@@ -177,16 +194,80 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
               </div>
             </div>
 
-            {/* Ceca + Catálogo */}
+            {/* Nombre de la pieza */}
+            <div className="flex flex-col gap-1.5">
+              <label className={LABEL}>Nombre de la pieza *</label>
+              {hasCoinData && selectedDenomination ? (
+                <select
+                  name="name"
+                  required
+                  className={INPUT}
+                  value={selectedName}
+                  onChange={(e) => {
+                    setSelectedName(e.target.value);
+                    setSelectedYear("");
+                  }}
+                >
+                  <option value="">Seleccionar nombre</option>
+                  {names.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  name="name"
+                  required
+                  placeholder="Ej: 1 Peso 1964 México"
+                  className={INPUT}
+                />
+              )}
+            </div>
+
+            {/* Año + Casa de acuñación */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className={LABEL}>Ceca / Casa de Acuñación</label>
-                <input name="mint" placeholder="Ej: Casa de Moneda de México" className={INPUT} />
+                <label className={LABEL}>Año</label>
+                {hasCoinData && selectedName ? (
+                  <select
+                    name="year"
+                    className={INPUT}
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                  >
+                    <option value="">Seleccionar año</option>
+                    {years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name="year"
+                    type="number"
+                    min={1}
+                    max={2100}
+                    placeholder="Ej: 1964"
+                    className={INPUT}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className={LABEL}>Referencia Catálogo</label>
-                <input name="catalog_ref" placeholder="Ej: KM#450" className={INPUT} />
+                <label className={LABEL}>Ceca / Casa de Acuñación</label>
+                <input
+                  name="mint"
+                  className={INPUT}
+                  value={autoMint}
+                  readOnly={!!autoMint}
+                  placeholder="Ej: Casa de Moneda de México"
+                  style={autoMint ? { opacity: 0.55, cursor: "default" } : undefined}
+                  onChange={() => {}}
+                />
               </div>
+            </div>
+
+            {/* Catálogo */}
+            <div className="flex flex-col gap-1.5">
+              <label className={LABEL}>Referencia Catálogo</label>
+              <input name="catalog_ref" placeholder="Ej: KM#450" className={INPUT} />
             </div>
 
             {/* Valor de compra */}

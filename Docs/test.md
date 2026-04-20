@@ -324,10 +324,41 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/lib/__tests__/coins.test.ts`
+**Qué prueba:** el registro central `COINS_BY_COUNTRY` de `app/lib/coins/index.ts` y los datos de monedas argentinas en `app/lib/coins/argentina.ts`.
+
+#### COINS_BY_COUNTRY registry
+
+| Test | Descripción |
+|---|---|
+| contains the AR key | El registro tiene la clave `"AR"` |
+| AR maps to MONEDAS_ARGENTINA | `COINS_BY_COUNTRY["AR"]` es la misma referencia que `MONEDAS_ARGENTINA` |
+| unknown country returns undefined | Una clave inexistente (`"XX"`) devuelve `undefined` |
+
+#### MONEDAS_ARGENTINA data
+
+| Test | Descripción |
+|---|---|
+| has entries | El array tiene al menos un elemento |
+| every entry has the required CoinEntry fields with correct types | Cada entrada tiene `pais`, `denominacion`, `nombre`, `anio` y `casa_acunacion` con los tipos correctos |
+| all entries have pais = 'Argentina' | El campo `pais` es siempre `"Argentina"` |
+| all entries have casa_acunacion = 'Casa de Moneda de la Argentina' | El campo `casa_acunacion` es siempre el mismo para todas las entradas |
+| all years are within reasonable range (2000–2030) | Todos los `anio` están entre 2000 y 2030 inclusive |
+| contains the expected denominations | Las 8 denominaciones (5 Centavos, 10 Centavos, 25 Centavos, 50 Centavos, 1 Peso, 2 Pesos, 5 Pesos, 10 Pesos) están presentes |
+| Serie 2 names appear for the correct denominations | "Un Peso — Jacarandá" pertenece a `1 Peso`; "Diez Pesos — Caldén" pertenece a `10 Pesos` |
+| filtering by denomination returns only matching entries | `filter(c => c.denominacion === "1 Peso")` devuelve solo entradas de esa denominación |
+| filtering by nombre returns matching years in order | Los años de "Un Peso — Jacarandá" comienzan en 2018 y están ordenados |
+| find returns the exact coin for a given nombre + anio | Buscar "Un Peso — Jacarandá" + 2021 devuelve la entrada correcta con `casa_acunacion` y `denominacion` correctos |
+| no duplicate (nombre + anio) pairs | No existen dos entradas con el mismo `nombre` y `anio` simultáneamente |
+
+---
+
 ### `app/components/__tests__/AddCoinModal.test.tsx`
-**Qué prueba:** el componente `AddCoinModal` de `app/components/AddCoinModal.tsx`, incluyendo el flujo de selección de foto, apertura del editor de crop y actualización del preview circular.
+**Qué prueba:** el componente `AddCoinModal` de `app/components/AddCoinModal.tsx`, incluyendo el flujo de selección de foto, apertura del editor de crop, actualización del preview circular y los dropdowns en cascada alimentados por módulos de datos de monedas.
 
 > `@remix-run/react` se mockea (Form + useNavigation). `ImageCropEditor` se reemplaza por un stub que expone botones `mock-confirm` y `mock-cancel`. `URL.createObjectURL/revokeObjectURL` y `DataTransfer` se mockean.
+
+#### Render y flujo de fotos
 
 | Test | Descripción |
 |---|---|
@@ -346,6 +377,25 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | submit button is disabled while submitting | El botón de submit está deshabilitado durante el envío |
 | calls onClose when clicking the X button | El botón X del header llama a `onClose` |
 | calls onClose when clicking Cancelar | El botón "Cancelar" del footer llama a `onClose` |
+
+#### Cascade dropdowns
+
+| Test | Descripción |
+|---|---|
+| denomination is a free-text input before selecting a country | Sin país seleccionado, `denomination` es un `<input>` libre |
+| name is a free-text input before selecting a country | Sin país seleccionado, `name` es un `<input>` libre |
+| year is a number input before selecting a country | Sin país seleccionado, `year` es un `<input type="number">` |
+| selecting Argentina converts denomination to a select | Al seleccionar `AR`, el campo `denomination` se convierte en `<select>` |
+| Argentina denomination select has all expected options | El select de denominación incluye las 8 denominaciones del módulo de Argentina |
+| name remains free-text after selecting country but before selecting denomination | Con país pero sin denominación, `name` sigue siendo `<input>` libre |
+| selecting a denomination converts name to a select | Al elegir una denominación, `name` se convierte en `<select>` |
+| name select options match coins of the selected denomination | Las opciones de `name` corresponden exactamente a los nombres del módulo filtrados por la denominación elegida |
+| selecting a name converts year to a select | Al elegir un nombre, `year` se convierte en `<select>` |
+| year select options match the years for the selected coin name | Las opciones de `year` corresponden a los años del módulo filtrados por el nombre elegido |
+| mint auto-fills and is read-only after selecting a complete chain | Al completar País → Denominación → Nombre → Año, el campo `mint` muestra `"Casa de Moneda de la Argentina"` y tiene `readOnly=true` |
+| mint is empty before completing the chain | Sin una selección completa, `mint` está vacío y no es read-only |
+| changing country resets denomination, name and year to free inputs | Cambiar el país limpia todos los campos inferiores y los devuelve a inputs libres |
+| changing denomination resets name and year | Cambiar la denominación limpia `name` y elimina el `<select>` de `year` |
 
 ---
 

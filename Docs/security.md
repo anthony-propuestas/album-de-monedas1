@@ -84,6 +84,37 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 
 ---
 
+## Módulos de datos de monedas y dropdowns en cascada
+
+### Naturaleza de los datos
+
+Los módulos `app/lib/coins/argentina.ts` y `app/lib/coins/index.ts` son **archivos TypeScript estáticos** compilados en el bundle del cliente en tiempo de build. No hay fetch a ninguna API externa, no hay lectura de archivos en runtime y no existe superficie de ataque de inyección de datos externos.
+
+### Validación: cliente vs. servidor
+
+Los dropdowns en cascada (País → Denominación → Nombre → Año → Casa de Acuñación) son **exclusivamente client-side**. El servidor (`action` de `mycollection.tsx`) recibe los campos `denomination`, `name`, `year` y `mint` como strings de un POST multipart ordinario, sin validar su contenido contra los módulos.
+
+**Consecuencia:** un atacante puede enviar una request HTTP directa con valores arbitrarios para `denomination`, `name` y `mint`, saltándose completamente los dropdowns. El campo `readOnly` del input `mint` es puramente cosmético — el servidor no lo verifica.
+
+Esto es consistente con el comportamiento preexistente de `country` y `condition`, que tampoco se validan contra sus listas de referencia en el servidor.
+
+### Riesgos introducidos
+
+Ninguna superficie de ataque nueva. En particular:
+
+- No hay llamadas a APIs externas ni fetches desde el cliente para cargar los datos.
+- No se abre ningún endpoint nuevo.
+- Los datos de los módulos no pasan por el servidor; son constantes del bundle.
+- Las queries D1 del action siguen usando `.bind()` parametrizado — el valor de `mint` autorrelleno llega como string normal y se almacena de la misma forma que antes.
+
+### Riesgo pendiente añadido
+
+| Riesgo | Estado | Mitigación recomendada |
+|--------|--------|------------------------|
+| Sin validación server-side de `denomination`, `name` y `mint` contra los módulos | Pendiente | En el `action` de `/mycollection`, verificar que `denomination` y `name` pertenecen al módulo del país seleccionado cuando `COINS_BY_COUNTRY[country]` existe; rechazar con 400 si no coinciden |
+
+---
+
 ## Variables de entorno sensibles
 
 | Variable | Uso | Riesgo si se expone |
@@ -118,6 +149,7 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 | Sin scope mínimo verificado | Pendiente | Verificar que solo se solicitan `openid email profile` |
 | Sin validación de longitud máxima en inputs de perfil/moneda | Pendiente | Añadir límite de caracteres en `name`, `notes`, `goals` para prevenir payloads gigantes en D1 |
 | Sin validación de valores permitidos en `country` y `condition` de monedas | Pendiente | Verificar `country` contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action |
+| Sin validación server-side de `denomination`, `name` y `mint` contra los módulos de monedas | Pendiente | Cuando `COINS_BY_COUNTRY[country]` existe, verificar que `denomination` y `name` son valores del módulo; rechazar con 400 si no coinciden |
 | Sin validación server-side del tipo MIME de imágenes | Parcialmente mitigado | El canvas re-encodea siempre a JPEG antes del upload; falta verificar magic bytes server-side como segunda línea de defensa |
 | Sin límite de tamaño de archivo enforced | Pendiente | Validar `file.size` en el action (ej. máx. 5 MB por foto) antes de llamar a R2 |
 | Sin control de cuántas monedas puede crear un usuario | Pendiente | Añadir límite por `user_id` en el action de `/mycollection` para prevenir abuso de almacenamiento |
@@ -138,5 +170,6 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 - [ ] Validar `country` contra la lista de códigos ISO y `collecting_since` contra los valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] Validar `country` de monedas contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action de `/mycollection`.
+- [ ] Cuando `COINS_BY_COUNTRY[country]` existe, validar server-side que `denomination` y `name` son valores reconocidos del módulo antes de escribir en D1.
 - [ ] Añadir validación de magic bytes server-side (el canvas garantiza JPEG, pero una segunda verificación es recomendable) y límite de tamaño máximo por foto antes de subir a R2.
 - [ ] Definir un límite de monedas por usuario para prevenir abuso de almacenamiento en D1 y R2.

@@ -8,7 +8,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
 
 ## Variables de entorno
@@ -60,14 +60,21 @@ app/
   components/
     ui/button.tsx             # Button shadcn/ui
     ProfileSetupModal.tsx     # Modal de configuración de perfil
-    AddCoinModal.tsx          # Modal multipart: 4 slots de foto + editor de recorte + datos numismáticos
+    AddCoinModal.tsx          # Modal multipart: 4 slots de foto + editor de recorte + dropdowns en cascada
     ImageCropEditor.tsx       # Editor circular: drag-to-pan, zoom, crop via Canvas 512×512 → JPEG
     CoinCard.tsx              # Tarjeta de galería: foto anverso circular, nombre, país/año, badge de condición
     CoinFilters.tsx           # Barra de filtros: búsqueda, país, año, condición (URL search params)
+    __tests__/
+      AddCoinModal.test.tsx   # 28 tests: render/flujo de fotos + cascada (selects, opciones, reset)
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     countries.ts              # Lista de países para formularios
     utils.ts                  # cn() — merge de clases Tailwind
+    coins/
+      index.ts                # CoinEntry interface + COINS_BY_COUNTRY: Record<string, CoinEntry[]>
+      argentina.ts            # MONEDAS_ARGENTINA — Serie 1, Serie 2 (Árboles) y conmemorativas
+    __tests__/
+      coins.test.ts           # 14 tests: integridad del registro y datos de MONEDAS_ARGENTINA
   types/
     env.d.ts                  # Env interface (DB: D1Database, IMAGES?: R2Bucket)
 functions/
@@ -76,6 +83,39 @@ migrations/
   0001_create_users.sql       # Tabla users: id, email, name, picture, country, collecting_since, goals, profile_completed
   0002_create_coins.sql       # Tabla coins: id, user_id, name, country, year, denomination, condition, mint, catalog_ref, estimated_value, notes, photo_*
 ```
+
+## Dropdowns en cascada
+
+El formulario "Nueva pieza" usa dropdowns dependientes cuando el país seleccionado tiene un módulo de datos (`COINS_BY_COUNTRY[country]`). La cadena de selección es:
+
+**País → Denominación → Nombre → Año** → `Ceca` (autorrellena, solo lectura)
+
+Si el país no tiene módulo de datos, los campos vuelven a ser inputs de texto libre.
+
+Para agregar un nuevo país:
+1. Crear `app/lib/coins/<pais>.ts` con un array `CoinEntry[]`
+2. Importarlo en `app/lib/coins/index.ts` y asignarlo: `COINS_BY_COUNTRY["XX"] = MONEDAS_XX`
+
+## Tests
+
+```bash
+npm run test           # ejecutar todos los tests
+npm run test:ui        # interfaz visual de Vitest
+npm run coverage       # reporte de cobertura
+```
+
+Stack: **Vitest** + **@testing-library/react** + **happy-dom**
+
+| Suite | Archivo | Tests |
+|-------|---------|-------|
+| Módulo de monedas | `app/lib/__tests__/coins.test.ts` | 14 |
+| AddCoinModal | `app/components/__tests__/AddCoinModal.test.tsx` | 28 |
+
+Ver `Docs/test.md` para la descripción completa de cada test.
+
+## Seguridad
+
+Ver `Docs/security.md` para el análisis completo: autenticación, sesiones, queries parametrizadas, superficie de ataque y checklist de producción.
 
 ## Notas
 
