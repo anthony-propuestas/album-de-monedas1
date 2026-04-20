@@ -189,15 +189,16 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
               </div>
             </div>
 
-            {/* Valor estimado */}
+            {/* Valor de compra */}
             <div className="flex flex-col gap-1.5">
-              <label className={LABEL}>Valor Estimado (USD)</label>
+              <label className={LABEL}>Valor de Compra (USD)</label>
               <input
                 name="estimated_value"
                 type="number"
                 step="0.01"
                 min={0}
-                placeholder="Ej: 25.00"
+                defaultValue={0}
+                placeholder="0"
                 className={INPUT}
               />
             </div>
