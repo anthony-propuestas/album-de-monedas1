@@ -3,6 +3,7 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   DB: D1Database;
+  IMAGES?: R2Bucket;
 }
 
 declare module "@remix-run/server-runtime" {

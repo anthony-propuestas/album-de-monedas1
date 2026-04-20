@@ -94,7 +94,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | Test | Descripción |
 |---|---|
 | throws a redirect to '/' when user is not authenticated | Si `isAuthenticated` devuelve `null`, el loader lanza un `Response` 302 → `/` |
-| returns user data when the session is valid | Si `isAuthenticated` devuelve un usuario, el loader retorna `{ user }` |
+| returns user data and profileCompleted=false for a new user | Usuario nuevo (sin perfil completo) retorna `{ user, profileCompleted: false }` |
+| returns profileCompleted=true for a returning user with complete profile | Usuario con perfil completo retorna `{ user, profileCompleted: true }` |
 | calls isAuthenticated with the incoming request | El request original se pasa a `isAuthenticated` tal cual |
 | calls createAuth with the cloudflare env | `createAuth` recibe solo el env (sin request) para la verificación de sesión |
 
@@ -245,12 +246,109 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/routes/__tests__/mycollection.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/mycollection.tsx`, que protege la ruta `/mycollection`, consulta la tabla `coins` en D1 y devuelve los datos filtrados.
+
+> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con `prepare → bind → all` en cadena.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión activa, el loader lanza `Response` 302 → `/` |
+| returns user and empty coins array | Con sesión válida devuelve `{ user, coins: [] }` cuando no hay piezas |
+| returns coins from DB | Las piezas devueltas por `all()` aparecen en `data.coins` |
+| returns empty filters when no search params | Sin query params, `data.filters` tiene todos los campos vacíos |
+| reflects search params in returned filters | Los params `q`, `country`, `year`, `condition` se reflejan en `data.filters` |
+| binds user_id as first parameter | El primer valor en `bind()` es siempre el `user.id` |
+| adds LIKE clause and wildcard value for q filter | El parámetro `q` genera `... LIKE ?` y el valor `%peso%` |
+| adds country filter to query | El parámetro `country` añade `country = ?` a la query |
+| parses year filter as integer | El parámetro `year` se convierte a `number` antes de enviarse a D1 |
+| adds condition filter to query | El parámetro `condition` añade `condition = ?` a la query |
+| query always ends with ORDER BY created_at DESC | La query siempre incluye el ordenamiento por fecha descendente |
+
+---
+
+### `app/routes/__tests__/mycollection.action.test.ts`
+**Qué prueba:** el `action` de `app/routes/mycollection.tsx`, que recibe el formulario multipart, sube fotos a R2 e inserta la moneda en D1.
+
+> `~/lib/auth.server` se mockea para la sesión. DB y R2 se simulan con `vi.fn()`. Los archivos se crean con la API nativa `File` disponible en happy-dom.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión activa, el action lanza `Response` 302 → `/` |
+| returns 400 for unknown intent | Si `intent` no es `add_coin`, retorna `{ error: "Acción no reconocida." }` con status 400 |
+| redirects to /mycollection after successful insert | Con intent y nombre válidos, retorna `Response` 302 → `/mycollection` |
+| calls DB INSERT with user_id and coin name | Verifica que `prepare` recibe `INSERT INTO coins` y `bind` contiene `user.id` y el nombre |
+| stores null for all photos when IMAGES binding is absent | Sin binding R2, los cuatro slots de foto se guardan como `null` en D1 |
+| uploads photo_obverse to R2 and stores its key in DB | Con binding R2 y un `File` no vacío, llama a `images.put` con el key correcto y guarda ese key en D1 |
+| parses year as integer and estimated_value as float | Los campos numéricos se convierten antes de guardar (`parseInt`, `parseFloat`) |
+| stores null for empty optional text fields | Los campos opcionales no enviados se guardan como `null`, no como string vacío |
+| does not upload to R2 when file is empty | Un `File` de 0 bytes no dispara `images.put` |
+
+---
+
+### `app/routes/__tests__/images.$.test.ts`
+**Qué prueba:** el `loader` de `app/routes/images.$.tsx`, que sirve imágenes almacenadas en R2 como proxy HTTP.
+
+> El bucket R2 se simula con un objeto que expone `get()` y el objeto devuelto implementa `writeHttpMetadata`.
+
+| Test | Descripción |
+|---|---|
+| throws 404 when key param is missing | Sin parámetro splat, lanza `Response` 404 |
+| throws 404 when IMAGES binding is absent | Sin binding R2 en el env, lanza `Response` 404 |
+| throws 404 when object is not found in R2 | Si `bucket.get()` devuelve `null`, lanza `Response` 404 |
+| calls bucket.get with the correct key | El key del splat param se pasa directamente a `bucket.get` |
+| returns 200 response when object is found | Con objeto encontrado, la respuesta tiene status 200 |
+| sets immutable Cache-Control header | La respuesta incluye `Cache-Control: public, max-age=31536000, immutable` |
+| calls writeHttpMetadata to set content type from object metadata | Se llama a `writeHttpMetadata` y el `Content-Type` del objeto se propaga a la respuesta |
+
+---
+
+### `app/components/__tests__/CoinCard.test.tsx`
+**Qué prueba:** el componente `CoinCard` de `app/components/CoinCard.tsx`, que muestra la tarjeta de una moneda en la galería.
+
+| Test | Descripción |
+|---|---|
+| renders coin name | El nombre de la moneda aparece en el DOM |
+| shows 'Sin foto' placeholder when no photo_obverse | Sin `photo_obverse`, se muestra el placeholder "Sin foto" |
+| renders img with correct /images/ src when photo_obverse is set | Con `photo_obverse`, el `<img>` tiene `src="/images/{key}"` |
+| renders alt text for obverse image | El `<img>` tiene alt `"Anverso de {nombre}"` |
+| renders country and year separated by · | País y año aparecen como `"MX · 1964"` |
+| renders only country when year is null | Sin año, solo se muestra el país |
+| renders only year when country is null | Sin país, solo se muestra el año |
+| shows denomination when present | La denominación se renderiza cuando tiene valor |
+| does not render denomination element when null | La denominación no aparece si es `null` |
+| shows condition badge with the condition value | El badge muestra el código de condición (`MS`, `VF`, etc.) |
+| does not render condition badge when condition is null | Sin condición, no hay badge |
+| renders condition badge for grade X (×8) | Cada uno de los 8 grados (`MS`, `AU`, `XF`, `VF`, `F`, `VG`, `G`, `P`) renderiza su badge |
+| renders placeholder icon when no photo | Sin foto, no hay `<img>` en el DOM |
+
+---
+
+### `app/components/__tests__/CoinFilters.test.tsx`
+**Qué prueba:** el componente `CoinFilters` de `app/components/CoinFilters.tsx`, que muestra los controles de búsqueda y filtrado de la galería.
+
+> `useNavigate` y `useSearchParams` de `@remix-run/react` se mockean para evitar la dependencia del router.
+
+| Test | Descripción |
+|---|---|
+| renders text search input with placeholder | El input de búsqueda tiene placeholder "Buscar pieza..." |
+| renders year number input with placeholder | El input de año tiene placeholder "Año" |
+| renders country select with default empty option | El select de país incluye la opción "Todos los países" |
+| renders condition select with default empty option | El select de condición incluye la opción "Todos los estados" |
+| renders all 8 condition options | Los 8 grados (`MS`, `AU`, `XF`, `VF`, `F`, `VG`, `G`, `P`) están como opciones |
+| prefills search input with q filter value | El input de búsqueda muestra el valor del filtro `q` recibido por prop |
+| prefills year input with year filter value | El input de año muestra el valor del filtro `year` recibido por prop |
+| renders at least one country option from the countries list | Al menos "México" está presente en el select de país |
+
+---
+
 ## Estrategia de mocking
 
 Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cosas:
 
 - **`~/lib/auth.server`** — se reemplaza `createAuth` con `vi.mock` para controlar qué devuelve `isAuthenticated` o `authenticate` en cada test.
 - **`@remix-run/react`** — en tests de componentes que usan `Form`, `useLoaderData` o `useFetcher`, se inyectan valores directamente sin necesitar el router de Remix. El mock de `useFetcher` incluye un `Form` funcional que renderiza un `<form>` nativo real.
-- **D1 Database (`DB`)** — se simula con un objeto que encadena `prepare → bind → run/first` mediante `vi.fn()`, permitiendo verificar qué queries y valores se envían sin conectar a una base de datos real.
+- **D1 Database (`DB`)** — se simula con un objeto que encadena `prepare → bind → run/first/all` mediante `vi.fn()`, permitiendo verificar qué queries y valores se envían sin conectar a una base de datos real.
+- **R2 Bucket (`IMAGES`)** — se simula con `{ put: vi.fn(), get: vi.fn() }`. El objeto R2 devuelto por `get` implementa `writeHttpMetadata` como `vi.fn()`. Los archivos se crean con la API nativa `File` de happy-dom para probar el flujo completo de upload.
 
 Esto mantiene los tests rápidos, deterministas y sin efectos secundarios de red.

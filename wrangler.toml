@@ -7,3 +7,7 @@ pages_build_output_dir = "build/client"
 binding = "DB"
 database_name = "album-monedas-db"
 database_id = "0789c17d-50e6-4ce4-8acf-f8e308093136"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "album-monedas-images"
