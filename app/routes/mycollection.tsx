@@ -204,7 +204,7 @@ export default function MyCollection() {
           <div
             className="grid gap-4"
             style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
             }}
           >
             {coins.map((coin) => (
