@@ -9,7 +9,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 ### Flujo OAuth Google
 
 1. El usuario hace POST a `/auth/google` (form de Remix).
-2. `remix-auth` redirige al servidor de Google con los scopes por defecto de `remix-auth-google` (`openid email profile`); el código no los especifica explícitamente en la configuración de `GoogleStrategy`.
+2. `remix-auth` redirige al servidor de Google con los scopes `openid email profile`, especificados explícitamente en la configuración de `GoogleStrategy` (`app/lib/auth.server.ts`).
 3. Google redirige a `/auth/google/callback` con el authorization code.
 4. El servidor intercambia el code por tokens, extrae el perfil y crea la sesión.
 5. El usuario queda redirigido a `/home`.
@@ -52,14 +52,14 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 ### Validación de entrada en los actions
 
 - El `action` de `/home` valida que `name`, `country`, `collecting_since` y `goals` sean strings no vacíos (tras `.trim()`) antes de escribir en la DB.
-- El `action` de `/mycollection` requiere que `intent === "add_coin"`. El campo `name` se lee con `?? ""` pero **no se valida** que sea no vacío antes del INSERT — se puede insertar una moneda con `name = ""`. Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
+- El `action` de `/mycollection` requiere que `intent === "add_coin"`. El campo `name` se valida que no sea vacío (devuelve 400 si lo es). Se validan longitudes máximas (`name` ≤ 200, `notes` ≤ 1000 chars). `condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
 
 ### Almacenamiento de imágenes en R2
 
 - La clave de cada imagen es `{userId}/{coinId}/{slot}` — el `coinId` es un UUID v4 generado en el servidor, haciendo las claves no predecibles.
 - Antes de subirse, cada foto pasa por el editor `ImageCropEditor`: el navegador la redibuja en un `<canvas>` 512×512 y la exporta con `canvas.toBlob(..., "image/jpeg", 0.92)`. En el flujo normal el archivo que llega al servidor es un JPEG re-encodado, independientemente del formato original (PNG, HEIC, WebP, etc.). El `contentType` enviado a R2 es `file.type` del objeto `File` recibido por el servidor — en el flujo normal coincide con `"image/jpeg"` porque el blob del canvas lleva ese tipo, pero un cliente que bypasee el canvas puede declarar cualquier `Content-Type`.
-- Esto mitiga parcialmente el riesgo de tipo MIME: el servidor recibe JPEG en lugar del tipo declarado por el navegador. Sin embargo, no se validan magic bytes server-side ni se limita el tamaño antes de llamar a R2.
-- No existe límite de tamaño de archivo enforced en el servidor más allá del límite de Cloudflare Pages Functions (100 MB por request).
+- El servidor valida magic bytes (FF D8 FF) antes de subir a R2; los archivos que no son JPEG válidos son rechazados. El `contentType` enviado a R2 se fija a `"image/jpeg"` de forma segura en lugar de confiar en `file.type`.
+- El servidor rechaza archivos mayores a 5 MB antes de llamar a R2.
 
 ### Datos almacenados
 
@@ -79,7 +79,7 @@ Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para 
 | `id` | `crypto.randomUUID()` en servidor | Ninguno |
 | `user_id` | Sesión autenticada (servidor) | Ninguno — el cliente no puede falsificarlo |
 | `name`, `denomination`, `mint`, `catalog_ref`, `notes` | Input de formulario | Bajo — React escapa al renderizar; sin ejecución como código |
-| `country`, `condition` | Input de formulario (valores libres) | Bajo — pendiente validación contra enum |
+| `country`, `condition` | Input de formulario | Bajo — `condition` validada contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` libre |
 | `year`, `estimated_value` | Input numérico, parseado con `parseInt`/`parseFloat` | Bajo — NaN se convierte en `null` antes de guardar |
 | `photo_*` | Clave R2 generada en servidor | Ninguno — el cliente nunca decide el nombre del archivo |
 
@@ -95,9 +95,9 @@ Los módulos `app/lib/coins/argentina.ts` y `app/lib/coins/index.ts` son **archi
 
 Los dropdowns en cascada (País → Denominación → Nombre → Año → Casa de Acuñación) son **exclusivamente client-side**. El servidor (`action` de `mycollection.tsx`) recibe los campos `denomination`, `name`, `year` y `mint` como strings de un POST multipart ordinario, sin validar su contenido contra los módulos.
 
-**Consecuencia:** un atacante puede enviar una request HTTP directa con valores arbitrarios para `denomination`, `name` y `mint`, saltándose completamente los dropdowns. El campo `readOnly` del input `mint` es puramente cosmético — el servidor no lo verifica.
+**Consecuencia para `mint`:** un atacante puede enviar valores arbitrarios para `mint`, ya que este campo no se valida server-side. Para `denomination` y `name`, el servidor verifica que correspondan a valores del módulo `COINS_BY_COUNTRY[country]` cuando el país existe; si no coinciden devuelve 400.
 
-Esto es consistente con el comportamiento preexistente de `country` y `condition`, que tampoco se validan contra sus listas de referencia en el servidor.
+`condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. `country` sigue siendo libre (sin validación ISO).
 
 ### Riesgos introducidos
 
@@ -110,9 +110,9 @@ Ninguna superficie de ataque nueva. En particular:
 
 ### Riesgo pendiente añadido
 
-| Riesgo | Estado | Mitigación recomendada |
-|--------|--------|------------------------|
-| Sin validación server-side de `denomination`, `name` y `mint` contra los módulos | Pendiente | En el `action` de `/mycollection`, verificar que `denomination` y `name` pertenecen al módulo del país seleccionado cuando `COINS_BY_COUNTRY[country]` existe; rechazar con 400 si no coinciden |
+| Riesgo | Estado | Mitigación |
+|--------|--------|------------|
+| Sin validación server-side de `denomination` y `name` contra los módulos | **Implementado** | `denomination` y `name` se validan contra `COINS_BY_COUNTRY[country]` en el action; `mint` sigue siendo libre |
 
 ---
 
@@ -141,20 +141,21 @@ Ninguna superficie de ataque nueva. En particular:
 
 ### Riesgos conocidos y pendientes
 
-| Riesgo | Estado | Mitigación recomendada |
-|--------|--------|------------------------|
-| Sin protección anti-bot en login | Pendiente | Implementar Cloudflare Turnstile |
-| Sin WAF | Pendiente | Activar Cloudflare WAF en producción |
-| Sin rate limiting en `/auth/google` | Pendiente | Regla de rate limit en Cloudflare |
+| Riesgo | Estado | Mitigación |
+|--------|--------|------------|
+| Sin protección anti-bot en login | **Implementado** | Cloudflare Turnstile en `auth.google.tsx` (verificación condicional por env) |
+| Sin WAF | Pendiente | Activar Cloudflare WAF en producción (dashboard) |
+| Sin rate limiting en `/auth/google` | Pendiente | Regla de rate limit en Cloudflare (dashboard) |
 | Sin CSRF token explícito | Aceptado (Remix) | `sameSite: lax` mitiga casos comunes; Remix Forms incluye protección nativa |
-| Sin logout implementado | Pendiente | Añadir ruta `/auth/logout` que destruya la sesión |
-| Sin scope mínimo verificado explícitamente | Pendiente | Los scopes `openid email profile` son los defaults de `remix-auth-google` pero no están hardcodeados en `GoogleStrategy`; especificar `scope` explícitamente y verificar en el callback |
-| Sin validación de longitud máxima en inputs de perfil/moneda | Pendiente | Añadir límite de caracteres en `name`, `notes`, `goals` para prevenir payloads gigantes en D1 |
-| Sin validación de valores permitidos en `country` y `condition` de monedas | Pendiente | Verificar `country` contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action |
-| Sin validación server-side de `denomination`, `name` y `mint` contra los módulos de monedas | Pendiente | Cuando `COINS_BY_COUNTRY[country]` existe, verificar que `denomination` y `name` son valores del módulo; rechazar con 400 si no coinciden |
-| Sin validación server-side del tipo MIME de imágenes | Parcialmente mitigado | El canvas re-encodea siempre a JPEG antes del upload; falta verificar magic bytes server-side como segunda línea de defensa |
-| Sin límite de tamaño de archivo enforced | Pendiente | Validar `file.size` en el action (ej. máx. 5 MB por foto) antes de llamar a R2 |
-| Sin control de cuántas monedas puede crear un usuario | Pendiente | Añadir límite por `user_id` en el action de `/mycollection` para prevenir abuso de almacenamiento |
+| Sin logout implementado | **Implementado** | `app/routes/auth.logout.tsx` destruye la sesión y redirige a `/` |
+| Sin scope OAuth explícito | **Implementado** | `scope: ["openid", "email", "profile"]` en `GoogleStrategy` |
+| Sin validación de longitud máxima en inputs | **Implementado** | `name` ≤ 100, `goals` ≤ 500 en `/home`; `name` ≤ 200, `notes` ≤ 1000 en `/mycollection` |
+| Sin validación de `condition` de monedas | **Implementado** | Validado contra enum `MS/AU/XF/VF/F/VG/G/P` |
+| Sin validación de `country` de monedas | Pendiente | `country` sigue siendo libre (sin validación ISO) |
+| Sin validación server-side de `denomination` y `name` vs módulos | **Implementado** | Validados contra `COINS_BY_COUNTRY[country]` cuando el país existe; `mint` sigue libre |
+| Sin validación de magic bytes de imágenes | **Implementado** | Se verifica FF D8 FF antes de subir a R2; `contentType` forzado a `image/jpeg` |
+| Sin límite de tamaño de archivo | **Implementado** | Rechaza archivos >5 MB antes de llamar a R2 |
+| Sin límite de monedas por usuario | **Implementado** | Máximo 500 monedas por `user_id`; devuelve 429 al superarlo |
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
 
 ---
@@ -164,16 +165,19 @@ Ninguna superficie de ataque nueva. En particular:
 - [ ] `SESSION_SECRET` de al menos 32 caracteres aleatorios.
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` configurados en Cloudflare Pages.
 - [ ] `ADMIN_EMAIL` configurado en Cloudflare Pages (nunca en el repo).
+- [ ] `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` configurados en Cloudflare Pages.
 - [ ] Dominio de callback registrado en Google Cloud Console.
 - [ ] `secure: true` en cookie (automático si `NODE_ENV=production`).
-- [ ] Activar Cloudflare WAF y Turnstile.
-- [ ] Implementar `/auth/logout`.
-- [ ] Revisar headers de seguridad (CSP, HSTS) vía Cloudflare o middleware.
-- [ ] Añadir validación de longitud máxima en `name` y `goals` en el action de `/home`.
-- [ ] Validar `country` contra la lista de códigos ISO y `collecting_since` contra los valores del enum antes de escribir en D1.
+- [ ] Activar Cloudflare WAF (dashboard).
+- [ ] Configurar rate limiting en `/auth/google` (dashboard).
+- [x] Implementar `/auth/logout` — `app/routes/auth.logout.tsx`.
+- [x] Headers de seguridad (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) en `entry.server.tsx`.
+- [ ] Revisar CSP vía Cloudflare Transform Rules.
+- [x] Validación de longitud máxima en inputs de perfil y moneda.
+- [ ] Validar `country` contra lista ISO y `collecting_since` contra valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
-- [ ] Validar `country` de monedas contra la lista ISO y `condition` contra el enum `MS/AU/XF/VF/F/VG/G/P` en el action de `/mycollection`.
-- [ ] Cuando `COINS_BY_COUNTRY[country]` existe, validar server-side que `denomination` y `name` son valores reconocidos del módulo antes de escribir en D1.
-- [ ] Añadir validación en el `action` de `/mycollection` que rechace `name` vacío antes del INSERT.
-- [ ] Añadir validación de magic bytes server-side (el canvas garantiza JPEG, pero una segunda verificación es recomendable) y límite de tamaño máximo por foto antes de subir a R2.
-- [ ] Definir un límite de monedas por usuario para prevenir abuso de almacenamiento en D1 y R2.
+- [x] Validar `condition` contra enum `MS/AU/XF/VF/F/VG/G/P`.
+- [x] Validar `denomination` y `name` de moneda contra `COINS_BY_COUNTRY[country]`.
+- [x] Rechazar `name` vacío en el action de `/mycollection`.
+- [x] Magic bytes JPEG y límite de 5 MB antes de subir a R2.
+- [x] Límite de 500 monedas por usuario.

@@ -6,7 +6,7 @@
 
 ## Crítico — bloquea producción
 
-### [ ] 1. Implementar `/auth/logout`
+### [x] 1. Implementar `/auth/logout`
 
 **Archivo:** `app/routes/auth.logout.tsx` (nuevo)
 
@@ -32,7 +32,7 @@ Añadir un `<Form method="post" action="/auth/logout">` con botón en el header 
 
 ---
 
-### [ ] 2. Validar `name` no vacío en el action de `/mycollection`
+### [x] 2. Validar `name` no vacío en el action de `/mycollection`
 
 **Archivo:** `app/routes/mycollection.tsx`, línea ~97
 
@@ -45,7 +45,7 @@ if (!name) return json({ error: "El nombre es obligatorio." }, { status: 400 });
 
 ---
 
-### [ ] 3. Validar tamaño máximo de archivo antes de subir a R2
+### [x] 3. Validar tamaño máximo de archivo antes de subir a R2
 
 **Archivo:** `app/routes/mycollection.tsx`, función `uploadPhoto`
 
@@ -60,7 +60,7 @@ Si se quiere reportar el error al usuario, extraer `uploadPhoto` fuera del closu
 
 ---
 
-### [ ] 4. Especificar scopes OAuth explícitamente en `GoogleStrategy`
+### [x] 4. Especificar scopes OAuth explícitamente en `GoogleStrategy`
 
 **Archivo:** `app/lib/auth.server.ts`
 
@@ -82,7 +82,7 @@ new GoogleStrategy<UserProfile>(
 
 ## Alta prioridad — implementar antes de usuarios reales
 
-### [ ] 5. Límite de monedas por usuario
+### [x] 5. Límite de monedas por usuario
 
 **Archivo:** `app/routes/mycollection.tsx`, action `add_coin`, antes del INSERT
 
@@ -104,7 +104,7 @@ if (coinCount >= MAX_COINS) {
 
 ---
 
-### [ ] 6. Validar longitud máxima de inputs de texto
+### [x] 6. Validar longitud máxima de inputs de texto
 
 **Archivo:** `app/routes/home.tsx` (action) y `app/routes/mycollection.tsx` (action)
 
@@ -126,7 +126,7 @@ if (name.length > 200 || (notes && notes.length > 1000)) {
 
 ---
 
-### [ ] 7. Validar `denomination` y `name` de moneda contra `COINS_BY_COUNTRY`
+### [x] 7. Validar `denomination` y `name` de moneda contra `COINS_BY_COUNTRY`
 
 **Archivo:** `app/routes/mycollection.tsx`, action `add_coin`
 
@@ -154,7 +154,7 @@ Solo aplica cuando el país existe en el módulo; países sin módulo pasan libr
 
 ---
 
-### [ ] 8. Validar `condition` contra enum permitido
+### [x] 8. Validar `condition` contra enum permitido
 
 **Archivo:** `app/routes/mycollection.tsx`, action
 
@@ -195,7 +195,7 @@ En Cloudflare → Security → WAF → Rate Limiting:
 
 ---
 
-### [ ] 11. Protección anti-bot con Cloudflare Turnstile en el login
+### [x] 11. Protección anti-bot con Cloudflare Turnstile en el login
 
 **Archivo:** `app/routes/_index.tsx` (formulario de login)
 
@@ -235,7 +235,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 ## Baja prioridad — mejora incremental
 
-### [ ] 12. Verificar magic bytes del archivo en el servidor
+### [x] 12. Verificar magic bytes del archivo en el servidor
 
 **Archivo:** `app/routes/mycollection.tsx`, función `uploadPhoto`
 
@@ -253,7 +253,7 @@ Esto también permite fijar el `contentType` a `"image/jpeg"` de forma segura en
 
 ---
 
-### [ ] 13. Headers de seguridad (CSP, HSTS, X-Frame-Options)
+### [x] 13. Headers de seguridad (CSP, HSTS, X-Frame-Options)
 
 **Opción A — Cloudflare Transform Rules** (recomendada): añadir headers en el dashboard → Rules → Transform Rules → Modify Response Header. No requiere cambios de código y no interactúa con el SSR.
 
