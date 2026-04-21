@@ -8,7 +8,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
 
 ## Variables de entorno
@@ -40,6 +40,9 @@ npm run deploy    # build + deploy a Cloudflare Pages
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
 | `/home` | Dashboard protegido: menú lateral + modal de configuración de perfil |
 | `/mycollection` | Colección personal: galería filtrable + formulario para agregar piezas |
+| `/collections` | Ranking social: grid de 8 categorías en orden aleatorio por visita |
+| `/collections/:category` | Top 10 coleccionistas de una categoría (most-pieces, oldest, highest-value…) |
+| `/collection/:userId` | Colección pública de otro usuario (read-only, con filtros) |
 | `/images/*` | Proxy de imágenes almacenadas en R2 (loader, sin auth — claves son UUIDs) |
 
 ## Arquitectura
@@ -56,6 +59,9 @@ app/
     auth.google.callback.tsx  # loader → callback OAuth, redirige a /home
     home.tsx                  # Dashboard protegido
     mycollection.tsx          # loader (galería filtrable) + action (add_coin: sube fotos a R2, inserta en D1)
+    collections._index.tsx    # loader → 8 queries en paralelo, shuffle Fisher-Yates, grid de tiles
+    collections.$category.tsx # loader → valida slug, top 10 de la categoría con stat formateada
+    collection.$userId.tsx    # loader → perfil público + colección ajena read-only con filtros
     images.$.tsx              # loader proxy → sirve imágenes desde R2 con Cache-Control inmutable
   components/
     ui/button.tsx             # Button shadcn/ui
@@ -64,17 +70,23 @@ app/
     ImageCropEditor.tsx       # Editor circular: drag-to-pan, zoom, crop via Canvas 512×512 → JPEG
     CoinCard.tsx              # Tarjeta de galería: foto anverso circular, nombre, país/año, badge de condición
     CoinFilters.tsx           # Barra de filtros: búsqueda, país, año, condición (URL search params)
+    CategoryTile.tsx          # Tile de categoría: icono, título, descripción, preview del #1, link a ranking
+    CollectorRow.tsx          # Fila de ranking: medalla (🥇🥈🥉/#N), avatar, nombre → /collection/:userId, stat
     __tests__/
       AddCoinModal.test.tsx   # 28 tests: render/flujo de fotos + cascada (selects, opciones, reset)
+      CategoryTile.test.tsx   # 19 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
+      CollectorRow.test.tsx   # 15 tests: medallas, link con/sin ?from=, avatar, stat
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     countries.ts              # Lista de países para formularios
     utils.ts                  # cn() — merge de clases Tailwind
+    collections.ts            # CATEGORIES (8 categorías con SQL + statLabel) + getCategoryBySlug
     coins/
       index.ts                # CoinEntry interface + COINS_BY_COUNTRY: Record<string, CoinEntry[]>
       argentina.ts            # MONEDAS_ARGENTINA — Serie 1, Serie 2 (Árboles) y conmemorativas
     __tests__/
       coins.test.ts           # 14 tests: integridad del registro y datos de MONEDAS_ARGENTINA
+      collections.test.ts     # 24 tests: CATEGORIES, getCategoryBySlug, statLabel × 8 categorías
   types/
     env.d.ts                  # Env interface (DB: D1Database, IMAGES?: R2Bucket)
 functions/
@@ -109,7 +121,13 @@ Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 | Suite | Archivo | Tests |
 |-------|---------|-------|
 | Módulo de monedas | `app/lib/__tests__/coins.test.ts` | 14 |
+| Categorías de ranking | `app/lib/__tests__/collections.test.ts` | 24 |
 | AddCoinModal | `app/components/__tests__/AddCoinModal.test.tsx` | 28 |
+| CategoryTile | `app/components/__tests__/CategoryTile.test.tsx` | 19 |
+| CollectorRow | `app/components/__tests__/CollectorRow.test.tsx` | 15 |
+| /collections loader | `app/routes/__tests__/collections.loader.test.ts` | 9 |
+| /collections/:category loader | `app/routes/__tests__/collections.category.loader.test.ts` | 13 |
+| /collection/:userId loader | `app/routes/__tests__/collection.userId.loader.test.ts` | 11 |
 
 Ver `Docs/test.md` para la descripción completa de cada test.
 

@@ -31,6 +31,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 - `/images/*` (implementado en `app/routes/images.$.tsx`) no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
 - `/admin` (implementado en `app/routes/admin.tsx`) requiere sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirige a `/`.
 - `/auth/logout` (implementado en `app/routes/auth.logout.tsx`) solo acepta POST; destruye la sesión con `sessionStorage.destroySession()` y redirige a `/`. El botón de cierre de sesión en el drawer de `/home` usa `<Form method="post" action="/auth/logout">`.
+- `collections._index.tsx` (`/collections`), `collections.$category.tsx` (`/collections/:category`) y `collection.$userId.tsx` (`/collection/:userId`) requieren sesión activa; sin ella, redirigen a `/`. Las tres rutas son de **solo lectura** (sin `action`) — no aceptan mutaciones.
 
 ---
 
@@ -114,6 +115,46 @@ Ninguna superficie de ataque nueva. En particular:
 | Riesgo | Estado | Mitigación |
 |--------|--------|------------|
 | Sin validación server-side de `denomination` y `name` contra los módulos | **Implementado** | `denomination` y `name` se validan contra `COINS_BY_COUNTRY[country]` en el action; `mint` sigue siendo libre |
+
+---
+
+## Sección social /collections
+
+### Validación de slug de categoría
+
+`collections.$category.tsx` valida `params.category` contra el array `CATEGORIES` de `app/lib/collections.ts` antes de ejecutar ninguna query. Si el slug no existe en ese array, lanza `new Response("Not Found", { status: 404 })`. Actúa como **whitelist estricta**: solo los 8 slugs conocidos (`most-pieces`, `oldest`, `highest-value`, `most-countries`, `best-condition`, `most-active`, `most-denominations`, `veteran`) pueden disparar una query a D1.
+
+### Queries D1 — todas parametrizadas con `.bind()`
+
+Ningún valor externo se interpola directamente en strings de query:
+
+| Ruta | Queries | Valores en `.bind()` |
+|---|---|---|
+| `/collections` | 8 aggregate en paralelo | `bind(1)` — LIMIT 1 para preview de tile |
+| `/collections/:category` | 1 query del slug validado | `bind(10)` — LIMIT 10 para top 10 |
+| `/collection/:userId` | 2 queries | `bind(params.userId)` para perfil; `bind(userId[, q, country, year, condition])` para monedas |
+
+Los filtros opcionales (`q`, `country`, `year`, `condition`) de `/collection/:userId` añaden placeholders `?` al string de query de la misma forma que en `/mycollection`, nunca por interpolación.
+
+### Parámetro `?from=` en la URL
+
+El parámetro `?from={slug}` se lee en el loader de `/collection/:userId` y se devuelve al cliente como string para construir el href del botón "Volver al ranking". No se almacena en D1, no se ejecuta como código y no afecta a ninguna query. Un valor arbitrario solo modifica la URL del botón en el cliente — sin consecuencias de seguridad.
+
+### Exposición de datos entre usuarios
+
+`/collection/:userId` expone la colección de cualquier usuario autenticado a cualquier otro usuario autenticado. Campos visibles: `name`, `country`, `year`, `denomination`, `condition`, `estimated_value`, `notes`, `photo_*`. Esto es intencional (plataforma social), pero implica:
+
+- El `estimated_value` de las monedas de cualquier usuario es visible para todos los usuarios con sesión.
+- Las fotos en R2 se sirven via `/images/{key}` sin autenticación (comportamiento preexistente — claves no predecibles por UUID).
+- No existe control de privacidad por usuario en el MVP (aceptado).
+
+### Riesgos introducidos
+
+| Riesgo | Estado |
+|---|---|
+| Slug de categoría no validado → query arbitraria | **Mitigado** — whitelist en `getCategoryBySlug` antes de cualquier query |
+| Filtros de `/collection/:userId` sin parametrizar | **Mitigado** — mismo patrón `.bind()` de `/mycollection` |
+| Datos de colecciones ajenas accesibles sin consentimiento | Aceptado (MVP) — solo usuarios autenticados; sin control de privacidad por ahora |
 
 ---
 

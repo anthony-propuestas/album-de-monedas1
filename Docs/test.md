@@ -440,6 +440,163 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/lib/__tests__/collections.test.ts`
+**Qué prueba:** el módulo `app/lib/collections.ts` — el array `CATEGORIES` con las 8 categorías de ranking, la función `getCategoryBySlug`, y las funciones `statLabel` de cada categoría.
+
+#### CATEGORIES
+
+| Test | Descripción |
+|---|---|
+| has exactly 8 categories | El array tiene exactamente 8 entradas |
+| every category has all required fields | Cada entrada tiene `slug`, `title`, `description`, `iconKey`, `sql` y `statLabel` con los tipos correctos |
+| all slugs are unique | No hay slugs duplicados |
+| every SQL string contains a ? placeholder for LIMIT | Todas las queries tienen `?` para el bind de LIMIT |
+| contains the expected 8 slugs | Los 8 slugs esperados están presentes: `most-pieces`, `oldest`, `highest-value`, `most-countries`, `best-condition`, `most-active`, `most-denominations`, `veteran` |
+
+#### getCategoryBySlug
+
+| Test | Descripción |
+|---|---|
+| returns the correct category for a valid slug | Con `"most-pieces"` devuelve la categoría con `title = "Mayor cantidad de piezas"` |
+| returns undefined for an unknown slug | Un slug inexistente devuelve `undefined` |
+| returns undefined for empty string | String vacío devuelve `undefined` |
+| finds category '{slug}' by slug (×8) | Cada uno de los 8 slugs es encontrado correctamente |
+
+#### statLabel por categoría (×8)
+
+| Test | Descripción |
+|---|---|
+| most-pieces: formats a numeric count as '{n} piezas' | `42` → `"42 piezas"` |
+| most-pieces: returns '—' for null | `null` → `"—"` |
+| oldest: formats a year as 'Desde {year}' | `1895` → `"Desde 1895"` |
+| highest-value: includes $ and USD in the formatted value | El resultado contiene `"$"` y `"USD"` |
+| most-countries: formats count as '{n} países' | `15` → `"15 países"` |
+| best-condition: formats percentage as '{n}% MS/AU' | `87.5` → `"87.5% MS/AU"` |
+| most-active: formats count as '{n} este mes' | `5` → `"5 este mes"` |
+| most-denominations: formats count as '{n} denominaciones' | `8` → `"8 denominaciones"` |
+| veteran: formats a year string as 'Desde {year}' | `"1998"` → `"Desde 1998"` |
+| (cada categoría) returns '—' for null | `null` → `"—"` en todas las categorías |
+
+---
+
+### `app/routes/__tests__/collections.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/collections._index.tsx`, que protege la ruta `/collections`, ejecuta las 8 queries de preview en paralelo y devuelve las categorías barajadas.
+
+> `~/lib/auth.server` se mockea. La DB se simula con `prepare → bind → first` encadenados; `first()` devuelve el mismo resultado para las 8 queries simultáneas.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión activa, lanza `Response` 302 → `/` |
+| returns exactly 8 previews | El array `previews` tiene exactamente 8 elementos |
+| calls DB prepare exactly 8 times — one per category | `db.prepare` se invoca 8 veces (una por categoría) |
+| binds 1 as LIMIT for every preview query | Todas las calls a `bind()` usan `1` como argumento (LIMIT 1 para preview) |
+| each preview has the required shape | Cada preview tiene `slug`, `title`, `description`, `iconKey`, `topName`, `topPicture`, `topStat` |
+| topName and topStat are null when DB returns no top user | Si `first()` devuelve `null`, `topName` y `topStat` son `null` |
+| populates topName and topStat when DB returns a top user | Si `first()` devuelve un usuario, `topName` y `topStat` tienen valor |
+| all 8 category slugs are present in the response | Los 8 slugs están presentes aunque el orden sea aleatorio |
+| topPicture reflects the picture from DB | El campo `topPicture` es el mismo que devuelve `first()` |
+
+---
+
+### `app/routes/__tests__/collections.category.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/collections.$category.tsx`, que valida el slug de categoría, ejecuta la query de top 10 y devuelve los coleccionistas con la stat formateada.
+
+> `~/lib/auth.server` se mockea. La DB se simula con `prepare → bind → all` encadenados.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión activa, lanza `Response` 302 → `/` |
+| throws 404 Response for an invalid category slug | Un slug desconocido lanza `Response` 404 |
+| returns category title and description for most-pieces | Devuelve `title = "Mayor cantidad de piezas"`, `description` y `slug` correctos |
+| binds 10 as LIMIT for the top-10 query | `bind()` recibe `10` como argumento (top 10 coleccionistas) |
+| returns empty collectors array when DB has no rows | Con `all()` vacío, `collectors` es `[]` |
+| maps DB rows to collectors with userId, name, picture, stat | Las filas de la DB se mapean a `{ userId, name, picture, stat }` con `statLabel` aplicado |
+| applies statLabel — oldest formats year with 'Desde' | Para `oldest`, `stat: 1902` se convierte en `"Desde 1902"` |
+| resolves with status 200 for valid slug '{slug}' (×8) | Cada uno de los 8 slugs válidos devuelve status 200 |
+
+---
+
+### `app/routes/__tests__/collection.userId.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/collection.$userId.tsx`, que protege la ruta, carga el perfil público de un coleccionista y sus monedas con filtros opcionales.
+
+> `~/lib/auth.server` se mockea. La DB se simula con dos calls a `prepare` encadenadas: la primera usa `first()` (perfil del usuario) y la segunda usa `all()` (monedas).
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión activa, lanza `Response` 302 → `/` |
+| throws 404 when userId does not exist in DB | Si `first()` devuelve `null`, lanza `Response` 404 |
+| returns profileUser and coins | Con usuario existente, `data.profileUser` y `data.coins` tienen los valores de la DB |
+| returns empty filters when no search params | Sin query params, `data.filters` tiene todos los campos vacíos |
+| reflects search params in returned filters | Los params `q`, `country`, `year`, `condition` se reflejan en `data.filters` |
+| includes 'from' param in response when present in URL | `?from=most-pieces` se devuelve en `data.from` |
+| returns empty string for 'from' when not in URL | Sin `from` en la URL, `data.from` es `""` |
+| applies q filter — SQL contains LIKE and wildcard is bound | El parámetro `q` genera `LIKE` en el SQL y `"%peso%"` en el bind |
+| applies country filter — SQL contains country clause | El parámetro `country` añade `country = ?` y vincula el valor |
+| parses year filter as integer | El parámetro `year` se convierte a `number` antes de enviarse a D1 |
+| coin query ends with ORDER BY created_at DESC | La query de monedas siempre termina con ordenamiento por fecha descendente |
+
+---
+
+### `app/components/__tests__/CategoryTile.test.tsx`
+**Qué prueba:** el componente `CategoryTile` de `app/components/CategoryTile.tsx`, que muestra una tarjeta clicable con el nombre de la categoría, su descripción y un preview del #1 actual.
+
+> `@remix-run/react` se mockea: `Link` se reemplaza por un `<a>` nativo para evitar la dependencia del router.
+
+| Test | Descripción |
+|---|---|
+| renders a link pointing to /collections/:slug | El elemento `<a>` apunta a `/collections/{slug}` |
+| renders the category title | El título de la categoría está en el DOM |
+| renders the category description | La descripción de la categoría está en el DOM |
+| shows 'Sin datos aún' when topName is null | Sin top user, se muestra el texto `"Sin datos aún"` |
+| shows topName when provided | Cuando hay top user, su nombre aparece en el tile |
+| shows topStat when topName and topStat are provided | El stat formateado aparece bajo el nombre del top user |
+| does not show 'Sin datos aún' when topName is set | Con top user, `"Sin datos aún"` no aparece |
+| shows first uppercase letter of topName when picture is null | Sin foto, se muestra la inicial en mayúscula del nombre |
+| renders an img with correct src when topPicture is provided | Con foto, el `<img>` tiene `src` y `alt` correctos |
+| does not render an img when topPicture is null | Sin foto, no hay `<img>` en el DOM |
+| renders without crashing for iconKey '{key}' (×8) | Los 8 iconos (`layers`, `clock`, `trending-up`, `globe`, `star`, `zap`, `grid`, `award`) no lanzan error |
+| uses correct slug in href for different slugs | Un slug distinto produce el href correcto |
+
+---
+
+### `app/components/__tests__/CollectorRow.test.tsx`
+**Qué prueba:** el componente `CollectorRow` de `app/components/CollectorRow.tsx`, que muestra una fila del ranking con posición, avatar, nombre clicable y stat.
+
+> `@remix-run/react` se mockea: `Link` se reemplaza por un `<a>` nativo.
+
+#### Medallas de posición
+
+| Test | Descripción |
+|---|---|
+| shows 🥇 for rank 1 | El primer lugar muestra el emoji 🥇 |
+| shows 🥈 for rank 2 | El segundo lugar muestra el emoji 🥈 |
+| shows 🥉 for rank 3 | El tercer lugar muestra el emoji 🥉 |
+| shows '#4' for rank 4 | El cuarto lugar muestra `"#4"` |
+| shows '#10' for rank 10 | El décimo lugar muestra `"#10"` |
+| does not show a medal emoji for rank 4+ | A partir del cuarto lugar no hay emojis de medalla |
+
+#### Comportamiento del link
+
+| Test | Descripción |
+|---|---|
+| renders the user name as a link | El nombre del coleccionista es un `<a>` clicable |
+| link points to /collection/:userId without from param | Sin `fromCategory`, el href es `/collection/{userId}` |
+| link includes ?from=:slug when fromCategory is provided | Con `fromCategory`, el href incluye `?from={slug}` |
+| link has no 'from' param when fromCategory is not provided | Sin `fromCategory`, el href no contiene `"from"` |
+| link uses fromCategory slug correctly | El slug de `fromCategory` se refleja correctamente en la URL |
+
+#### Avatar y stat
+
+| Test | Descripción |
+|---|---|
+| shows the first uppercase letter of name when picture is null | Sin foto, se muestra la inicial en mayúscula |
+| renders an img when picture is provided | Con foto, el `<img>` tiene `src` y `alt` correctos |
+| does not render an img when picture is null | Sin foto, no hay `<img>` en el DOM |
+| renders the stat text | El texto del stat aparece en el DOM |
+| renders different stat formats | El stat acepta formatos distintos (`"Desde 1895"`, etc.) |
+
+---
+
 ## Estrategia de mocking
 
 Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cosas:
