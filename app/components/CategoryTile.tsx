@@ -106,7 +106,7 @@ export function CategoryTile({ slug, title, description, iconKey, topName, topPi
 
       <div>
         <h3
-          className="text-sm font-semibold text-[#F2ECE0] leading-snug mb-1"
+          className="text-lg font-semibold text-[#F2ECE0] leading-snug mb-1"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
