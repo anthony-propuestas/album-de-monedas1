@@ -8,7 +8,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing (conteo de usuarios y piezas)
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
 
 ## Variables de entorno
@@ -35,7 +35,7 @@ npm run deploy    # build + deploy a Cloudflare Pages
 
 | Ruta | Descripción |
 |------|-------------|
-| `/` | Landing pública: Hero + "Cómo funciona" + login |
+| `/` | Landing pública: Hero · stats de comunidad (usuarios y piezas) · "¿Por qué?" · "Cómo funciona" · login |
 | `/auth/google` | Inicia flujo OAuth con Google (action POST) |
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
 | `/home` | Dashboard protegido: menú lateral + modal de configuración de perfil |
@@ -120,6 +120,8 @@ Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
 | Suite | Archivo | Tests |
 |-------|---------|-------|
+| Landing — componente | `app/routes/__tests__/_index.test.tsx` | 16 |
+| Landing — loader | `app/routes/__tests__/_index.loader.test.ts` | 5 |
 | Módulo de monedas | `app/lib/__tests__/coins.test.ts` | 14 |
 | Categorías de ranking | `app/lib/__tests__/collections.test.ts` | 24 |
 | AddCoinModal | `app/components/__tests__/AddCoinModal.test.tsx` | 28 |

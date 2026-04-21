@@ -158,6 +158,37 @@ El parámetro `?from={slug}` se lee en el loader de `/collection/:userId` y se d
 
 ---
 
+## Landing pública con stats de D1
+
+### Qué hace
+
+El `loader` de `_index.tsx` ejecuta dos queries `COUNT(*)` contra D1 sin requerir sesión y devuelve `{ totalUsers, totalCoins }` al cliente:
+
+```ts
+db.prepare("SELECT COUNT(*) as count FROM users").first()
+db.prepare("SELECT COUNT(*) as count FROM coins").first()
+```
+
+### Datos expuestos
+
+Solo se exponen **agregados numéricos** — nunca IDs, emails, nombres ni ningún otro campo de las tablas. Un atacante que llame directamente al endpoint solo obtiene dos enteros.
+
+### Superficie unauthenticated hacia D1
+
+Esta es la única ruta de la aplicación que consulta D1 sin sesión activa. Riesgos a considerar:
+
+| Riesgo | Estado |
+|--------|--------|
+| Exposición de PII | **Ninguna** — queries `COUNT(*)` puras, sin `SELECT` de campos de usuario |
+| Scraping de volumen de la plataforma | Aceptado — es información pública por diseño (social proof en landing) |
+| Abuso por flood de requests sin auth | Mitigado por Cloudflare Pages (DDoS, rate limiting de red) — sin rate limiting explícito a nivel de aplicación por ahora |
+
+### Sin cambios en la tabla de riesgos conocidos
+
+No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga de datos de usuario. Las queries son parametrizadas con `.bind()` y no reciben ningún input del cliente.
+
+---
+
 ## Variables de entorno sensibles
 
 | Variable | Uso | Riesgo si se expone |

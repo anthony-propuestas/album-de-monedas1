@@ -231,7 +231,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/routes/__tests__/_index.test.tsx`
 **Qué prueba:** el componente `Index` de `app/routes/_index.tsx` (la landing pública).
 
-> El componente `Form` de `@remix-run/react` se reemplaza por un `<form>` nativo para evitar la dependencia del router de Remix.
+> `Form` de `@remix-run/react` se reemplaza por un `<form>` nativo. `useLoaderData` se mockea para inyectar `{ totalUsers: 42, totalCoins: 137 }` sin necesitar el contexto de Remix.
+
+#### Hero y onboarding
 
 | Test | Descripción |
 |---|---|
@@ -243,6 +245,39 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | renders all three onboarding steps | Los tres pasos (Crea tu cuenta, Sube tus monedas, Conecta y comparte) |
 | renders step numbers 01, 02, 03 | Los números de paso se muestran en orden |
 | renders the app description text | El texto descriptivo menciona "colección numismática" |
+
+#### Sección de estadísticas
+
+| Test | Descripción |
+|---|---|
+| renders 'La comunidad en números' heading | El encabezado de la sección de stats está en el DOM |
+| displays the totalUsers count from loader data | El número de coleccionistas (del mock) aparece en el DOM |
+| displays the totalCoins count from loader data | El número de piezas (del mock) aparece en el DOM |
+| renders 'coleccionistas' label next to user count | El label descriptivo del contador de usuarios está presente |
+| renders 'piezas catalogadas' label next to coin count | El label descriptivo del contador de monedas está presente |
+
+#### Sección ¿Por qué Album de Monedas?
+
+| Test | Descripción |
+|---|---|
+| renders '¿Por qué Album de Monedas?' section | El encabezado de la sección marketing está en el DOM |
+| renders all three reason cards | Las tres tarjetas (Compite en rankings, Monedas de todo el mundo, Comunidad activa) están presentes |
+| renders reason card descriptions | Los textos de las tarjetas mencionan "leaderboards", "denominación" y "numismáticos" |
+
+---
+
+### `app/routes/__tests__/_index.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/_index.tsx`, que consulta D1 para obtener el conteo de usuarios y piezas sin requerir autenticación.
+
+> La DB se simula con un objeto que encadena `prepare → first`. El mock distingue la query de `users` de la de `coins` inspeccionando el SQL.
+
+| Test | Descripción |
+|---|---|
+| returns totalUsers and totalCoins from the database | Con datos en DB, retorna los conteos correctos en ambos campos |
+| defaults totalUsers to 0 when DB returns null | Si `first()` devuelve `null` para `users`, `totalUsers` es `0` |
+| defaults totalCoins to 0 when DB returns null | Si `first()` devuelve `null` para `coins`, `totalCoins` es `0` |
+| queries both users and coins tables | El loader consulta ambas tablas (`FROM users` y `FROM coins`) |
+| issues exactly two DB queries | `db.prepare` se invoca exactamente 2 veces por llamada al loader |
 
 ---
 
