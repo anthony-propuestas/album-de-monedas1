@@ -30,6 +30,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 - Las rutas `/auth/google` y `/auth/google/callback` no requieren sesión.
 - `/images/*` (implementado en `app/routes/images.$.tsx`) no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
 - `/admin` (implementado en `app/routes/admin.tsx`) requiere sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirige a `/`.
+- `/auth/logout` (implementado en `app/routes/auth.logout.tsx`) solo acepta POST; destruye la sesión con `sessionStorage.destroySession()` y redirige a `/`. El botón de cierre de sesión en el drawer de `/home` usa `<Form method="post" action="/auth/logout">`.
 
 ---
 
@@ -164,20 +165,11 @@ Ninguna superficie de ataque nueva. En particular:
 
 - [ ] `SESSION_SECRET` de al menos 32 caracteres aleatorios.
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` configurados en Cloudflare Pages.
-- [x] `ADMIN_EMAIL` configurado en Cloudflare Pages (nunca en el repo).
 - [ ] `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` configurados en Cloudflare Pages.
 - [ ] Dominio de callback registrado en Google Cloud Console.
 - [ ] `secure: true` en cookie (automático si `NODE_ENV=production`).
 - [ ] Activar Cloudflare WAF (dashboard).
 - [ ] Configurar rate limiting en `/auth/google` (dashboard).
-- [x] Implementar `/auth/logout` — `app/routes/auth.logout.tsx`.
-- [x] Headers de seguridad (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) en `entry.server.tsx`.
 - [ ] Revisar CSP vía Cloudflare Transform Rules.
-- [x] Validación de longitud máxima en inputs de perfil y moneda.
 - [ ] Validar `country` contra lista ISO y `collecting_since` contra valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
-- [x] Validar `condition` contra enum `MS/AU/XF/VF/F/VG/G/P`.
-- [x] Validar `denomination` y `name` de moneda contra `COINS_BY_COUNTRY[country]`.
-- [x] Rechazar `name` vacío en el action de `/mycollection`.
-- [x] Magic bytes JPEG y límite de 5 MB antes de subir a R2.
-- [x] Límite de 500 monedas por usuario.
