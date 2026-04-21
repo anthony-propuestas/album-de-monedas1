@@ -1,13 +1,46 @@
-import type { MetaFunction } from "@remix-run/cloudflare";
-import { Form } from "@remix-run/react";
-import { BookOpen, Upload, Users } from "lucide-react";
+import { json, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/cloudflare";
+import { Form, useLoaderData } from "@remix-run/react";
+import { BookOpen, Globe, Trophy, Upload, Users } from "lucide-react";
 import { Button } from "~/components/ui/button";
+
+export async function loader({ context }: LoaderFunctionArgs) {
+  const db = context.cloudflare.env.DB;
+  const [usersRow, coinsRow] = await Promise.all([
+    db.prepare("SELECT COUNT(*) as count FROM users").first<{ count: number }>(),
+    db.prepare("SELECT COUNT(*) as count FROM coins").first<{ count: number }>(),
+  ]);
+  return json({
+    totalUsers: usersRow?.count ?? 0,
+    totalCoins: coinsRow?.count ?? 0,
+  });
+}
 
 export const meta: MetaFunction = () => [
   { title: "Album de Monedas" },
   {
     name: "description",
     content: "Red social para coleccionistas de monedas numismáticas",
+  },
+];
+
+const reasons = [
+  {
+    icon: Trophy,
+    title: "Compite en rankings",
+    description:
+      "Escala los 8 leaderboards: más piezas, más países, mayor valor estimado, mejor condición y más. ¿Quién tiene la colección más impresionante?",
+  },
+  {
+    icon: Globe,
+    title: "Monedas de todo el mundo",
+    description:
+      "Registra fecha, ceca, denominación, condición y valor de cada pieza. Filtra por país, año o estado para encontrar lo que buscas en segundos.",
+  },
+  {
+    icon: Users,
+    title: "Comunidad activa",
+    description:
+      "Descubre las colecciones de otros numismáticos, inspírate con sus piezas más raras y conecta con personas que comparten tu pasión.",
   },
 ];
 
@@ -34,6 +67,7 @@ const steps = [
 ];
 
 export default function Index() {
+  const { totalUsers, totalCoins } = useLoaderData<typeof loader>();
   return (
     <main className="min-h-screen text-[#F2ECE0]">
       {/* Hero */}
@@ -69,6 +103,70 @@ export default function Index() {
             Iniciar sesión con Google
           </Button>
         </Form>
+      </section>
+
+      {/* Stats */}
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-6 py-16">
+        <div className="mx-auto max-w-2xl">
+          <h2
+            className="mb-10 text-center text-sm font-medium uppercase tracking-[0.25em] text-[#C9A46A]"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            La comunidad en números
+          </h2>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-8 py-10">
+              <span className="text-4xl font-semibold text-[#C9A46A]">
+                {totalUsers.toLocaleString()}
+              </span>
+              <span className="text-sm text-[rgba(242,236,224,0.55)]">
+                coleccionistas
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-8 py-10">
+              <span className="text-4xl font-semibold text-[#C9A46A]">
+                {totalCoins.toLocaleString()}
+              </span>
+              <span className="text-sm text-[rgba(242,236,224,0.55)]">
+                piezas catalogadas
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Por qué */}
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <h2
+            className="mb-4 text-center text-3xl font-semibold"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            ¿Por qué Album de Monedas?
+          </h2>
+          <p className="mb-16 text-center text-[rgba(242,236,224,0.55)]">
+            Más que un inventario — una comunidad para apasionados de la numismática.
+          </p>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {reasons.map((r) => (
+              <div
+                key={r.title}
+                className="flex flex-col gap-4 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] p-8 backdrop-blur-md"
+              >
+                <r.icon className="size-8 text-[#C9A46A]" />
+                <h3
+                  className="text-xl font-semibold"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {r.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-[rgba(242,236,224,0.55)]">
+                  {r.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Cómo funciona */}
