@@ -271,7 +271,7 @@ responseHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
 ---
 
-### [ ] 14. `ADMIN_EMAIL` en Cloudflare Pages (no en el repo)
+### [x] 14. `ADMIN_EMAIL` en Cloudflare Pages (no en el repo)
 
 Confirmar que `.dev.vars` contiene `ADMIN_EMAIL` para local y que está configurado en el dashboard de Cloudflare Pages para producción. El valor nunca debe commitearse.
 

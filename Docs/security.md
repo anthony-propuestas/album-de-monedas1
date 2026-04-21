@@ -144,8 +144,8 @@ Ninguna superficie de ataque nueva. En particular:
 | Riesgo | Estado | Mitigación |
 |--------|--------|------------|
 | Sin protección anti-bot en login | **Implementado** | Cloudflare Turnstile en `auth.google.tsx` (verificación condicional por env) |
-| Sin WAF | Pendiente | Activar Cloudflare WAF en producción (dashboard) |
-| Sin rate limiting en `/auth/google` | Pendiente | Regla de rate limit en Cloudflare (dashboard) |
+| Sin WAF | Pospuesto (post-MVP) | Activar Cloudflare WAF en producción (dashboard) |
+| Sin rate limiting en `/auth/google` | Pospuesto (post-MVP) | Regla de rate limit en Cloudflare (dashboard) |
 | Sin CSRF token explícito | Aceptado (Remix) | `sameSite: lax` mitiga casos comunes; Remix Forms incluye protección nativa |
 | Sin logout implementado | **Implementado** | `app/routes/auth.logout.tsx` destruye la sesión y redirige a `/` |
 | Sin scope OAuth explícito | **Implementado** | `scope: ["openid", "email", "profile"]` en `GoogleStrategy` |
@@ -164,7 +164,7 @@ Ninguna superficie de ataque nueva. En particular:
 
 - [ ] `SESSION_SECRET` de al menos 32 caracteres aleatorios.
 - [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` configurados en Cloudflare Pages.
-- [ ] `ADMIN_EMAIL` configurado en Cloudflare Pages (nunca en el repo).
+- [x] `ADMIN_EMAIL` configurado en Cloudflare Pages (nunca en el repo).
 - [ ] `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` configurados en Cloudflare Pages.
 - [ ] Dominio de callback registrado en Google Cloud Console.
 - [ ] `secure: true` en cookie (automático si `NODE_ENV=production`).
