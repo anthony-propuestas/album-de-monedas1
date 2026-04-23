@@ -30,7 +30,33 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   }
 
   const profileCompleted = existing ? existing.profile_completed === 1 : false;
-  return json({ user, profileCompleted });
+
+  const [statsRow, valueRow, conditionRow] = await Promise.all([
+    db
+      .prepare("SELECT COUNT(*) as total FROM coins WHERE user_id = ?")
+      .bind(user.id)
+      .first<{ total: number }>(),
+    db
+      .prepare(
+        "SELECT COALESCE(SUM(estimated_value), 0) as total FROM coins WHERE user_id = ? AND estimated_value IS NOT NULL"
+      )
+      .bind(user.id)
+      .first<{ total: number }>(),
+    db
+      .prepare(
+        "SELECT condition, COUNT(*) as cnt FROM coins WHERE user_id = ? AND condition IS NOT NULL GROUP BY condition ORDER BY cnt DESC LIMIT 1"
+      )
+      .bind(user.id)
+      .first<{ condition: string; cnt: number }>(),
+  ]);
+
+  const stats = {
+    total: statsRow?.total ?? 0,
+    estimatedValue: valueRow?.total ?? 0,
+    topCondition: conditionRow?.condition ?? null,
+  };
+
+  return json({ user, profileCompleted, stats });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -139,7 +165,7 @@ const drawerItems = [
 ];
 
 export default function Home() {
-  const { user, profileCompleted } = useLoaderData<typeof loader>();
+  const { user, profileCompleted, stats } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -254,6 +280,22 @@ export default function Home() {
       <p className="mb-12 text-sm text-[rgba(242,236,224,0.55)]">
         Bienvenido, {user.name}
       </p>
+      <div className="grid grid-cols-3 gap-3 w-full max-w-3xl mb-10">
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+          <p className="text-2xl font-semibold text-[#C9A46A]">{stats.total}</p>
+          <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">piezas</p>
+        </div>
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+          <p className="text-2xl font-semibold text-[#C9A46A]">
+            {stats.estimatedValue > 0 ? `$${stats.estimatedValue.toLocaleString("es-AR")}` : "—"}
+          </p>
+          <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">valor est.</p>
+        </div>
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+          <p className="text-2xl font-semibold text-[#C9A46A]">{stats.topCondition ?? "—"}</p>
+          <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">condición top</p>
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 w-full max-w-3xl">
         {navItems.map((item) => (
           <a

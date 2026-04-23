@@ -87,9 +87,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/home.loader.test.ts`
-**Qué prueba:** el `loader` de `app/routes/home.tsx`, que protege la ruta `/home` y devuelve el usuario autenticado.
+**Qué prueba:** el `loader` de `app/routes/home.tsx`, que protege la ruta `/home`, devuelve el usuario autenticado y ejecuta 3 queries de stats personales en paralelo.
 
-> El módulo `~/lib/auth.server` se mockea completamente para controlar el resultado de `isAuthenticated` sin necesidad de cookies reales.
+> El módulo `~/lib/auth.server` se mockea completamente para controlar el resultado de `isAuthenticated` sin necesidad de cookies reales. Para los tests de stats se usa `makeMockDbWithStats`, que encadena `mockResolvedValueOnce` para controlar el resultado de cada una de las 4 llamadas a `first()` por separado.
 
 | Test | Descripción |
 |---|---|
@@ -98,6 +98,15 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns profileCompleted=true for a returning user with complete profile | Usuario con perfil completo retorna `{ user, profileCompleted: true }` |
 | calls isAuthenticated with the incoming request | El request original se pasa a `isAuthenticated` tal cual |
 | calls createAuth with the cloudflare env | `createAuth` recibe solo el env (sin request) para la verificación de sesión |
+| returns stats.total from the DB COUNT query | El valor de `COUNT(*)` de la tabla `coins` aparece en `data.stats.total` |
+| returns stats.estimatedValue from the DB SUM query | El valor de `COALESCE(SUM(estimated_value), 0)` aparece en `data.stats.estimatedValue` |
+| returns stats.topCondition from the condition query | El campo `condition` del registro con mayor `cnt` aparece en `data.stats.topCondition` |
+| stats.total defaults to 0 when DB returns null | Si `first()` devuelve `null` para la query de COUNT, `stats.total` es `0` |
+| stats.estimatedValue defaults to 0 when DB returns null | Si `first()` devuelve `null` para la query de SUM, `stats.estimatedValue` es `0` |
+| stats.topCondition defaults to null when DB returns null conditionRow | Si `first()` devuelve `null` para la query de condición, `stats.topCondition` es `null` |
+| makes 4 DB prepare calls for an existing user | Para un usuario existente, `db.prepare` se invoca 4 veces: `SELECT profile_completed` + 3 stats |
+| makes 5 DB prepare calls for a new user (INSERT included) | Para un usuario nuevo, `db.prepare` se invoca 5 veces: `SELECT` + `INSERT` + 3 stats |
+| response includes all three stats fields | La respuesta contiene `{ total, estimatedValue, topCondition }` con los valores correctos de la DB |
 
 ---
 

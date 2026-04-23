@@ -15,6 +15,33 @@ function makeMockDb(firstResult: { profile_completed: number } | null = null) {
   return { prepare: vi.fn().mockReturnValue(prepareObj) };
 }
 
+interface StatsDbOptions {
+  existing?: { profile_completed: number } | null;
+  statsRow?: { total: number } | null;
+  valueRow?: { total: number } | null;
+  conditionRow?: { condition: string; cnt: number } | null;
+}
+
+// Handles the 4 sequential first() calls: profile check + 3 stats queries
+function makeMockDbWithStats({
+  existing = { profile_completed: 1 },
+  statsRow = { total: 0 },
+  valueRow = { total: 0 },
+  conditionRow = null,
+}: StatsDbOptions = {}) {
+  const firstFn = vi
+    .fn()
+    .mockResolvedValueOnce(existing)
+    .mockResolvedValueOnce(statsRow)
+    .mockResolvedValueOnce(valueRow)
+    .mockResolvedValueOnce(conditionRow);
+  const runFn = vi.fn().mockResolvedValue({});
+  const bindObj = { first: firstFn, run: runFn };
+  const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
+  const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
+  return { db, firstFn, runFn, prepareObj };
+}
+
 const mockEnv: Env = {
   GOOGLE_CLIENT_ID: "x",
   GOOGLE_CLIENT_SECRET: "x",
@@ -134,5 +161,91 @@ describe("home loader", () => {
     loader({ request: makeRequest(), context: ctx as any, params: {} }).catch(() => {});
 
     expect(authModule.createAuth).toHaveBeenCalledWith(ctx.cloudflare.env);
+  });
+
+  // --- stats ---
+
+  const authenticatedUser = {
+    id: "user-1",
+    email: "test@example.com",
+    name: "Test User",
+    picture: null,
+  };
+
+  function mockAuthenticated() {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(authenticatedUser) } as any,
+      sessionStorage: {} as any,
+    });
+  }
+
+  it("returns stats.total from the DB COUNT query", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ statsRow: { total: 42 } });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.total).toBe(42);
+  });
+
+  it("returns stats.estimatedValue from the DB SUM query", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ valueRow: { total: 1500 } });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.estimatedValue).toBe(1500);
+  });
+
+  it("returns stats.topCondition from the condition query", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ conditionRow: { condition: "XF", cnt: 5 } });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.topCondition).toBe("XF");
+  });
+
+  it("stats.total defaults to 0 when DB returns null", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ statsRow: null });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.total).toBe(0);
+  });
+
+  it("stats.estimatedValue defaults to 0 when DB returns null", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ valueRow: null });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.estimatedValue).toBe(0);
+  });
+
+  it("stats.topCondition defaults to null when DB returns null conditionRow", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ conditionRow: null });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats.topCondition).toBeNull();
+  });
+
+  it("makes 4 DB prepare calls for an existing user", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats();
+    await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    expect(db.prepare).toHaveBeenCalledTimes(4);
+  });
+
+  it("makes 5 DB prepare calls for a new user (INSERT included)", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ existing: null });
+    await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    expect(db.prepare).toHaveBeenCalledTimes(5);
+  });
+
+  it("response includes all three stats fields", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats({ statsRow: { total: 7 }, valueRow: { total: 300 }, conditionRow: { condition: "AU", cnt: 3 } });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.stats).toEqual({ total: 7, estimatedValue: 300, topCondition: "AU" });
   });
 });

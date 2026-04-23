@@ -49,7 +49,31 @@ db.prepare("SELECT * FROM coins WHERE user_id = ?").bind(user.id).all()
 db.prepare("INSERT INTO coins (id, user_id, name, ...) VALUES (?, ?, ?, ...)").bind(...).run()
 ```
 
+El loader de `/home` ejecuta adicionalmente 3 queries de stats en paralelo, todas parametrizadas con `user.id` obtenido de la sesión:
+
+```ts
+db.prepare("SELECT COUNT(*) as total FROM coins WHERE user_id = ?").bind(user.id).first()
+db.prepare("SELECT COALESCE(SUM(estimated_value), 0) as total FROM coins WHERE user_id = ? AND estimated_value IS NOT NULL").bind(user.id).first()
+db.prepare("SELECT condition, COUNT(*) as cnt FROM coins WHERE user_id = ? AND condition IS NOT NULL GROUP BY condition ORDER BY cnt DESC LIMIT 1").bind(user.id).first()
+```
+
 Los filtros de búsqueda de `/mycollection` también usan placeholders `?` para cada condición dinámica. Nunca se interpola input del usuario directamente en un string de query.
+
+### Stats personales en `/home`
+
+El dashboard muestra `stats.total`, `stats.estimatedValue` y `stats.topCondition` al usuario autenticado sobre su propia colección.
+
+| Propiedad | Fuente | Datos expuestos | Riesgo |
+|-----------|--------|-----------------|--------|
+| `stats.total` | `COUNT(*)` filtrado por `user_id` de sesión | Conteo de monedas propias | Ninguno |
+| `stats.estimatedValue` | `SUM(estimated_value)` filtrado por `user_id` de sesión | Valor estimado total de monedas propias | Ninguno |
+| `stats.topCondition` | `GROUP BY condition` filtrado por `user_id` de sesión | Condición más frecuente en colección propia | Ninguno |
+
+Puntos clave:
+- El `user.id` usado en `.bind()` proviene de la cookie de sesión firmada (HMAC), no de input del cliente — sin riesgo de privilege escalation entre usuarios.
+- Los datos son estrictamente del propio usuario; no hay cross-user exposure (a diferencia de `/collection/:userId`).
+- La ruta sigue requiriendo sesión activa; no amplía la superficie unauthenticated.
+- Los valores `null` de la DB se convierten con `?? 0` / `?? null` en el servidor antes de serializar — sin fuga de información de schema.
 
 ### Validación de entrada en los actions
 

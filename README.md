@@ -38,7 +38,7 @@ npm run deploy    # build + deploy a Cloudflare Pages
 | `/` | Landing pública: Hero · stats de comunidad (usuarios y piezas) · "¿Por qué?" · "Cómo funciona" · login |
 | `/auth/google` | Inicia flujo OAuth con Google (action POST) |
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
-| `/home` | Dashboard protegido: menú lateral + modal de configuración de perfil |
+| `/home` | Dashboard protegido: menú lateral + stats personales (piezas, valor estimado, condición top) + modal de configuración de perfil |
 | `/mycollection` | Colección personal: galería filtrable + formulario para agregar piezas |
 | `/collections` | Ranking social: grid de 8 categorías en orden aleatorio por visita |
 | `/collections/:category` | Top 10 coleccionistas de una categoría (most-pieces, oldest, highest-value…) |
@@ -57,7 +57,7 @@ app/
     _index.tsx                # Landing pública
     auth.google.tsx           # action POST → inicia OAuth Google
     auth.google.callback.tsx  # loader → callback OAuth, redirige a /home
-    home.tsx                  # Dashboard protegido
+    home.tsx                  # Dashboard protegido: loader con 3 queries en paralelo (total piezas, valor estimado, condición top) + grid de stats + nav cards
     mycollection.tsx          # loader (galería filtrable) + action (add_coin: sube fotos a R2, inserta en D1)
     collections._index.tsx    # loader → 8 queries en paralelo, shuffle Fisher-Yates, grid de tiles
     collections.$category.tsx # loader → valida slug, top 10 de la categoría con stat formateada
