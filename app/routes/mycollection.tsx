@@ -4,7 +4,7 @@ import type {
   MetaFunction,
 } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
-import { useLoaderData, useNavigation } from "@remix-run/react";
+import { useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import { useState } from "react";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { CoinCard } from "~/components/CoinCard";
@@ -92,12 +92,43 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = form.get("intent")?.toString();
 
+  const db = context.cloudflare.env.DB;
+
+  if (intent === "list_coin") {
+    const listId = form.get("coin_id")?.toString();
+    const askingRaw = form.get("asking_price")?.toString();
+    const askingPrice = askingRaw ? parseFloat(askingRaw) : null;
+    if (!listId) return json({ error: "ID requerido." }, { status: 400 });
+    if (askingPrice !== null && (isNaN(askingPrice) || askingPrice < 0)) {
+      return json({ error: "Precio inválido." }, { status: 400 });
+    }
+    const owned = await db
+      .prepare("SELECT id FROM coins WHERE id = ? AND user_id = ?")
+      .bind(listId, user.id)
+      .first<{ id: string }>();
+    if (!owned) return json({ error: "Moneda no encontrada." }, { status: 404 });
+    await db
+      .prepare("UPDATE coins SET for_sale = 1, asking_price = ? WHERE id = ? AND user_id = ?")
+      .bind(askingPrice, listId, user.id)
+      .run();
+    return json({ success: true });
+  }
+
+  if (intent === "unlist_coin") {
+    const listId = form.get("coin_id")?.toString();
+    if (!listId) return json({ error: "ID requerido." }, { status: 400 });
+    await db
+      .prepare("UPDATE coins SET for_sale = 0, asking_price = NULL WHERE id = ? AND user_id = ?")
+      .bind(listId, user.id)
+      .run();
+    return json({ success: true });
+  }
+
   if (intent !== "add_coin") {
     return json({ error: "Acción no reconocida." }, { status: 400 });
   }
 
   const coinId = crypto.randomUUID();
-  const db = context.cloudflare.env.DB;
   const images = context.cloudflare.env.IMAGES as R2Bucket | undefined;
 
   const uploadPhoto = async (slot: string): Promise<string | null> => {
@@ -183,6 +214,79 @@ export async function action({ request, context }: ActionFunctionArgs) {
     .run();
 
   return redirect("/mycollection");
+}
+
+function SellCoinControl({ coin }: { coin: Coin }) {
+  const fetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const [showInput, setShowInput] = useState(false);
+  const submitting = fetcher.state === "submitting";
+
+  if (coin.for_sale) {
+    return (
+      <div className="flex flex-col items-center gap-0.5 mt-1 px-1">
+        <span className="text-[9px] uppercase tracking-widest text-emerald-400/60">en venta</span>
+        <span className="text-xs text-[#C9A46A]">${(coin.asking_price ?? 0).toFixed(2)}</span>
+        <fetcher.Form method="post">
+          <input type="hidden" name="intent" value="unlist_coin" />
+          <input type="hidden" name="coin_id" value={coin.id} />
+          <button
+            type="submit"
+            disabled={submitting}
+            className="text-[9px] text-[rgba(242,236,224,0.3)] hover:text-red-400/70 transition-colors mt-0.5"
+          >
+            quitar
+          </button>
+        </fetcher.Form>
+      </div>
+    );
+  }
+
+  if (showInput) {
+    return (
+      <fetcher.Form
+        method="post"
+        className="flex flex-col gap-1.5 mt-1.5 px-1"
+        onSubmit={() => setShowInput(false)}
+      >
+        <input type="hidden" name="intent" value="list_coin" />
+        <input type="hidden" name="coin_id" value={coin.id} />
+        <input
+          type="number"
+          name="asking_price"
+          step="0.01"
+          min="0"
+          placeholder="Precio USD"
+          autoFocus
+          className="w-full text-[11px] text-center bg-transparent border border-[rgba(210,180,130,0.35)] rounded-md px-2 py-1 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.6)]"
+        />
+        <div className="flex gap-1">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 text-[10px] py-1 rounded-md bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.25)] hover:bg-[rgba(201,164,106,0.22)] transition-colors"
+          >
+            Publicar
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowInput(false)}
+            className="px-2 text-[10px] rounded-md text-[rgba(242,236,224,0.35)] hover:text-[rgba(242,236,224,0.6)] transition-colors border border-[rgba(210,180,130,0.1)]"
+          >
+            ✕
+          </button>
+        </div>
+      </fetcher.Form>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setShowInput(true)}
+      className="mt-1.5 mx-auto text-[9px] uppercase tracking-widest text-[rgba(242,236,224,0.2)] hover:text-[rgba(201,164,106,0.6)] transition-colors py-0.5 block w-full text-center"
+    >
+      vender
+    </button>
+  );
 }
 
 export default function MyCollection() {
@@ -273,7 +377,10 @@ export default function MyCollection() {
             }}
           >
             {coins.map((coin) => (
-              <CoinCard key={coin.id} coin={coin} />
+              <div key={coin.id} className="flex flex-col">
+                <CoinCard coin={coin} />
+                <SellCoinControl coin={coin} />
+              </div>
             ))}
           </div>
         )}

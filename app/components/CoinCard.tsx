@@ -15,6 +15,8 @@ export interface Coin {
   photo_edge: string | null;
   photo_detail: string | null;
   created_at: number;
+  for_sale: number;
+  asking_price: number | null;
 }
 
 export function CoinCard({ coin }: { coin: Coin }) {
