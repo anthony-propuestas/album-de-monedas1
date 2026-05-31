@@ -4,6 +4,10 @@ import { Form, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
 import { ProfileSetupModal } from "~/components/ProfileSetupModal";
+import { BadgesGrid } from "~/components/BadgesGrid";
+import { COINS_BY_COUNTRY } from "~/lib/coins";
+import { computeEarnedBadgeIds, BADGE_MAP } from "~/lib/badges";
+import type { Coin } from "~/components/CoinCard";
 
 export const meta: MetaFunction = () => [
   { title: "Inicio — Album de Monedas" },
@@ -56,7 +60,42 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     topCondition: conditionRow?.condition ?? null,
   };
 
-  return json({ user, profileCompleted, stats });
+  // Fetch all coins once — used for coinOfDay and badges
+  const { results: allCoins } = await db
+    .prepare("SELECT * FROM coins WHERE user_id = ?")
+    .bind(user.id)
+    .all<Coin>();
+
+  // Moneda del día
+  const ownedSet = new Set(allCoins.map((c) => c.name));
+  const catalog = COINS_BY_COUNTRY["AR"] ?? [];
+  const missing = catalog.filter((c) => !ownedSet.has(c.nombre));
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
+  );
+  const coinOfDay = missing.length > 0 ? missing[dayOfYear % missing.length] : null;
+
+  // Badges
+  const earnedIds = computeEarnedBadgeIds(allCoins);
+  if (earnedIds.length > 0) {
+    await Promise.all(
+      earnedIds.map((id) =>
+        db
+          .prepare("INSERT OR IGNORE INTO user_badges (user_id, badge_id) VALUES (?, ?)")
+          .bind(user.id, id)
+          .run()
+      )
+    );
+  }
+  const { results: badgeRows } = await db
+    .prepare("SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ?")
+    .bind(user.id)
+    .all<{ badge_id: string; unlocked_at: number }>();
+  const badges = badgeRows
+    .filter((row) => BADGE_MAP[row.badge_id])
+    .map((row) => ({ ...BADGE_MAP[row.badge_id], unlockedAt: row.unlocked_at }));
+
+  return json({ user, profileCompleted, stats, coinOfDay, badges });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -165,7 +204,7 @@ const drawerItems = [
 ];
 
 export default function Home() {
-  const { user, profileCompleted, stats } = useLoaderData<typeof loader>();
+  const { user, profileCompleted, stats, coinOfDay, badges } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -296,6 +335,26 @@ export default function Home() {
           <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">condición top</p>
         </div>
       </div>
+      {coinOfDay && (
+        <div className="w-full max-w-3xl mb-8 rounded-xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.85)] px-5 py-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mb-1">
+              Moneda del día
+            </p>
+            <p className="text-sm font-medium text-[#F2ECE0]">{coinOfDay.nombre}</p>
+            <p className="text-xs text-[rgba(242,236,224,0.5)] mt-0.5">
+              {coinOfDay.denominacion} · {coinOfDay.anio} · {coinOfDay.serie ?? "Sin serie"}
+            </p>
+          </div>
+          <a
+            href="/mycollection"
+            className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg border border-[rgba(210,180,130,0.3)] text-[#C9A46A] hover:bg-[rgba(201,164,106,0.12)] transition-colors"
+          >
+            ¿La tenés?
+          </a>
+        </div>
+      )}
+      <BadgesGrid badges={badges} />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 w-full max-w-3xl">
         {navItems.map((item) => (
           <a

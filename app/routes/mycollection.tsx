@@ -9,6 +9,8 @@ import { useState } from "react";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { CoinCard } from "~/components/CoinCard";
 import { CoinFilters } from "~/components/CoinFilters";
+import { SeriesProgress } from "~/components/SeriesProgress";
+import { YearTimeline } from "~/components/YearTimeline";
 import { createAuth } from "~/lib/auth.server";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import type { Coin } from "~/components/CoinCard";
@@ -57,7 +59,29 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     .bind(...values)
     .all<Coin>();
 
-  return json({ user, coins, filters: { q, country, year, condition } });
+  const { results: allCoins } = await db
+    .prepare("SELECT name, country, year FROM coins WHERE user_id = ?")
+    .bind(user.id)
+    .all<{ name: string; country: string | null; year: number | null }>();
+
+  const argCoins = allCoins.filter((c) => c.country === "AR");
+  const ownedNames = new Set(argCoins.map((c) => c.name));
+  const catalog = COINS_BY_COUNTRY["AR"] ?? [];
+  const seriesMap = new Map<string, { total: number; owned: number }>();
+  for (const entry of catalog) {
+    const key = entry.serie ?? "Sin serie";
+    const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
+    cur.total += 1;
+    if (ownedNames.has(entry.nombre)) cur.owned += 1;
+    seriesMap.set(key, cur);
+  }
+  const seriesProgress = Array.from(seriesMap.entries()).map(([serie, data]) => ({
+    serie,
+    ...data,
+    pct: Math.round((data.owned / data.total) * 100),
+  }));
+
+  return json({ user, coins, filters: { q, country, year, condition }, seriesProgress, allCoins });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -162,7 +186,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function MyCollection() {
-  const { user, coins, filters } = useLoaderData<typeof loader>();
+  const { user, coins, filters, seriesProgress, allCoins } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -209,6 +233,10 @@ export default function MyCollection() {
             Agregar pieza
           </button>
         </div>
+
+        {/* Progreso por serie + Timeline de años */}
+        <SeriesProgress series={seriesProgress} />
+        <YearTimeline coins={allCoins} />
 
         {/* Filtros */}
         <div className="mb-6">
