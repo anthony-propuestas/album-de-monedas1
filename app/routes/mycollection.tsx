@@ -282,9 +282,9 @@ function SellCoinControl({ coin }: { coin: Coin }) {
   return (
     <button
       onClick={() => setShowInput(true)}
-      className="mt-1.5 mx-auto text-[9px] uppercase tracking-widest text-[rgba(242,236,224,0.2)] hover:text-[rgba(201,164,106,0.6)] transition-colors py-0.5 block w-full text-center"
+      className="mt-1.5 w-full text-[10px] uppercase tracking-widest font-medium py-1.5 rounded-lg border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)] transition-all"
     >
-      vender
+      Vender
     </button>
   );
 }
