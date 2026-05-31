@@ -10,7 +10,6 @@ export const meta: MetaFunction = () => [
 interface Message {
   id: string;
   buyer_name: string;
-  buyer_email: string;
   buyer_contact: string | null;
   message: string;
   created_at: number;
@@ -29,7 +28,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   const { results: messages } = await db
     .prepare(
-      `SELECT m.id, m.buyer_name, m.buyer_email, m.buyer_contact,
+      `SELECT m.id, m.buyer_name, m.buyer_contact,
               m.message, m.created_at,
               CASE WHEN m.read_at IS NULL THEN 1 ELSE 0 END as is_new,
               c.name as coin_name, c.country as coin_country, c.year as coin_year
@@ -131,7 +130,6 @@ function MessageCard({ msg }: { msg: Message }) {
               </span>
             )}
           </div>
-          <p className="text-xs text-[rgba(242,236,224,0.4)] mt-0.5">{msg.buyer_email}</p>
           {msg.buyer_contact && (
             <p className="text-xs text-[rgba(242,236,224,0.4)]">{msg.buyer_contact}</p>
           )}

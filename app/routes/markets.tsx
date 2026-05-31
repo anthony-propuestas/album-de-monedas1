@@ -88,10 +88,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     await db
       .prepare(
-        `INSERT INTO messages (id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO messages (id, coin_id, seller_id, buyer_id, buyer_name, buyer_contact, message)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(id, coin_id, seller_id, user.id, user.name, user.email, buyer_contact, message)
+      .bind(id, coin_id, seller_id, user.id, user.name, buyer_contact, message)
       .run();
 
     return json({ ok: true, error: null });
@@ -226,7 +226,6 @@ export default function Markets() {
         <ContactModal
           listing={activeContact}
           buyerName={user.name}
-          buyerEmail={user.email}
           onClose={() => setActiveContact(null)}
         />
       )}
@@ -354,12 +353,10 @@ function ListingCard({
 function ContactModal({
   listing,
   buyerName,
-  buyerEmail,
   onClose,
 }: {
   listing: MarketListing;
   buyerName: string;
-  buyerEmail: string;
   onClose: () => void;
 }) {
   const fetcher = useFetcher<{ ok: boolean; error: string | null }>();
@@ -423,18 +420,10 @@ function ContactModal({
 
             <div className="flex flex-col gap-4">
               {/* Datos pre-llenados */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">Nombre</label>
-                  <div className="text-sm text-[rgba(242,236,224,0.5)] bg-[rgba(14,11,10,0.5)] border border-[rgba(210,180,130,0.1)] rounded-xl px-3 py-2.5 truncate">
-                    {buyerName}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">Email</label>
-                  <div className="text-sm text-[rgba(242,236,224,0.5)] bg-[rgba(14,11,10,0.5)] border border-[rgba(210,180,130,0.1)] rounded-xl px-3 py-2.5 truncate">
-                    {buyerEmail}
-                  </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">Nombre</label>
+                <div className="text-sm text-[rgba(242,236,224,0.5)] bg-[rgba(14,11,10,0.5)] border border-[rgba(210,180,130,0.1)] rounded-xl px-3 py-2.5 truncate">
+                  {buyerName}
                 </div>
               </div>
 
