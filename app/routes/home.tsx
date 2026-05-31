@@ -95,7 +95,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     .filter((row) => BADGE_MAP[row.badge_id])
     .map((row) => ({ ...BADGE_MAP[row.badge_id], unlockedAt: row.unlocked_at }));
 
-  return json({ user, profileCompleted, stats, coinOfDay, badges });
+  const unreadRow = await db
+    .prepare("SELECT COUNT(*) as unread FROM messages WHERE seller_id = ? AND read_at IS NULL")
+    .bind(user.id)
+    .first<{ unread: number }>();
+  const unreadMessages = unreadRow?.unread ?? 0;
+
+  return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -138,6 +144,7 @@ const navItems = [
   { label: "Mi colección", href: "/mycollection" },
   { label: "Grandes colecciones", href: "/collections" },
   { label: "Mercados", href: "/markets" },
+  { label: "Buzón", href: "/inbox" },
 ];
 
 const drawerItems = [
@@ -201,10 +208,20 @@ const drawerItems = [
       </svg>
     ),
   },
+  {
+    label: "Buzón",
+    href: "/inbox",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Home() {
-  const { user, profileCompleted, stats, coinOfDay, badges } = useLoaderData<typeof loader>();
+  const { user, profileCompleted, stats, coinOfDay, badges, unreadMessages } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -275,7 +292,12 @@ export default function Home() {
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[rgba(242,236,224,0.75)] hover:bg-[rgba(201,164,106,0.1)] hover:text-[#C9A46A] transition-colors text-sm"
             >
               <span className="flex-shrink-0 text-[rgba(201,164,106,0.7)]">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/inbox" && unreadMessages > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#C9A46A] text-[#0E0B0A] text-[10px] font-bold flex items-center justify-center">
+                  {unreadMessages}
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -360,10 +382,15 @@ export default function Home() {
           <a
             key={item.href}
             href={item.href}
-            className="flex items-center justify-center rounded-xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.85)] text-[#C9A46A] h-40 px-4 text-center text-2xl font-semibold backdrop-blur-md transition-colors hover:bg-[rgba(201,164,106,0.12)] hover:border-[rgba(210,180,130,0.45)]"
+            className="relative flex items-center justify-center rounded-xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.85)] text-[#C9A46A] h-40 px-4 text-center text-2xl font-semibold backdrop-blur-md transition-colors hover:bg-[rgba(201,164,106,0.12)] hover:border-[rgba(210,180,130,0.45)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {item.label}
+            {item.href === "/inbox" && unreadMessages > 0 && (
+              <span className="absolute top-3 right-3 min-w-[18px] h-[18px] px-1 rounded-full bg-[#C9A46A] text-[#0E0B0A] text-[10px] font-bold flex items-center justify-center">
+                {unreadMessages}
+              </span>
+            )}
           </a>
         ))}
       </div>

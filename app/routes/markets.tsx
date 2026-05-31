@@ -1,6 +1,7 @@
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
+import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
-import { Form, useLoaderData } from "@remix-run/react";
+import { Form, useFetcher, useLoaderData } from "@remix-run/react";
+import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
 
 export const meta: MetaFunction = () => [
@@ -64,12 +65,48 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   return json({ user, listings, filters: { q, country, condition } });
 }
 
+export async function action({ request, context }: ActionFunctionArgs) {
+  const { authenticator } = createAuth(context.cloudflare.env);
+  const user = await authenticator.isAuthenticated(request);
+  if (!user) throw redirect("/");
+
+  const form = await request.formData();
+  const intent = form.get("intent");
+
+  if (intent === "contact_seller") {
+    const coin_id = form.get("coin_id") as string;
+    const seller_id = form.get("seller_id") as string;
+    const buyer_contact = (form.get("buyer_contact") as string | null) || null;
+    const message = (form.get("message") as string)?.trim();
+
+    if (!coin_id || !seller_id) return json({ ok: false, error: "Datos inválidos." });
+    if (!message) return json({ ok: false, error: "El mensaje no puede estar vacío." });
+    if (seller_id === user.id) return json({ ok: false, error: "No podés contactarte a vos mismo." });
+
+    const db = context.cloudflare.env.DB;
+    const id = crypto.randomUUID();
+
+    await db
+      .prepare(
+        `INSERT INTO messages (id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, coin_id, seller_id, user.id, user.name, user.email, buyer_contact, message)
+      .run();
+
+    return json({ ok: true, error: null });
+  }
+
+  return json({ ok: false, error: "Acción no reconocida." });
+}
+
 const CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"];
 
 export default function Markets() {
   const { user, listings, filters } = useLoaderData<typeof loader>();
   const hasFilters = filters.q || filters.country || filters.condition;
   const isEmpty = listings.length === 0;
+  const [activeContact, setActiveContact] = useState<MarketListing | null>(null);
 
   return (
     <main className="min-h-screen text-[#F2ECE0] px-6 py-8">
@@ -178,11 +215,21 @@ export default function Markets() {
                 key={listing.id}
                 listing={listing}
                 isOwn={listing.user_id === user.id}
+                onContact={() => setActiveContact(listing)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {activeContact && (
+        <ContactModal
+          listing={activeContact}
+          buyerName={user.name}
+          buyerEmail={user.email}
+          onClose={() => setActiveContact(null)}
+        />
+      )}
     </main>
   );
 }
@@ -190,9 +237,11 @@ export default function Markets() {
 function ListingCard({
   listing,
   isOwn,
+  onContact,
 }: {
   listing: MarketListing;
   isOwn: boolean;
+  onContact: () => void;
 }) {
   const conditionColor: Record<string, string> = {
     MS: "text-emerald-400/80",
@@ -287,6 +336,149 @@ function ListingCard({
         >
           Ver colección
         </a>
+
+        {!isOwn && (
+          <button
+            type="button"
+            onClick={onContact}
+            className="w-full text-center text-[10px] py-2 rounded-lg bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] hover:border-[rgba(210,180,130,0.5)] transition-colors uppercase tracking-wider"
+          >
+            Contactar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ContactModal({
+  listing,
+  buyerName,
+  buyerEmail,
+  onClose,
+}: {
+  listing: MarketListing;
+  buyerName: string;
+  buyerEmail: string;
+  onClose: () => void;
+}) {
+  const fetcher = useFetcher<{ ok: boolean; error: string | null }>();
+  const sent = fetcher.data?.ok === true;
+  const serverError = fetcher.data?.error;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(10,8,7,0.8)] backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.97)] p-6 flex flex-col gap-5">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h2
+              className="text-lg font-semibold text-[#C9A46A]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Contactar vendedor
+            </h2>
+            <p className="text-xs text-[rgba(242,236,224,0.4)] mt-0.5 truncate max-w-[280px]">
+              {listing.name}
+              {listing.year ? ` · ${listing.year}` : ""}
+              {listing.country ? ` · ${listing.country}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[rgba(242,236,224,0.3)] hover:text-[rgba(242,236,224,0.7)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {sent ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#C9A46A" strokeWidth="1.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <p className="text-sm text-[rgba(242,236,224,0.7)]">
+              Mensaje enviado. El vendedor podrá ver tus datos de contacto en su buzón.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-2 px-5 py-2 text-sm rounded-xl bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <fetcher.Form method="post">
+            <input type="hidden" name="intent" value="contact_seller" />
+            <input type="hidden" name="coin_id" value={listing.id} />
+            <input type="hidden" name="seller_id" value={listing.user_id} />
+
+            <div className="flex flex-col gap-4">
+              {/* Datos pre-llenados */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">Nombre</label>
+                  <div className="text-sm text-[rgba(242,236,224,0.5)] bg-[rgba(14,11,10,0.5)] border border-[rgba(210,180,130,0.1)] rounded-xl px-3 py-2.5 truncate">
+                    {buyerName}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">Email</label>
+                  <div className="text-sm text-[rgba(242,236,224,0.5)] bg-[rgba(14,11,10,0.5)] border border-[rgba(210,180,130,0.1)] rounded-xl px-3 py-2.5 truncate">
+                    {buyerEmail}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contacto adicional */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">
+                  Teléfono / WhatsApp <span className="normal-case">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  name="buyer_contact"
+                  placeholder="+54 9 11 1234-5678"
+                  className="w-full text-sm bg-[rgba(14,11,10,0.7)] border border-[rgba(210,180,130,0.2)] rounded-xl px-4 py-2.5 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.2)] focus:outline-none focus:border-[rgba(210,180,130,0.5)]"
+                />
+              </div>
+
+              {/* Mensaje */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-[rgba(242,236,224,0.35)] mb-1 block">
+                  Mensaje <span className="text-[#C9A46A]">*</span>
+                </label>
+                <textarea
+                  name="message"
+                  required
+                  rows={4}
+                  placeholder="Hola, me interesa tu pieza. ¿Está disponible para negociar?"
+                  className="w-full text-sm bg-[rgba(14,11,10,0.7)] border border-[rgba(210,180,130,0.2)] rounded-xl px-4 py-2.5 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.2)] focus:outline-none focus:border-[rgba(210,180,130,0.5)] resize-none"
+                />
+              </div>
+
+              {serverError && (
+                <p className="text-xs text-red-400">{serverError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={fetcher.state !== "idle"}
+                className="w-full py-2.5 text-sm rounded-xl bg-[rgba(201,164,106,0.15)] text-[#C9A46A] border border-[rgba(210,180,130,0.35)] hover:bg-[rgba(201,164,106,0.25)] hover:border-[rgba(210,180,130,0.55)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {fetcher.state !== "idle" ? "Enviando…" : "Enviar mensaje"}
+              </button>
+            </div>
+          </fetcher.Form>
+        )}
       </div>
     </div>
   );
