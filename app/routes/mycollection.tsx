@@ -137,6 +137,25 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ success: true });
   }
 
+  if (intent === "delete_coin") {
+    const id = form.get("id")?.toString();
+    if (!id) return json({ error: "ID requerido." }, { status: 400 });
+    const coin = await db
+      .prepare("SELECT * FROM coins WHERE id = ? AND user_id = ?")
+      .bind(id, user.id)
+      .first<Coin>();
+    if (!coin) return json({ error: "Moneda no encontrada." }, { status: 404 });
+    const images = context.cloudflare.env.IMAGES as R2Bucket | undefined;
+    if (images) {
+      const slots = ["photo_obverse", "photo_reverse", "photo_edge", "photo_detail"] as const;
+      await Promise.allSettled(
+        slots.filter((s) => coin[s]).map((s) => images.delete(`${user.id}/${id}/${s}`))
+      );
+    }
+    await db.prepare("DELETE FROM coins WHERE id = ? AND user_id = ?").bind(id, user.id).run();
+    return json({ ok: true });
+  }
+
   if (intent !== "add_coin") {
     return json({ error: "Acción no reconocida." }, { status: 400 });
   }
@@ -319,6 +338,30 @@ function SellCoinControl({ coin }: { coin: Coin }) {
   );
 }
 
+function DeleteCoinButton({ coinId }: { coinId: string }) {
+  const fetcher = useFetcher();
+  return (
+    <fetcher.Form
+      method="post"
+      onSubmit={(e) => {
+        if (!window.confirm("¿Eliminar esta moneda? Esta acción no se puede deshacer.")) {
+          e.preventDefault();
+        }
+      }}
+    >
+      <input type="hidden" name="intent" value="delete_coin" />
+      <input type="hidden" name="id" value={coinId} />
+      <button
+        type="submit"
+        disabled={fetcher.state !== "idle"}
+        className="mt-1 w-full text-[10px] uppercase tracking-widest font-medium py-1.5 rounded-lg border border-[rgba(239,68,68,0.2)] text-[rgba(239,68,68,0.5)] hover:border-[rgba(239,68,68,0.45)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.08)] transition-all"
+      >
+        Eliminar
+      </button>
+    </fetcher.Form>
+  );
+}
+
 export default function MyCollection() {
   const { user, coins, filters, seriesProgress, allCoins } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
@@ -406,6 +449,7 @@ export default function MyCollection() {
               <div key={coin.id} className="flex flex-col">
                 <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />
                 <SellCoinControl coin={coin} />
+                <DeleteCoinButton coinId={coin.id} />
               </div>
             ))}
           </div>
