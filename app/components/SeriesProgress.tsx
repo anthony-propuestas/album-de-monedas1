@@ -20,7 +20,7 @@ export function SeriesProgress({
   const [selectedCountry, setSelectedCountry] = useState(
     countries.includes("AR") ? "AR" : (countries[0] ?? "AR")
   );
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const series = seriesProgressByCountry[selectedCountry] ?? [];
   const countryName = COUNTRY_NAMES[selectedCountry] ?? selectedCountry;
