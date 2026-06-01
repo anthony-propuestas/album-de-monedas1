@@ -80,7 +80,7 @@ Debajo de `<p>Bienvenido, {user.name}</p>` y antes del grid de nav, agregar un b
 
 ---
 
-## Feature 2 — Progreso por Serie en Mi Colección
+## Feature 2 — Progreso por Serie en Mi Colección ✅ Implementado
 
 **Objetivo:** mostrar barras de progreso por cada serie del catálogo (actualmente solo Argentina) en `/mycollection`. Por ejemplo: "Serie 1 — 8 / 63 monedas".
 
@@ -169,16 +169,16 @@ En `mycollection.tsx`, importar y renderizar `<SeriesProgress series={seriesProg
 
 ### Checklist
 
-- [ ] Agregar lógica de cálculo de series en el loader de `mycollection.tsx`
-- [ ] Tipear `seriesProgress` en el return del loader
-- [ ] Crear `app/components/SeriesProgress.tsx`
-- [ ] Importar y usar `<SeriesProgress>` en `mycollection.tsx`
-- [ ] Verificar que funciona con 0 monedas (barras en 0%, no crash)
-- [ ] `npm run typecheck` sin errores
+- [x] Agregar lógica de cálculo de series en el loader de `mycollection.tsx`
+- [x] Tipear `seriesProgress` en el return del loader
+- [x] Crear `app/components/SeriesProgress.tsx`
+- [x] Importar y usar `<SeriesProgress>` en `mycollection.tsx`
+- [x] Verificar que funciona con 0 monedas (barras en 0%, no crash)
+- [x] `npm run typecheck` sin errores
 
 ---
 
-## Feature 3 — Moneda del Día
+## Feature 3 — Moneda del Día ✅ Implementado
 
 **Objetivo:** en `/home`, mostrar una tarjeta "Moneda del día" con una moneda del catálogo que el usuario **no tiene**, rotando diariamente de forma determinística (misma moneda para todos en el mismo día).
 
@@ -243,17 +243,17 @@ Si el usuario tiene todas las monedas del catálogo, `coinOfDay` es `null` y el 
 
 ### Checklist
 
-- [ ] Agregar query de nombres en el loader de `home.tsx`
-- [ ] Calcular `missing` y `coinOfDay` en el loader
-- [ ] Tipear `coinOfDay: CoinEntry | null` en el return
-- [ ] Importar `CoinEntry` desde `~/lib/coins` en `home.tsx`
-- [ ] Renderizar el bloque en el componente
-- [ ] Verificar caso borde: usuario con todas las monedas (no debe romper)
-- [ ] `npm run typecheck` sin errores
+- [x] Agregar query de nombres en el loader de `home.tsx`
+- [x] Calcular `missing` y `coinOfDay` en el loader
+- [x] Tipear `coinOfDay: CoinEntry | null` en el return
+- [x] Importar `CoinEntry` desde `~/lib/coins` en `home.tsx`
+- [x] Renderizar el bloque en el componente
+- [x] Verificar caso borde: usuario con todas las monedas (no debe romper)
+- [x] `npm run typecheck` sin errores
 
 ---
 
-## Feature 4 — Badges / Logros
+## Feature 4 — Badges / Logros ✅ Implementado
 
 **Objetivo:** sistema de logros desbloqueables. Los badges se calculan en cada visita y se persisten en D1 para mostrar la fecha de desbloqueo.
 
@@ -432,20 +432,20 @@ export function BadgesGrid({ badges }: { badges: BadgeItem[] }) {
 
 ### Checklist
 
-- [ ] Crear `migrations/0003_create_user_badges.sql`
-- [ ] Aplicar migración: `wrangler d1 migrations apply <DB_NAME> --local` (y en prod cuando corresponda)
-- [ ] Crear `app/lib/badges.ts` con `BADGES`, `BADGE_MAP` y `computeEarnedBadgeIds`
-- [ ] Usar el tipo local `CoinForBadges` en `badges.ts` (no importar desde `~/components/CoinCard` — rompe SSR si el componente alguna vez usa browser APIs)
-- [ ] Modificar loader de `home.tsx`: cargar monedas, calcular badges, persistir nuevos, leer con fecha
-- [ ] Crear `app/components/BadgesGrid.tsx`
-- [ ] Importar y renderizar `<BadgesGrid badges={badges} />` en `home.tsx`
-- [ ] Verificar que `INSERT OR IGNORE` no rompe cuando el badge ya existe
-- [ ] `npm run typecheck` sin errores
-- [ ] Agregar índice `idx_badges_user` en la migración (ya incluido arriba)
+- [x] Crear `migrations/0003_create_user_badges.sql`
+- [x] Aplicar migración: `wrangler d1 migrations apply <DB_NAME> --local` (y en prod cuando corresponda)
+- [x] Crear `app/lib/badges.ts` con `BADGES`, `BADGE_MAP` y `computeEarnedBadgeIds`
+- [x] Usar el tipo local `CoinForBadges` en `badges.ts` (no importar desde `~/components/CoinCard` — rompe SSR si el componente alguna vez usa browser APIs)
+- [x] Modificar loader de `home.tsx`: cargar monedas, calcular badges, persistir nuevos, leer con fecha
+- [x] Crear `app/components/BadgesGrid.tsx`
+- [x] Importar y renderizar `<BadgesGrid badges={badges} />` en `home.tsx`
+- [x] Verificar que `INSERT OR IGNORE` no rompe cuando el badge ya existe
+- [x] `npm run typecheck` sin errores
+- [x] Agregar índice `idx_badges_user` en la migración (ya incluido arriba)
 
 ---
 
-## Feature 5 — Timeline de Años
+## Feature 5 — Timeline de Años ✅ Implementado
 
 **Objetivo:** en `/mycollection`, mostrar una fila de puntos para los años 2000–2024. Punto dorado = el usuario tiene al menos una moneda de ese año. Punto vacío = no tiene. Hover muestra qué monedas son.
 
@@ -521,13 +521,13 @@ En `mycollection.tsx`, importar y colocar `<YearTimeline coins={allCoins} />` en
 
 ### Checklist
 
-- [ ] Crear `app/components/YearTimeline.tsx`
-- [ ] Agregar query `allCoins` sin filtros en el loader (o reutilizar la de Feature 2)
-- [ ] Importar y usar `<YearTimeline coins={allCoins} />` en `mycollection.tsx`
-- [ ] Verificar que monedas sin año (`year: null`) no rompen el componente
-- [ ] Verificar que funciona con colección vacía
-- [ ] Ajustar el rango `YEAR_RANGE` si el catálogo crece a otros periodos
-- [ ] `npm run typecheck` sin errores
+- [x] Crear `app/components/YearTimeline.tsx`
+- [x] Agregar query `allCoins` sin filtros en el loader (o reutilizar la de Feature 2)
+- [x] Importar y usar `<YearTimeline coins={allCoins} />` en `mycollection.tsx`
+- [x] Verificar que monedas sin año (`year: null`) no rompen el componente
+- [x] Verificar que funciona con colección vacía
+- [x] Ajustar el rango `YEAR_RANGE` si el catálogo crece a otros periodos
+- [x] `npm run typecheck` sin errores
 
 ---
 
@@ -536,10 +536,10 @@ En `mycollection.tsx`, importar y colocar `<YearTimeline coins={allCoins} />` en
 | # | Feature | Schema change | Tiempo estimado |
 |---|---------|--------------|----------------|
 | 1 | Stats en Home | No | ~~1h~~ ✅ |
-| 2 | Progreso por Serie | No | ~2h |
-| 3 | Moneda del Día | No | ~1h |
-| 4 | Badges | Sí (migración 0003) | ~3h |
-| 5 | Timeline de Años | No | ~1h |
+| 2 | Progreso por Serie | No | ~~2h~~ ✅ |
+| 3 | Moneda del Día | No | ~~1h~~ ✅ |
+| 4 | Badges | Sí (migración 0003) | ~~3h~~ ✅ |
+| 5 | Timeline de Años | No | ~~1h~~ ✅ |
 
 Features 1, 2, 3 y 5 son completamente seguros de deployar en cualquier orden sin tocar la DB.
 Feature 4 requiere correr la migración **antes** del deploy del código que la usa.
