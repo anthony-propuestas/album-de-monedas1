@@ -466,6 +466,57 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/components/__tests__/CoinDetailModal.test.tsx`
+**Qué prueba:** el componente `CoinDetailModal` de `app/components/CoinDetailModal.tsx`, que muestra un modal con el detalle completo de una moneda: galería de fotos, datos y notas.
+
+> No requiere mocks de Remix. `userEvent` se usa para las interacciones de galería y cierre.
+
+#### Render básico
+
+| Test | Descripción |
+|---|---|
+| returns null when coin is null | Con `coin={null}`, el contenedor está vacío |
+| renders coin name in header | El `<h2>` muestra el nombre de la moneda |
+| renders country and year separated by · | El subtítulo muestra `"MX · 1964"` |
+| renders only country when year is null | Sin año, solo se muestra el país |
+| renders only year when country is null | Sin país, solo se muestra el año |
+| does not render subtitle when both country and year are null | Sin ambos campos, no hay subtítulo |
+
+#### Datos opcionales
+
+| Test | Descripción |
+|---|---|
+| shows denomination when present | La denominación aparece en el DOM |
+| does not render denomination when null | Sin denominación, el label no aparece |
+| shows full condition label — MS maps to 'MS — Mint State' | El código de condición se expande al label completo |
+| does not render condition when null | Sin condición, el label no aparece |
+| shows mint when present | La casa de acuñación aparece en el DOM |
+| shows catalog_ref when present | La referencia de catálogo aparece en el DOM |
+| shows estimated_value formatted as '$X.XX USD' | El valor estimado se formatea con `$` y `USD` |
+| does not render estimated_value when null | Sin valor estimado, el label no aparece |
+| shows notes section when notes is present | El texto de notas y su encabezado están en el DOM |
+| does not render notes section when notes is null | Sin notas, la sección "Historia de cómo se consiguió" no aparece |
+
+#### Galería de fotos
+
+| Test | Descripción |
+|---|---|
+| shows placeholder icon when coin has no photos | Sin fotos, no hay `<img>` en el DOM |
+| renders active photo with correct /images/ src | Con `photo_obverse`, el `<img>` principal tiene `src="/images/{key}"` |
+| does not show thumbnail nav when only one photo | Con una sola foto, no se renderizan thumbnails adicionales |
+| shows thumbnail nav when multiple photos | Con varias fotos, hay más de un `<img>` en el DOM |
+| clicking a thumbnail changes the active photo | Al hacer click en el thumb "Reverso", el `<img>` principal cambia al src del reverso |
+
+#### Interacción / cierre
+
+| Test | Descripción |
+|---|---|
+| clicking the X button calls onClose | El botón "Cerrar" invoca `onClose` exactamente una vez |
+| clicking the backdrop calls onClose | El click en el fondo oscuro invoca `onClose` |
+| clicking inside the modal body does NOT call onClose | El click dentro del contenido del modal no propaga el cierre |
+
+---
+
 ### `app/components/__tests__/CoinFilters.test.tsx`
 **Qué prueba:** el componente `CoinFilters` de `app/components/CoinFilters.tsx`, que muestra los controles de búsqueda y filtrado de la galería.
 
