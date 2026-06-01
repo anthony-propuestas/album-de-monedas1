@@ -1,8 +1,10 @@
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
 import { useLoaderData } from "@remix-run/react";
+import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
 import { CoinCard } from "~/components/CoinCard";
+import { CoinDetailModal } from "~/components/CoinDetailModal";
 import { CoinFilters } from "~/components/CoinFilters";
 import type { Coin } from "~/components/CoinCard";
 
@@ -81,6 +83,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => [
 export default function PublicCollection() {
   const { profileUser, coins, filters, from } = useLoaderData<typeof loader>();
 
+  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const backHref = from ? `/collections/${from}` : "/collections";
   const backLabel = from ? "Volver al ranking" : "Grandes Colecciones";
   const isEmpty = coins.length === 0;
@@ -159,11 +162,12 @@ export default function PublicCollection() {
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))" }}
           >
             {coins.map((coin) => (
-              <CoinCard key={coin.id} coin={coin} />
+              <CoinCard key={coin.id} coin={coin} onClick={() => setSelectedCoin(coin)} />
             ))}
           </div>
         )}
       </div>
+      <CoinDetailModal coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
     </main>
   );
 }

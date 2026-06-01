@@ -359,13 +359,13 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
               </div>
             </div>
 
-            {/* Notas */}
+            {/* Historia de cómo se consiguió */}
             <div className="flex flex-col gap-1.5">
-              <label className={LABEL}>Notas</label>
+              <label className={LABEL}>Historia de cómo se consiguió</label>
               <textarea
                 name="notes"
                 rows={3}
-                placeholder="Descripción, historia, procedencia..."
+                placeholder="Cuenta cómo llegó esta pieza a tu colección..."
                 className={`${INPUT} resize-none`}
               />
             </div>

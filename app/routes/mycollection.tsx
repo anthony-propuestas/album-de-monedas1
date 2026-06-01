@@ -8,6 +8,7 @@ import { useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import { useState } from "react";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { CoinCard } from "~/components/CoinCard";
+import { CoinDetailModal } from "~/components/CoinDetailModal";
 import { CoinFilters } from "~/components/CoinFilters";
 import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
@@ -293,6 +294,7 @@ export default function MyCollection() {
   const { user, coins, filters, seriesProgress, allCoins } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
 
   const isEmpty = coins.length === 0;
   const hasFilters = filters.q || filters.country || filters.year || filters.condition;
@@ -378,7 +380,7 @@ export default function MyCollection() {
           >
             {coins.map((coin) => (
               <div key={coin.id} className="flex flex-col">
-                <CoinCard coin={coin} />
+                <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />
                 <SellCoinControl coin={coin} />
               </div>
             ))}
@@ -387,6 +389,7 @@ export default function MyCollection() {
       </div>
 
       <AddCoinModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      <CoinDetailModal coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
     </main>
   );
 }

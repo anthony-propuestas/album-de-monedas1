@@ -19,10 +19,10 @@ export interface Coin {
   asking_price: number | null;
 }
 
-export function CoinCard({ coin }: { coin: Coin }) {
+export function CoinCard({ coin, onClick }: { coin: Coin; onClick?: () => void }) {
 
   return (
-    <div className="flex flex-col items-center gap-2 cursor-pointer group">
+    <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={onClick}>
       <div className="aspect-square w-full rounded-full overflow-hidden border border-[rgba(210,180,130,0.2)] group-hover:border-[rgba(210,180,130,0.5)] transition-colors flex items-center justify-center bg-[rgba(14,11,10,0.6)]">
         {coin.photo_obverse ? (
           <img
