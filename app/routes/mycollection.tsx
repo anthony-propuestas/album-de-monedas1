@@ -66,24 +66,26 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       .bind(user.id)
       .all<{ name: string; country: string | null; year: number | null }>();
 
-    const argCoins = allCoins.filter((c) => c.country === "AR");
-    const ownedNames = new Set(argCoins.map((c) => c.name));
-    const catalog = COINS_BY_COUNTRY["AR"] ?? [];
-    const seriesMap = new Map<string, { total: number; owned: number }>();
-    for (const entry of catalog) {
-      const key = entry.serie ?? "Sin serie";
-      const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
-      cur.total += 1;
-      if (ownedNames.has(entry.nombre)) cur.owned += 1;
-      seriesMap.set(key, cur);
+    const seriesProgressByCountry: Record<string, { serie: string; total: number; owned: number; pct: number }[]> = {};
+    for (const countryCode of Object.keys(COINS_BY_COUNTRY)) {
+      const ownedNames = new Set(
+        allCoins.filter((c) => c.country === countryCode).map((c) => c.name)
+      );
+      const catalog = COINS_BY_COUNTRY[countryCode];
+      const seriesMap = new Map<string, { total: number; owned: number }>();
+      for (const entry of catalog) {
+        const key = entry.serie ?? "Sin serie";
+        const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
+        cur.total += 1;
+        if (ownedNames.has(entry.nombre)) cur.owned += 1;
+        seriesMap.set(key, cur);
+      }
+      seriesProgressByCountry[countryCode] = Array.from(seriesMap.entries()).map(
+        ([serie, data]) => ({ serie, ...data, pct: Math.round((data.owned / data.total) * 100) })
+      );
     }
-    const seriesProgress = Array.from(seriesMap.entries()).map(([serie, data]) => ({
-      serie,
-      ...data,
-      pct: Math.round((data.owned / data.total) * 100),
-    }));
 
-    return json({ user, coins, filters: { q, country, year, condition }, seriesProgress, allCoins });
+    return json({ user, coins, filters: { q, country, year, condition }, seriesProgressByCountry, allCoins });
   } catch (e) {
     throw new Response("Error al cargar la colección", { status: 500 });
   }
@@ -363,7 +365,7 @@ function DeleteCoinButton({ coinId }: { coinId: string }) {
 }
 
 export default function MyCollection() {
-  const { user, coins, filters, seriesProgress, allCoins } = useLoaderData<typeof loader>();
+  const { user, coins, filters, seriesProgressByCountry, allCoins } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
@@ -413,7 +415,7 @@ export default function MyCollection() {
         </div>
 
         {/* Progreso por serie + Timeline de años */}
-        <SeriesProgress series={seriesProgress} />
+        <SeriesProgress seriesProgressByCountry={seriesProgressByCountry} />
         <YearTimeline coins={allCoins} />
 
         {/* Filtros */}
