@@ -63,14 +63,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       .all<Coin>();
 
     const { results: allCoins } = await db
-      .prepare("SELECT name, country, year FROM coins WHERE user_id = ?")
+      .prepare("SELECT name, country, year, denomination FROM coins WHERE user_id = ?")
       .bind(user.id)
-      .all<{ name: string; country: string | null; year: number | null }>();
+      .all<{ name: string; country: string | null; year: number | null; denomination: string | null }>();
 
     const seriesProgressByCountry: Record<string, { serie: string; total: number; owned: number; pct: number }[]> = {};
     for (const countryCode of Object.keys(COINS_BY_COUNTRY)) {
       const ownedKeys = new Set(
-        allCoins.filter((c) => c.country === countryCode).map((c) => `${c.name}|${c.year}`)
+        allCoins.filter((c) => c.country === countryCode).map((c) => `${c.name}|${c.year}|${c.denomination}`)
       );
       const catalog = COINS_BY_COUNTRY[countryCode];
       const seriesMap = new Map<string, { total: number; owned: number }>();
@@ -78,7 +78,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const key = entry.serie ?? "Sin serie";
         const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
         cur.total += 1;
-        if (ownedKeys.has(`${entry.nombre}|${entry.anio}`)) cur.owned += 1;
+        if (ownedKeys.has(`${entry.nombre}|${entry.anio}|${entry.denominacion}`)) cur.owned += 1;
         seriesMap.set(key, cur);
       }
       seriesProgressByCountry[countryCode] = Array.from(seriesMap.entries()).map(

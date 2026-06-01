@@ -891,15 +891,10 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
   })),
 
   // 25 Centavos — Bronce
-  ...([
-    { anio: 1992, nombre: "Cabildo de Buenos Aires" },
-    { anio: 1993, nombre: "Cabildo de Buenos Aires" },
-    { anio: 2009, nombre: "Cabildo de Buenos Aires" },
-    { anio: 2010, nombre: "Cabildo de Buenos Aires" },
-  ]).map(({ anio, nombre }) => ({
+  ...([1992, 1993, 2009, 2010] as number[]).map(anio => ({
     pais: "Argentina",
     denominacion: "25 Centavos",
-    nombre,
+    nombre: "Cabildo de Buenos Aires — Bronce",
     anio,
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Pesos Convertibles",
@@ -907,10 +902,10 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
   })),
 
   // 25 Centavos — Níquel
-  ...([1993,1994,1996] as number[]).map(anio => ({
+  ...([1993, 1994, 1996] as number[]).map(anio => ({
     pais: "Argentina",
     denominacion: "25 Centavos",
-    nombre: "Cabildo de Buenos Aires",
+    nombre: "Cabildo de Buenos Aires — Níquel",
     anio,
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Pesos Convertibles",
