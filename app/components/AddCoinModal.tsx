@@ -47,7 +47,17 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
 
   const countryCoins = COINS_BY_COUNTRY[selectedCountry] ?? [];
   const hasCoinData = countryCoins.length > 0;
-  const denominations = [...new Set(countryCoins.map((c) => c.denominacion))];
+  function parseDenomSort(d: string): [number, number] {
+    const num = parseFloat(d.replace("½", "0.5").match(/[\d.]+/)?.[0] ?? "0");
+    const lower = d.toLowerCase();
+    const unit = lower.includes("centavo") ? 0 : lower.includes("peso") ? 1 : lower.includes("austral") ? 2 : 3;
+    return [unit, num];
+  }
+  const denominations = [...new Set(countryCoins.map((c) => c.denominacion))].sort((a, b) => {
+    const [au, an] = parseDenomSort(a);
+    const [bu, bn] = parseDenomSort(b);
+    return au !== bu ? au - bu : an - bn;
+  });
   const names = [...new Set(countryCoins.filter((c) => c.denominacion === selectedDenomination).map((c) => c.nombre))];
   const years = countryCoins.filter((c) => c.nombre === selectedName).map((c) => c.anio).sort((a, b) => a - b);
   const autoMint = countryCoins.find((c) => c.nombre === selectedName && c.anio === Number(selectedYear))?.casa_acunacion ?? "";
