@@ -14,6 +14,7 @@ import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
 import { createAuth } from "~/lib/auth.server";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
+import { checkRateLimit } from "~/lib/rateLimit.server";
 import type { Coin } from "~/components/CoinCard";
 
 export const meta: MetaFunction = () => [
@@ -109,6 +110,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (askingPrice !== null && (isNaN(askingPrice) || askingPrice < 0)) {
       return json({ error: "Precio inválido." }, { status: 400 });
     }
+    const rl = await checkRateLimit(db, user.id, "list_coin", 40, 24);
+    if (!rl.allowed) {
+      return json({ error: `Límite de publicaciones alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
+    }
     try {
       const owned = await db
         .prepare("SELECT id FROM coins WHERE id = ? AND user_id = ?")
@@ -128,6 +133,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (intent === "unlist_coin") {
     const listId = form.get("coin_id")?.toString();
     if (!listId) return json({ error: "ID requerido." }, { status: 400 });
+    const rl = await checkRateLimit(db, user.id, "unlist_coin", 40, 24);
+    if (!rl.allowed) {
+      return json({ error: `Límite alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
+    }
     try {
       await db
         .prepare("UPDATE coins SET for_sale = 0, asking_price = NULL WHERE id = ? AND user_id = ?")
@@ -142,6 +151,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (intent === "delete_coin") {
     const id = form.get("id")?.toString();
     if (!id) return json({ error: "ID requerido." }, { status: 400 });
+    const rl = await checkRateLimit(db, user.id, "delete_coin", 30, 24);
+    if (!rl.allowed) {
+      return json({ error: `Límite de eliminaciones alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
+    }
     const coin = await db
       .prepare("SELECT * FROM coins WHERE id = ? AND user_id = ?")
       .bind(id, user.id)
@@ -220,6 +233,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!validNames.includes(name)) {
       return json({ error: "Nombre de moneda inválido." }, { status: 400 });
     }
+  }
+
+  const rl = await checkRateLimit(db, user.id, "add_coin", 20, 24);
+  if (!rl.allowed) {
+    return json({ error: `Límite de monedas diario alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
   }
 
   const MAX_COINS = 500;

@@ -3,6 +3,7 @@ import { json, redirect } from "@remix-run/cloudflare";
 import { Form, useFetcher, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
+import { checkRateLimit } from "~/lib/rateLimit.server";
 
 export const meta: MetaFunction = () => [
   { title: "Mercado — Album de Monedas" },
@@ -90,6 +91,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (seller_id === user.id) return json({ ok: false, error: "No podés contactarte a vos mismo." });
 
     const db = context.cloudflare.env.DB;
+    const rl = await checkRateLimit(db, user.id, "contact_seller", 5, 1);
+    if (!rl.allowed) {
+      return json({ ok: false, error: `Límite de mensajes alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` });
+    }
+
     const id = crypto.randomUUID();
 
     try {

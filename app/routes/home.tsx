@@ -3,6 +3,7 @@ import { json, redirect } from "@remix-run/cloudflare";
 import { Form, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
+import { checkRateLimit } from "~/lib/rateLimit.server";
 import { ProfileSetupModal } from "~/components/ProfileSetupModal";
 import { BadgesGrid } from "~/components/BadgesGrid";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
@@ -129,6 +130,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const db = context.cloudflare.env.DB;
+    const rl = await checkRateLimit(db, user.id, "complete_profile", 3, 24);
+    if (!rl.allowed) {
+      return json({ error: "Demasiados intentos. Podés volver a intentar mañana." }, { status: 429 });
+    }
     try {
       await db
         .prepare(
