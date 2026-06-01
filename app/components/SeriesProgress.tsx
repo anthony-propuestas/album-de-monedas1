@@ -30,7 +30,7 @@ export function SeriesProgress({
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center justify-between w-full text-left group"
+        className="flex items-center justify-between w-full text-left group px-3 py-2 rounded-lg border border-[rgba(210,180,130,0.2)] hover:border-[rgba(210,180,130,0.4)] hover:bg-[rgba(201,164,106,0.05)] transition-colors"
       >
         <h2 className="text-xs uppercase tracking-widest text-[rgba(242,236,224,0.4)]">
           Progreso por serie — {countryName}
