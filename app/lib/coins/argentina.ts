@@ -1113,46 +1113,56 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
     serie: "Conmemorativa",
   },
 
-  // ── ÁRBOLES DE LA REPÚBLICA ARGENTINA (2017–2024) ───────────
+  // ── ÁRBOLES DE LA REPÚBLICA ARGENTINA (2017–2020) ───────────
 
-  // 1 Peso — Jacarandá
-  ...Array.from({ length: 7 }, (_, i) => ({
+  // 1 Peso — Jacarandá (2017–2020)
+  ...Array.from({ length: 4 }, (_, i) => ({
     pais: "Argentina",
     denominacion: "1 Peso",
     nombre: "Un Peso — Jacarandá",
-    anio: 2018 + i,
+    anio: 2017 + i,
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Árboles de la República Argentina",
     material: "Acero con cobre",
     nota: "Color rojizo. Reemplaza Serie 1. Diámetro 20mm, 4.3g",
   })),
 
-  // 2 Pesos — Palo Borracho
-  ...Array.from({ length: 7 }, (_, i) => ({
+  // 2 Pesos — Palo Borracho (solo 2018)
+  {
     pais: "Argentina",
     denominacion: "2 Pesos",
     nombre: "Dos Pesos — Palo Borracho",
-    anio: 2018 + i,
+    anio: 2018,
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Árboles de la República Argentina",
     material: "Acero con latón",
     nota: "Color amarillo dorado. Diámetro 21.5mm, 5g",
-  })),
+  },
 
-  // 5 Pesos — Arrayán
-  ...Array.from({ length: 7 }, (_, i) => ({
+  // 5 Pesos — Arrayán (solo 2017 y 2020)
+  {
     pais: "Argentina",
     denominacion: "5 Pesos",
     nombre: "Cinco Pesos — Arrayán",
-    anio: 2017 + i,
+    anio: 2017,
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Árboles de la República Argentina",
     material: "Acero electrodepositado con níquel",
     nota: "Color plateado. Diámetro 23mm, 7.3g",
-  })),
+  },
+  {
+    pais: "Argentina",
+    denominacion: "5 Pesos",
+    nombre: "Cinco Pesos — Arrayán",
+    anio: 2020,
+    casa_acunacion: "Casa de Moneda de la Argentina",
+    serie: "Árboles de la República Argentina",
+    material: "Acero electrodepositado con níquel",
+    nota: "Color plateado. Diámetro 23mm, 7.3g",
+  },
 
-  // 10 Pesos — Caldén
-  ...Array.from({ length: 7 }, (_, i) => ({
+  // 10 Pesos — Caldén (2018–2020)
+  ...Array.from({ length: 3 }, (_, i) => ({
     pais: "Argentina",
     denominacion: "10 Pesos",
     nombre: "Diez Pesos — Caldén",
