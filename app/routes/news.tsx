@@ -15,11 +15,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   if (!user) throw redirect("/");
 
   const db = context.cloudflare.env.DB;
-  const { results: posts } = await db
-    .prepare("SELECT id, title, body, created_at FROM posts ORDER BY created_at DESC")
-    .all<Post>();
 
-  return json({ posts });
+  try {
+    const { results: posts } = await db
+      .prepare("SELECT id, title, body, created_at FROM posts ORDER BY created_at DESC")
+      .all<Post>();
+    return json({ posts });
+  } catch (e) {
+    throw new Response("Error al cargar las noticias", { status: 500 });
+  }
 }
 
 function formatDate(unixSec: number) {

@@ -23,23 +23,31 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   const db = context.cloudflare.env.DB;
 
-  const previews = await Promise.all(
-    CATEGORIES.map(async (cat) => {
-      const top = await db
-        .prepare(cat.sql)
-        .bind(1)
-        .first<TopRow>();
-      return {
-        slug: cat.slug,
-        title: cat.title,
-        description: cat.description,
-        iconKey: cat.iconKey,
-        topName: top?.name ?? null,
-        topPicture: top?.picture ?? null,
-        topStat: top != null ? cat.statLabel(top.stat) : null,
-      };
-    })
-  );
+  let previews: Array<{
+    slug: string; title: string; description: string; iconKey: string;
+    topName: string | null; topPicture: string | null; topStat: string | null;
+  }> = [];
+  try {
+    previews = await Promise.all(
+      CATEGORIES.map(async (cat) => {
+        const top = await db
+          .prepare(cat.sql)
+          .bind(1)
+          .first<TopRow>();
+        return {
+          slug: cat.slug,
+          title: cat.title,
+          description: cat.description,
+          iconKey: cat.iconKey,
+          topName: top?.name ?? null,
+          topPicture: top?.picture ?? null,
+          topStat: top != null ? cat.statLabel(top.stat) : null,
+        };
+      })
+    );
+  } catch (e) {
+    throw new Response("Error al cargar las colecciones", { status: 500 });
+  }
 
   // Fisher-Yates shuffle — distinto orden en cada visita
   for (let i = previews.length - 1; i > 0; i--) {

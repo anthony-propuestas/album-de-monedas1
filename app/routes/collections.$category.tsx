@@ -21,12 +21,19 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
   if (!cat) throw new Response("Not Found", { status: 404 });
 
   const db = context.cloudflare.env.DB;
-  const { results } = await db
-    .prepare(cat.sql)
-    .bind(10)
-    .all<RankRow>();
 
-  const collectors = results.map((r) => ({
+  let dbResults: RankRow[] = [];
+  try {
+    const { results } = await db
+      .prepare(cat.sql)
+      .bind(10)
+      .all<RankRow>();
+    dbResults = results;
+  } catch (e) {
+    throw new Response("Error al cargar el ranking", { status: 500 });
+  }
+
+  const collectors = dbResults.map((r) => ({
     userId: r.id,
     name: r.name,
     picture: r.picture ?? null,

@@ -19,89 +19,91 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   if (!user) throw redirect("/");
 
   const db = context.cloudflare.env.DB;
-  const existing = await db
-    .prepare("SELECT profile_completed FROM users WHERE id = ?")
-    .bind(user.id)
-    .first<{ profile_completed: number }>();
 
-  if (!existing) {
+  try {
+    // INSERT OR IGNORE evita race condition si dos requests OAuth llegan simultáneamente
     await db
-      .prepare(
-        "INSERT INTO users (id, email, name, picture) VALUES (?, ?, ?, ?)"
-      )
+      .prepare("INSERT OR IGNORE INTO users (id, email, name, picture) VALUES (?, ?, ?, ?)")
       .bind(user.id, user.email, user.name, user.picture ?? null)
       .run();
-  }
 
-  const profileCompleted = existing ? existing.profile_completed === 1 : false;
-
-  const [statsRow, valueRow, conditionRow] = await Promise.all([
-    db
-      .prepare("SELECT COUNT(*) as total FROM coins WHERE user_id = ?")
+    const profileRow = await db
+      .prepare("SELECT profile_completed FROM users WHERE id = ?")
       .bind(user.id)
-      .first<{ total: number }>(),
-    db
-      .prepare(
-        "SELECT COALESCE(SUM(estimated_value), 0) as total FROM coins WHERE user_id = ? AND estimated_value IS NOT NULL"
-      )
+      .first<{ profile_completed: number }>();
+
+    const profileCompleted = profileRow?.profile_completed === 1;
+
+    const [statsRow, valueRow, conditionRow] = await Promise.all([
+      db
+        .prepare("SELECT COUNT(*) as total FROM coins WHERE user_id = ?")
+        .bind(user.id)
+        .first<{ total: number }>(),
+      db
+        .prepare(
+          "SELECT COALESCE(SUM(estimated_value), 0) as total FROM coins WHERE user_id = ? AND estimated_value IS NOT NULL"
+        )
+        .bind(user.id)
+        .first<{ total: number }>(),
+      db
+        .prepare(
+          "SELECT condition, COUNT(*) as cnt FROM coins WHERE user_id = ? AND condition IS NOT NULL GROUP BY condition ORDER BY cnt DESC LIMIT 1"
+        )
+        .bind(user.id)
+        .first<{ condition: string; cnt: number }>(),
+    ]);
+
+    const stats = {
+      total: statsRow?.total ?? 0,
+      estimatedValue: valueRow?.total ?? 0,
+      topCondition: conditionRow?.condition ?? null,
+    };
+
+    // Fetch all coins once — used for coinOfDay and badges
+    const { results: allCoins } = await db
+      .prepare("SELECT * FROM coins WHERE user_id = ?")
       .bind(user.id)
-      .first<{ total: number }>(),
-    db
-      .prepare(
-        "SELECT condition, COUNT(*) as cnt FROM coins WHERE user_id = ? AND condition IS NOT NULL GROUP BY condition ORDER BY cnt DESC LIMIT 1"
-      )
-      .bind(user.id)
-      .first<{ condition: string; cnt: number }>(),
-  ]);
+      .all<Coin>();
 
-  const stats = {
-    total: statsRow?.total ?? 0,
-    estimatedValue: valueRow?.total ?? 0,
-    topCondition: conditionRow?.condition ?? null,
-  };
-
-  // Fetch all coins once — used for coinOfDay and badges
-  const { results: allCoins } = await db
-    .prepare("SELECT * FROM coins WHERE user_id = ?")
-    .bind(user.id)
-    .all<Coin>();
-
-  // Moneda del día
-  const ownedSet = new Set(allCoins.map((c) => c.name));
-  const catalog = COINS_BY_COUNTRY["AR"] ?? [];
-  const missing = catalog.filter((c) => !ownedSet.has(c.nombre));
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
-  );
-  const coinOfDay = missing.length > 0 ? missing[dayOfYear % missing.length] : null;
-
-  // Badges
-  const earnedIds = computeEarnedBadgeIds(allCoins);
-  if (earnedIds.length > 0) {
-    await Promise.all(
-      earnedIds.map((id) =>
-        db
-          .prepare("INSERT OR IGNORE INTO user_badges (user_id, badge_id) VALUES (?, ?)")
-          .bind(user.id, id)
-          .run()
-      )
+    // Moneda del día
+    const ownedSet = new Set(allCoins.map((c) => c.name));
+    const catalog = COINS_BY_COUNTRY["AR"] ?? [];
+    const missing = catalog.filter((c) => !ownedSet.has(c.nombre));
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
     );
+    const coinOfDay = missing.length > 0 ? missing[dayOfYear % missing.length] : null;
+
+    // Badges
+    const earnedIds = computeEarnedBadgeIds(allCoins);
+    if (earnedIds.length > 0) {
+      await Promise.all(
+        earnedIds.map((id) =>
+          db
+            .prepare("INSERT OR IGNORE INTO user_badges (user_id, badge_id) VALUES (?, ?)")
+            .bind(user.id, id)
+            .run()
+        )
+      );
+    }
+    const { results: badgeRows } = await db
+      .prepare("SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ?")
+      .bind(user.id)
+      .all<{ badge_id: string; unlocked_at: number }>();
+    const badges = badgeRows
+      .filter((row) => BADGE_MAP[row.badge_id])
+      .map((row) => ({ ...BADGE_MAP[row.badge_id], unlockedAt: row.unlocked_at }));
+
+    const unreadRow = await db
+      .prepare("SELECT COUNT(*) as unread FROM messages WHERE seller_id = ? AND read_at IS NULL")
+      .bind(user.id)
+      .first<{ unread: number }>();
+    const unreadMessages = unreadRow?.unread ?? 0;
+
+    return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages });
+  } catch (e) {
+    throw new Response("Error al cargar el dashboard", { status: 500 });
   }
-  const { results: badgeRows } = await db
-    .prepare("SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ?")
-    .bind(user.id)
-    .all<{ badge_id: string; unlocked_at: number }>();
-  const badges = badgeRows
-    .filter((row) => BADGE_MAP[row.badge_id])
-    .map((row) => ({ ...BADGE_MAP[row.badge_id], unlockedAt: row.unlocked_at }));
-
-  const unreadRow = await db
-    .prepare("SELECT COUNT(*) as unread FROM messages WHERE seller_id = ? AND read_at IS NULL")
-    .bind(user.id)
-    .first<{ unread: number }>();
-  const unreadMessages = unreadRow?.unread ?? 0;
-
-  return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -127,12 +129,16 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const db = context.cloudflare.env.DB;
-    await db
-      .prepare(
-        "UPDATE users SET name = ?, country = ?, collecting_since = ?, goals = ?, profile_completed = 1 WHERE id = ?"
-      )
-      .bind(name, country, collectingSince, goals, user.id)
-      .run();
+    try {
+      await db
+        .prepare(
+          "UPDATE users SET name = ?, country = ?, collecting_since = ?, goals = ?, profile_completed = 1 WHERE id = ?"
+        )
+        .bind(name, country, collectingSince, goals, user.id)
+        .run();
+    } catch (e) {
+      return json({ error: "Error al guardar el perfil." }, { status: 500 });
+    }
 
     return json({ success: true });
   }

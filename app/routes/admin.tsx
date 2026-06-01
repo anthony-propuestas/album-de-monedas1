@@ -15,11 +15,15 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   if (!user || user.email !== context.cloudflare.env.ADMIN_EMAIL) throw redirect("/");
 
   const db = context.cloudflare.env.DB;
-  const { results: posts } = await db
-    .prepare("SELECT id, title, created_at FROM posts ORDER BY created_at DESC")
-    .all<Post>();
 
-  return json({ user, posts });
+  try {
+    const { results: posts } = await db
+      .prepare("SELECT id, title, created_at FROM posts ORDER BY created_at DESC")
+      .all<Post>();
+    return json({ user, posts });
+  } catch (e) {
+    throw new Response("Error al cargar los posts", { status: 500 });
+  }
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -37,7 +41,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (title.length > 200) return json({ error: "Título demasiado largo (máx. 200 caracteres)." }, { status: 400 });
 
     const db = context.cloudflare.env.DB;
-    await db.prepare("INSERT INTO posts (title, body) VALUES (?, ?)").bind(title, body).run();
+    try {
+      await db.prepare("INSERT INTO posts (title, body) VALUES (?, ?)").bind(title, body).run();
+    } catch (e) {
+      return json({ error: "Error al crear el post." }, { status: 500 });
+    }
     return redirect("/admin");
   }
 
@@ -45,7 +53,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const id = Number(form.get("id"));
     if (Number.isInteger(id) && id > 0) {
       const db = context.cloudflare.env.DB;
-      await db.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
+      try {
+        await db.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
+      } catch (e) {
+        return json({ error: "Error al eliminar el post." }, { status: 500 });
+      }
     }
     return redirect("/admin");
   }

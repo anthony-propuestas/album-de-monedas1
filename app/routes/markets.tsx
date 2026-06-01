@@ -57,10 +57,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   query += " ORDER BY c.created_at DESC";
 
-  const { results: listings } = await db
-    .prepare(query)
-    .bind(...values)
-    .all<MarketListing>();
+  let listings: MarketListing[];
+  try {
+    const { results } = await db
+      .prepare(query)
+      .bind(...values)
+      .all<MarketListing>();
+    listings = results;
+  } catch (e) {
+    throw new Response("Error al cargar el mercado", { status: 500 });
+  }
 
   return json({ user, listings, filters: { q, country, condition } });
 }
@@ -86,13 +92,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const db = context.cloudflare.env.DB;
     const id = crypto.randomUUID();
 
-    await db
-      .prepare(
-        `INSERT INTO messages (id, coin_id, seller_id, buyer_id, buyer_name, buyer_contact, message)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(id, coin_id, seller_id, user.id, user.name, buyer_contact, message)
-      .run();
+    try {
+      await db
+        .prepare(
+          `INSERT INTO messages (id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(id, coin_id, seller_id, user.id, user.name, user.email, buyer_contact, message)
+        .run();
+    } catch (e) {
+      return json({ ok: false, error: "Error al enviar el mensaje." });
+    }
 
     return json({ ok: true, error: null });
   }

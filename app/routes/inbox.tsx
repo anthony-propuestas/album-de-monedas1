@@ -26,28 +26,32 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   const db = context.cloudflare.env.DB;
 
-  const { results: messages } = await db
-    .prepare(
-      `SELECT m.id, m.buyer_name, m.buyer_contact,
-              m.message, m.created_at,
-              CASE WHEN m.read_at IS NULL THEN 1 ELSE 0 END as is_new,
-              c.name as coin_name, c.country as coin_country, c.year as coin_year
-       FROM messages m
-       JOIN coins c ON m.coin_id = c.id
-       WHERE m.seller_id = ?
-       ORDER BY m.created_at DESC`
-    )
-    .bind(user.id)
-    .all<Message>();
+  try {
+    const { results: messages } = await db
+      .prepare(
+        `SELECT m.id, m.buyer_name, m.buyer_contact,
+                m.message, m.created_at,
+                CASE WHEN m.read_at IS NULL THEN 1 ELSE 0 END as is_new,
+                c.name as coin_name, c.country as coin_country, c.year as coin_year
+         FROM messages m
+         JOIN coins c ON m.coin_id = c.id
+         WHERE m.seller_id = ?
+         ORDER BY m.created_at DESC`
+      )
+      .bind(user.id)
+      .all<Message>();
 
-  await db
-    .prepare(
-      "UPDATE messages SET read_at = unixepoch() WHERE seller_id = ? AND read_at IS NULL"
-    )
-    .bind(user.id)
-    .run();
+    await db
+      .prepare(
+        "UPDATE messages SET read_at = unixepoch() WHERE seller_id = ? AND read_at IS NULL"
+      )
+      .bind(user.id)
+      .run();
 
-  return json({ messages });
+    return json({ messages });
+  } catch (e) {
+    throw new Response("Error al cargar el buzón", { status: 500 });
+  }
 }
 
 export default function Inbox() {

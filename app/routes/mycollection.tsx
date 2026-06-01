@@ -55,34 +55,38 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   query += " ORDER BY created_at DESC";
 
-  const { results: coins } = await db
-    .prepare(query)
-    .bind(...values)
-    .all<Coin>();
+  try {
+    const { results: coins } = await db
+      .prepare(query)
+      .bind(...values)
+      .all<Coin>();
 
-  const { results: allCoins } = await db
-    .prepare("SELECT name, country, year FROM coins WHERE user_id = ?")
-    .bind(user.id)
-    .all<{ name: string; country: string | null; year: number | null }>();
+    const { results: allCoins } = await db
+      .prepare("SELECT name, country, year FROM coins WHERE user_id = ?")
+      .bind(user.id)
+      .all<{ name: string; country: string | null; year: number | null }>();
 
-  const argCoins = allCoins.filter((c) => c.country === "AR");
-  const ownedNames = new Set(argCoins.map((c) => c.name));
-  const catalog = COINS_BY_COUNTRY["AR"] ?? [];
-  const seriesMap = new Map<string, { total: number; owned: number }>();
-  for (const entry of catalog) {
-    const key = entry.serie ?? "Sin serie";
-    const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
-    cur.total += 1;
-    if (ownedNames.has(entry.nombre)) cur.owned += 1;
-    seriesMap.set(key, cur);
+    const argCoins = allCoins.filter((c) => c.country === "AR");
+    const ownedNames = new Set(argCoins.map((c) => c.name));
+    const catalog = COINS_BY_COUNTRY["AR"] ?? [];
+    const seriesMap = new Map<string, { total: number; owned: number }>();
+    for (const entry of catalog) {
+      const key = entry.serie ?? "Sin serie";
+      const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
+      cur.total += 1;
+      if (ownedNames.has(entry.nombre)) cur.owned += 1;
+      seriesMap.set(key, cur);
+    }
+    const seriesProgress = Array.from(seriesMap.entries()).map(([serie, data]) => ({
+      serie,
+      ...data,
+      pct: Math.round((data.owned / data.total) * 100),
+    }));
+
+    return json({ user, coins, filters: { q, country, year, condition }, seriesProgress, allCoins });
+  } catch (e) {
+    throw new Response("Error al cargar la colección", { status: 500 });
   }
-  const seriesProgress = Array.from(seriesMap.entries()).map(([serie, data]) => ({
-    serie,
-    ...data,
-    pct: Math.round((data.owned / data.total) * 100),
-  }));
-
-  return json({ user, coins, filters: { q, country, year, condition }, seriesProgress, allCoins });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -103,25 +107,33 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (askingPrice !== null && (isNaN(askingPrice) || askingPrice < 0)) {
       return json({ error: "Precio inválido." }, { status: 400 });
     }
-    const owned = await db
-      .prepare("SELECT id FROM coins WHERE id = ? AND user_id = ?")
-      .bind(listId, user.id)
-      .first<{ id: string }>();
-    if (!owned) return json({ error: "Moneda no encontrada." }, { status: 404 });
-    await db
-      .prepare("UPDATE coins SET for_sale = 1, asking_price = ? WHERE id = ? AND user_id = ?")
-      .bind(askingPrice, listId, user.id)
-      .run();
+    try {
+      const owned = await db
+        .prepare("SELECT id FROM coins WHERE id = ? AND user_id = ?")
+        .bind(listId, user.id)
+        .first<{ id: string }>();
+      if (!owned) return json({ error: "Moneda no encontrada." }, { status: 404 });
+      await db
+        .prepare("UPDATE coins SET for_sale = 1, asking_price = ? WHERE id = ? AND user_id = ?")
+        .bind(askingPrice, listId, user.id)
+        .run();
+    } catch (e) {
+      return json({ error: "Error al publicar la moneda." }, { status: 500 });
+    }
     return json({ success: true });
   }
 
   if (intent === "unlist_coin") {
     const listId = form.get("coin_id")?.toString();
     if (!listId) return json({ error: "ID requerido." }, { status: 400 });
-    await db
-      .prepare("UPDATE coins SET for_sale = 0, asking_price = NULL WHERE id = ? AND user_id = ?")
-      .bind(listId, user.id)
-      .run();
+    try {
+      await db
+        .prepare("UPDATE coins SET for_sale = 0, asking_price = NULL WHERE id = ? AND user_id = ?")
+        .bind(listId, user.id)
+        .run();
+    } catch (e) {
+      return json({ error: "Error al quitar la moneda del mercado." }, { status: 500 });
+    }
     return json({ success: true });
   }
 
@@ -190,29 +202,46 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   const MAX_COINS = 500;
-  const row = await db
-    .prepare("SELECT COUNT(*) as count FROM coins WHERE user_id = ?")
-    .bind(user.id)
-    .first<{ count: number }>();
-  const coinCount = row?.count ?? 0;
+  let coinCount = 0;
+  try {
+    const row = await db
+      .prepare("SELECT COUNT(*) as count FROM coins WHERE user_id = ?")
+      .bind(user.id)
+      .first<{ count: number }>();
+    coinCount = row?.count ?? 0;
+  } catch (e) {
+    return json({ error: "Error al verificar el límite de monedas." }, { status: 500 });
+  }
   if (coinCount >= MAX_COINS) {
     return json({ error: "Límite de monedas alcanzado." }, { status: 429 });
   }
 
-  await db
-    .prepare(
-      `INSERT INTO coins
-        (id, user_id, name, country, year, denomination, condition, mint,
-         catalog_ref, estimated_value, notes,
-         photo_obverse, photo_reverse, photo_edge, photo_detail)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      coinId, user.id, name, country, year, denomination, condition, mint,
-      catalogRef, estimatedValue, notes,
-      photoObverse, photoReverse, photoEdge, photoDetail
-    )
-    .run();
+  const uploadedKeys = [photoObverse, photoReverse, photoEdge, photoDetail].filter(
+    (k): k is string => k !== null
+  );
+
+  try {
+    await db
+      .prepare(
+        `INSERT INTO coins
+          (id, user_id, name, country, year, denomination, condition, mint,
+           catalog_ref, estimated_value, notes,
+           photo_obverse, photo_reverse, photo_edge, photo_detail)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        coinId, user.id, name, country, year, denomination, condition, mint,
+        catalogRef, estimatedValue, notes,
+        photoObverse, photoReverse, photoEdge, photoDetail
+      )
+      .run();
+  } catch (e) {
+    // Rollback: eliminar imágenes subidas a R2 si el INSERT en DB falló
+    if (images && uploadedKeys.length > 0) {
+      await Promise.allSettled(uploadedKeys.map((key) => images.delete(key)));
+    }
+    return json({ error: "Error al guardar la moneda." }, { status: 500 });
+  }
 
   return redirect("/mycollection");
 }

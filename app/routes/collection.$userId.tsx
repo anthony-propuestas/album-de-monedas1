@@ -23,12 +23,17 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
 
   const db = context.cloudflare.env.DB;
 
-  const profileUser = await db
-    .prepare(
-      "SELECT id, name, picture, country, collecting_since FROM users WHERE id = ?"
-    )
-    .bind(params.userId)
-    .first<ProfileUser>();
+  let profileUser: ProfileUser | null;
+  try {
+    profileUser = await db
+      .prepare(
+        "SELECT id, name, picture, country, collecting_since FROM users WHERE id = ?"
+      )
+      .bind(params.userId)
+      .first<ProfileUser>();
+  } catch (e) {
+    throw new Response("Error al cargar el perfil", { status: 500 });
+  }
 
   if (!profileUser) throw new Response("Not Found", { status: 404 });
 
@@ -61,10 +66,16 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
 
   query += " ORDER BY created_at DESC";
 
-  const { results: coins } = await db
-    .prepare(query)
-    .bind(...values)
-    .all<Coin>();
+  let coins: Coin[];
+  try {
+    const { results } = await db
+      .prepare(query)
+      .bind(...values)
+      .all<Coin>();
+    coins = results;
+  } catch (e) {
+    throw new Response("Error al cargar la colección", { status: 500 });
+  }
 
   return json({
     profileUser,

@@ -7,7 +7,7 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
   const bucket = context.cloudflare.env.IMAGES;
   if (!bucket) throw new Response("Not Found", { status: 404 });
 
-  const object = await bucket.get(key);
+  const object = await bucket.get(key).catch(() => null);
   if (!object) throw new Response("Not Found", { status: 404 });
 
   const headers = new Headers();
