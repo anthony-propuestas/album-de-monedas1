@@ -69,8 +69,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
     const seriesProgressByCountry: Record<string, { serie: string; total: number; owned: number; pct: number }[]> = {};
     for (const countryCode of Object.keys(COINS_BY_COUNTRY)) {
-      const ownedNames = new Set(
-        allCoins.filter((c) => c.country === countryCode).map((c) => c.name)
+      const ownedKeys = new Set(
+        allCoins.filter((c) => c.country === countryCode).map((c) => `${c.name}|${c.year}`)
       );
       const catalog = COINS_BY_COUNTRY[countryCode];
       const seriesMap = new Map<string, { total: number; owned: number }>();
@@ -78,7 +78,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         const key = entry.serie ?? "Sin serie";
         const cur = seriesMap.get(key) ?? { total: 0, owned: 0 };
         cur.total += 1;
-        if (ownedNames.has(entry.nombre)) cur.owned += 1;
+        if (ownedKeys.has(`${entry.nombre}|${entry.anio}`)) cur.owned += 1;
         seriesMap.set(key, cur);
       }
       seriesProgressByCountry[countryCode] = Array.from(seriesMap.entries()).map(
