@@ -8,6 +8,7 @@ export interface CoinEntry {
   casa_acunacion: string;
   serie?: string;
   km?: string;
+  material?: string;
   nota?: string;
 }
 
