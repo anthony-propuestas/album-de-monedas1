@@ -329,10 +329,10 @@ export default function MyCollection() {
   const hasFilters = filters.q || filters.country || filters.year || filters.condition;
 
   return (
-    <main className="min-h-screen text-[#F2ECE0] px-6 py-8">
+    <main className="min-h-screen text-[#F2ECE0] px-4 py-6 sm:px-6 sm:py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6 sm:mb-8">
           <div className="flex items-center gap-4">
             <a
               href="/home"
@@ -401,12 +401,7 @@ export default function MyCollection() {
             )}
           </div>
         ) : (
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
-            }}
-          >
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {coins.map((coin) => (
               <div key={coin.id} className="flex flex-col">
                 <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />

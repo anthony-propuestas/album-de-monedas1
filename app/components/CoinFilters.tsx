@@ -32,19 +32,19 @@ export function CoinFilters({ filters }: Props) {
   };
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       <input
         type="text"
         placeholder="Buscar pieza..."
         defaultValue={filters.q}
         onChange={(e) => handleTextChange(e.target.value)}
-        className={`${INPUT} w-48`}
+        className={`${INPUT} w-full sm:w-48`}
       />
 
       <select
         defaultValue={filters.country}
         onChange={(e) => updateParam("country", e.target.value)}
-        className={`${INPUT} w-44`}
+        className={`${INPUT} w-full sm:w-44`}
       >
         <option value="">Todos los países</option>
         {countries.map((c) => (
@@ -61,13 +61,13 @@ export function CoinFilters({ filters }: Props) {
         min={1}
         max={2100}
         onChange={(e) => updateParam("year", e.target.value)}
-        className={`${INPUT} w-24`}
+        className={`${INPUT} w-full sm:w-24`}
       />
 
       <select
         defaultValue={filters.condition}
         onChange={(e) => updateParam("condition", e.target.value)}
-        className={`${INPUT} w-36`}
+        className={`${INPUT} w-full sm:w-36`}
       >
         <option value="">Todos los estados</option>
         {CONDITIONS.map((c) => (

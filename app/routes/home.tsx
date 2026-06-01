@@ -231,7 +231,7 @@ export default function Home() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <main className="min-h-screen text-[#F2ECE0] flex flex-col items-center justify-center px-6">
+    <main className="min-h-screen text-[#F2ECE0] flex flex-col items-center justify-center px-4 sm:px-6">
       {!profileCompleted && (
         <ProfileSetupModal defaultName={user.name ?? ""} email={user.email} />
       )}
@@ -256,7 +256,7 @@ export default function Home() {
 
       {/* Drawer */}
       <div
-        className={`fixed left-0 top-0 h-full w-72 z-50 flex flex-col bg-[rgba(14,11,10,0.97)] border-r border-[rgba(210,180,130,0.18)] backdrop-blur-md transition-transform duration-300 ${
+        className={`fixed left-0 top-0 h-full w-[85vw] max-w-72 z-50 flex flex-col bg-[rgba(14,11,10,0.97)] border-r border-[rgba(210,180,130,0.18)] backdrop-blur-md transition-transform duration-300 ${
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -347,18 +347,18 @@ export default function Home() {
       <p className="mb-12 text-sm text-[rgba(242,236,224,0.55)]">
         Bienvenido, {user.name}
       </p>
-      <div className="grid grid-cols-3 gap-3 w-full max-w-3xl mb-10">
-        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+      <div className="grid grid-cols-1 gap-3 w-full max-w-3xl mb-10 sm:grid-cols-3">
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-4 sm:py-5 text-center">
           <p className="text-2xl font-semibold text-[#C9A46A]">{stats.total}</p>
           <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">piezas</p>
         </div>
-        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-4 sm:py-5 text-center">
           <p className="text-2xl font-semibold text-[#C9A46A]">
             {stats.estimatedValue > 0 ? `$${stats.estimatedValue.toLocaleString("es-AR")}` : "—"}
           </p>
           <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">valor est.</p>
         </div>
-        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-5 text-center">
+        <div className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] px-4 py-4 sm:py-5 text-center">
           <p className="text-2xl font-semibold text-[#C9A46A]">{stats.topCondition ?? "—"}</p>
           <p className="text-[10px] uppercase tracking-widest text-[rgba(242,236,224,0.4)] mt-1">condición top</p>
         </div>
@@ -388,7 +388,7 @@ export default function Home() {
           <a
             key={item.href}
             href={item.href}
-            className="relative flex items-center justify-center rounded-xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.85)] text-[#C9A46A] h-40 px-4 text-center text-2xl font-semibold backdrop-blur-md transition-colors hover:bg-[rgba(201,164,106,0.12)] hover:border-[rgba(210,180,130,0.45)]"
+            className="relative flex items-center justify-center rounded-xl border border-[rgba(210,180,130,0.25)] bg-[rgba(20,17,16,0.85)] text-[#C9A46A] h-32 sm:h-40 px-4 text-center text-2xl font-semibold backdrop-blur-md transition-colors hover:bg-[rgba(201,164,106,0.12)] hover:border-[rgba(210,180,130,0.45)]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {item.label}

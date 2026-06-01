@@ -71,7 +71,7 @@ export default function Index() {
   return (
     <main className="min-h-screen text-[#F2ECE0]">
       {/* Hero */}
-      <section className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+      <section className="flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 text-center">
         <div className="mb-6 flex items-center gap-3 text-[#C9A46A]">
           <span className="text-5xl leading-none">🪙</span>
           <span
@@ -90,7 +90,7 @@ export default function Index() {
           <span className="italic text-[#C9A46A]">al siguiente nivel</span>
         </h1>
 
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-[rgba(242,236,224,0.55)]">
+        <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-[rgba(242,236,224,0.55)]">
           Organiza, valora y comparte tu colección numismática. Conecta con
           otros coleccionistas y descubre el valor real de tus piezas.
         </p>
@@ -106,16 +106,16 @@ export default function Index() {
       </section>
 
       {/* Stats */}
-      <section className="border-t border-[rgba(210,180,130,0.18)] px-6 py-16">
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-4 py-10 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-2xl">
           <h2
-            className="mb-10 text-center text-sm font-medium uppercase tracking-[0.25em] text-[#C9A46A]"
+            className="mb-8 text-center text-sm font-medium uppercase tracking-[0.25em] text-[#C9A46A]"
             style={{ fontFamily: "var(--font-mono)" }}
           >
             La comunidad en números
           </h2>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-8 py-10">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-6 py-8 sm:px-8 sm:py-10">
               <span className="text-4xl font-semibold text-[#C9A46A]">
                 {totalUsers.toLocaleString()}
               </span>
@@ -123,7 +123,7 @@ export default function Index() {
                 coleccionistas
               </span>
             </div>
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-8 py-10">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] px-6 py-8 sm:px-8 sm:py-10">
               <span className="text-4xl font-semibold text-[#C9A46A]">
                 {totalCoins.toLocaleString()}
               </span>
@@ -136,22 +136,22 @@ export default function Index() {
       </section>
 
       {/* Por qué */}
-      <section className="border-t border-[rgba(210,180,130,0.18)] px-6 py-24">
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-5xl">
           <h2
-            className="mb-4 text-center text-3xl font-semibold"
+            className="mb-4 text-center text-2xl font-semibold sm:text-3xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             ¿Por qué Album de Monedas?
           </h2>
-          <p className="mb-16 text-center text-[rgba(242,236,224,0.55)]">
+          <p className="mb-10 text-center text-sm sm:mb-16 sm:text-base text-[rgba(242,236,224,0.55)]">
             Más que un inventario — una comunidad para apasionados de la numismática.
           </p>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
             {reasons.map((r) => (
               <div
                 key={r.title}
-                className="flex flex-col gap-4 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] p-8 backdrop-blur-md"
+                className="flex flex-col gap-4 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] p-5 sm:p-8 backdrop-blur-md"
               >
                 <r.icon className="size-8 text-[#C9A46A]" />
                 <h3
@@ -170,23 +170,23 @@ export default function Index() {
       </section>
 
       {/* Cómo funciona */}
-      <section className="border-t border-[rgba(210,180,130,0.18)] px-6 py-24">
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-4 py-16 sm:px-6 sm:py-24">
         <div className="mx-auto max-w-5xl">
           <h2
-            className="mb-4 text-center text-3xl font-semibold"
+            className="mb-4 text-center text-2xl font-semibold sm:text-3xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             ¿Cómo funciona?
           </h2>
-          <p className="mb-16 text-center text-[rgba(242,236,224,0.55)]">
+          <p className="mb-10 text-center text-sm sm:mb-16 sm:text-base text-[rgba(242,236,224,0.55)]">
             En tres pasos tienes tu colección digital y conectada.
           </p>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
             {steps.map((s) => (
               <div
                 key={s.step}
-                className="flex flex-col gap-4 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] p-8 backdrop-blur-md"
+                className="flex flex-col gap-4 rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(20,17,16,0.85)] p-5 sm:p-8 backdrop-blur-md"
               >
                 <span
                   className="text-sm font-medium uppercase tracking-[0.25em] text-[#C9A46A]"
