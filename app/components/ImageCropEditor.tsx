@@ -15,15 +15,24 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [userScale, setUserScale] = useState(1);
   const [baseScale, setBaseScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const [ready, setReady] = useState(false);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  const touchRef = useRef<{
+    type: "pan";
+    x: number; y: number; ox: number; oy: number;
+  } | {
+    type: "pinch";
+    dist: number; angle: number; scale: number; rot: number;
+  } | null>(null);
 
   const initScale = useCallback((nw: number, nh: number) => {
     const s = Math.max(CONTAINER_SIZE / nw, CONTAINER_SIZE / nh);
     setBaseScale(s);
     setUserScale(1);
     setOffset({ x: 0, y: 0 });
+    setRotation(0);
     setReady(true);
   }, []);
 
@@ -53,6 +62,52 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
     setUserScale((s) => Math.min(5, Math.max(0.5, s - e.deltaY * 0.001)));
   }, []);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length >= 2) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX;
+      const dy = e.touches[1].clientY - e.touches[0].clientY;
+      touchRef.current = {
+        type: "pinch",
+        dist: Math.hypot(dx, dy),
+        angle: Math.atan2(dy, dx),
+        scale: userScale,
+        rot: rotation,
+      };
+    } else {
+      touchRef.current = {
+        type: "pan",
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        ox: offset.x,
+        oy: offset.y,
+      };
+    }
+  }, [offset, userScale, rotation]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    const t = touchRef.current;
+    if (!t) return;
+    if (t.type === "pan" && e.touches.length === 1) {
+      setOffset({
+        x: t.ox + e.touches[0].clientX - t.x,
+        y: t.oy + e.touches[0].clientY - t.y,
+      });
+    } else if (t.type === "pinch" && e.touches.length >= 2) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX;
+      const dy = e.touches[1].clientY - e.touches[0].clientY;
+      const dist = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx);
+      setUserScale(Math.min(5, Math.max(0.5, t.scale * (dist / t.dist))));
+      setRotation(t.rot + (angle - t.angle) * (180 / Math.PI));
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    touchRef.current = null;
+  }, []);
+
   const handleConfirm = useCallback(() => {
     const img = imgRef.current;
     if (!img) return;
@@ -68,14 +123,21 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
 
     const totalScale = baseScale * userScale;
     const ratio = OUTPUT_SIZE / CONTAINER_SIZE;
-    const imgX = CONTAINER_SIZE / 2 - img.naturalWidth * totalScale / 2 + offset.x;
-    const imgY = CONTAINER_SIZE / 2 - img.naturalHeight * totalScale / 2 + offset.y;
-    ctx.drawImage(img, imgX * ratio, imgY * ratio, img.naturalWidth * totalScale * ratio, img.naturalHeight * totalScale * ratio);
+    const cx = (CONTAINER_SIZE / 2 + offset.x) * ratio;
+    const cy = (CONTAINER_SIZE / 2 + offset.y) * ratio;
+    const halfW = img.naturalWidth * totalScale * ratio / 2;
+    const halfH = img.naturalHeight * totalScale * ratio / 2;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(img, -halfW, -halfH, halfW * 2, halfH * 2);
+    ctx.restore();
 
     canvas.toBlob((blob) => {
       if (blob) onConfirm(new File([blob], "photo.jpg", { type: "image/jpeg" }));
     }, "image/jpeg", 0.92);
-  }, [baseScale, userScale, offset, onConfirm]);
+  }, [baseScale, userScale, offset, rotation, onConfirm]);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -94,12 +156,21 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
         {/* Viewport de recorte */}
         <div
           className="relative overflow-hidden rounded-full bg-[rgba(14,11,10,0.8)]"
-          style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE, cursor: isDragging.current ? "grabbing" : "grab" }}
+          style={{
+            width: CONTAINER_SIZE,
+            height: CONTAINER_SIZE,
+            cursor: isDragging.current ? "grabbing" : "grab",
+            touchAction: "none",
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={stopDrag}
           onMouseLeave={stopDrag}
           onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <img
@@ -112,7 +183,7 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
               position: "absolute",
               left: "50%",
               top: "50%",
-              transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${totalScale})`,
+              transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${totalScale}) rotate(${rotation}deg)`,
               transformOrigin: "center",
               maxWidth: "none",
               userSelect: "none",
@@ -149,7 +220,28 @@ export function ImageCropEditor({ src, slotLabel, onConfirm, onCancel }: Props) 
           </button>
         </div>
 
-        <p className="text-[10px] text-[rgba(242,236,224,0.3)]">Arrastra para centrar · Scroll para zoom</p>
+        {/* Rotación */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setRotation((r) => r - 15)}
+            className="w-8 h-8 rounded-md border border-[rgba(210,180,130,0.25)] text-[#C9A46A] hover:border-[rgba(210,180,130,0.5)] flex items-center justify-center text-base leading-none"
+          >
+            ↺
+          </button>
+          <span className="text-xs text-[rgba(242,236,224,0.5)] w-10 text-center" style={{ fontFamily: "var(--font-mono)" }}>
+            {Math.round(rotation)}°
+          </span>
+          <button
+            type="button"
+            onClick={() => setRotation((r) => r + 15)}
+            className="w-8 h-8 rounded-md border border-[rgba(210,180,130,0.25)] text-[#C9A46A] hover:border-[rgba(210,180,130,0.5)] flex items-center justify-center text-base leading-none"
+          >
+            ↻
+          </button>
+        </div>
+
+        <p className="text-[10px] text-[rgba(242,236,224,0.3)]">Arrastra · Pellizca para zoom/rotar · Botones para ajustar</p>
 
         {/* Acciones */}
         <div className="flex gap-3">
