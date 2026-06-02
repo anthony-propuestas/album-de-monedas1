@@ -9,6 +9,7 @@ import { useState } from "react";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { CoinCard } from "~/components/CoinCard";
 import { CoinDetailModal } from "~/components/CoinDetailModal";
+import { DeleteConfirmModal } from "~/components/DeleteConfirmModal";
 import { CoinFilters } from "~/components/CoinFilters";
 import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
@@ -374,27 +375,30 @@ function SellCoinControl({ coin }: { coin: Coin }) {
   );
 }
 
-function DeleteCoinButton({ coinId }: { coinId: string }) {
+function DeleteCoinButton({ coinId, coinName }: { coinId: string; coinName: string }) {
   const fetcher = useFetcher();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
-    <fetcher.Form
-      method="post"
-      onSubmit={(e) => {
-        if (!window.confirm("¿Eliminar esta moneda? Esta acción no se puede deshacer.")) {
-          e.preventDefault();
-        }
-      }}
-    >
-      <input type="hidden" name="intent" value="delete_coin" />
-      <input type="hidden" name="id" value={coinId} />
+    <>
       <button
-        type="submit"
+        type="button"
         disabled={fetcher.state !== "idle"}
+        onClick={() => setConfirmOpen(true)}
         className="mt-1 w-full text-[10px] uppercase tracking-widest font-medium py-1.5 rounded-lg border border-[rgba(239,68,68,0.2)] text-[rgba(239,68,68,0.5)] hover:border-[rgba(239,68,68,0.45)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.08)] transition-all"
       >
         Eliminar
       </button>
-    </fetcher.Form>
+      <DeleteConfirmModal
+        isOpen={confirmOpen}
+        coinName={coinName}
+        onConfirm={() => {
+          fetcher.submit({ intent: "delete_coin", id: coinId }, { method: "post" });
+          setConfirmOpen(false);
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    </>
   );
 }
 
@@ -485,7 +489,7 @@ export default function MyCollection() {
               <div key={coin.id} className="flex flex-col">
                 <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />
                 <SellCoinControl coin={coin} />
-                <DeleteCoinButton coinId={coin.id} />
+                <DeleteCoinButton coinId={coin.id} coinName={coin.name} />
               </div>
             ))}
           </div>

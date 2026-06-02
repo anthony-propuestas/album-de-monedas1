@@ -1,6 +1,7 @@
 import { useFetcher } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { countries } from "~/lib/countries";
+import { CustomSelect } from "~/components/ui/CustomSelect";
 
 const GOALS = [
   { value: "organizar_coleccion", label: "Organizar mi colección" },
@@ -25,6 +26,8 @@ interface Props {
 export function ProfileSetupModal({ defaultName, email }: Props) {
   const fetcher = useFetcher<{ success?: boolean; error?: string }>();
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedCollectingSince, setSelectedCollectingSince] = useState("");
   const submitting = fetcher.state === "submitting";
 
   const toggleGoal = (value: string) => {
@@ -96,21 +99,14 @@ export function ProfileSetupModal({ defaultName, email }: Props) {
             <label className="text-xs font-medium text-[rgba(242,236,224,0.6)] uppercase tracking-wider" style={{ fontFamily: "var(--font-mono)" }}>
               País
             </label>
-            <select
+            <CustomSelect
               name="country"
+              value={selectedCountry}
+              onChange={setSelectedCountry}
+              options={countries}
+              placeholder="Selecciona tu país"
               required
-              defaultValue=""
-              className="w-full bg-[rgba(20,17,16,0.9)] border border-[rgba(210,180,130,0.2)] rounded-lg px-3.5 py-2.5 text-sm text-[#F2ECE0] focus:outline-none focus:border-[rgba(201,164,106,0.6)] transition-colors appearance-none cursor-pointer"
-            >
-              <option value="" disabled className="text-[rgba(242,236,224,0.4)]">
-                Selecciona tu país
-              </option>
-              {countries.map((c) => (
-                <option key={c.value} value={c.value} className="bg-[#0e0b0a]">
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Tiempo en el coleccionismo */}
@@ -118,21 +114,14 @@ export function ProfileSetupModal({ defaultName, email }: Props) {
             <label className="text-xs font-medium text-[rgba(242,236,224,0.6)] uppercase tracking-wider" style={{ fontFamily: "var(--font-mono)" }}>
               Tiempo en el coleccionismo
             </label>
-            <select
+            <CustomSelect
               name="collecting_since"
+              value={selectedCollectingSince}
+              onChange={setSelectedCollectingSince}
+              options={COLLECTING_SINCE}
+              placeholder="Selecciona una opción"
               required
-              defaultValue=""
-              className="w-full bg-[rgba(20,17,16,0.9)] border border-[rgba(210,180,130,0.2)] rounded-lg px-3.5 py-2.5 text-sm text-[#F2ECE0] focus:outline-none focus:border-[rgba(201,164,106,0.6)] transition-colors appearance-none cursor-pointer"
-            >
-              <option value="" disabled className="text-[rgba(242,236,224,0.4)]">
-                Selecciona una opción
-              </option>
-              {COLLECTING_SINCE.map((o) => (
-                <option key={o.value} value={o.value} className="bg-[#0e0b0a]">
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Qué buscas aquí */}

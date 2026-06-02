@@ -1,8 +1,10 @@
 import { useNavigate, useSearchParams } from "@remix-run/react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { countries } from "~/lib/countries";
+import { CustomSelect } from "~/components/ui/CustomSelect";
 
 const CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"];
+const CONDITION_OPTIONS = CONDITIONS.map((c) => ({ value: c, label: c }));
 
 interface Props {
   filters: { q: string; country: string; year: string; condition: string };
@@ -15,6 +17,8 @@ export function CoinFilters({ filters }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [country, setCountry] = useState(filters.country);
+  const [condition, setCondition] = useState(filters.condition);
 
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -41,18 +45,13 @@ export function CoinFilters({ filters }: Props) {
         className={`${INPUT} w-full sm:w-48`}
       />
 
-      <select
-        defaultValue={filters.country}
-        onChange={(e) => updateParam("country", e.target.value)}
-        className={`${INPUT} w-full sm:w-44`}
-      >
-        <option value="">Todos los países</option>
-        {countries.map((c) => (
-          <option key={c.value} value={c.value}>
-            {c.label}
-          </option>
-        ))}
-      </select>
+      <CustomSelect
+        value={country}
+        onChange={(v) => { setCountry(v); updateParam("country", v); }}
+        options={countries}
+        placeholder="Todos los países"
+        className="w-full sm:w-44"
+      />
 
       <input
         type="number"
@@ -64,18 +63,13 @@ export function CoinFilters({ filters }: Props) {
         className={`${INPUT} w-full sm:w-24`}
       />
 
-      <select
-        defaultValue={filters.condition}
-        onChange={(e) => updateParam("condition", e.target.value)}
-        className={`${INPUT} w-full sm:w-36`}
-      >
-        <option value="">Todos los estados</option>
-        {CONDITIONS.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+      <CustomSelect
+        value={condition}
+        onChange={(v) => { setCondition(v); updateParam("condition", v); }}
+        options={CONDITION_OPTIONS}
+        placeholder="Todos los estados"
+        className="w-full sm:w-36"
+      />
     </div>
   );
 }

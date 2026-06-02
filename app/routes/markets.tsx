@@ -4,6 +4,7 @@ import { Form, useFetcher, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { createAuth } from "~/lib/auth.server";
 import { checkRateLimit } from "~/lib/rateLimit.server";
+import { CustomSelect } from "~/components/ui/CustomSelect";
 
 export const meta: MetaFunction = () => [
   { title: "Mercado — Album de Monedas" },
@@ -117,12 +118,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 const CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"];
+const CONDITION_OPTIONS = CONDITIONS.map((c) => ({ value: c, label: c }));
 
 export default function Markets() {
   const { user, listings, filters } = useLoaderData<typeof loader>();
   const hasFilters = filters.q || filters.country || filters.condition;
   const isEmpty = listings.length === 0;
   const [activeContact, setActiveContact] = useState<MarketListing | null>(null);
+  const [conditionFilter, setConditionFilter] = useState(filters.condition);
 
   return (
     <main className="min-h-screen text-[#F2ECE0] px-6 py-8">
@@ -174,16 +177,13 @@ export default function Markets() {
             placeholder="Buscar pieza..."
             className="flex-1 min-w-[180px] text-sm bg-[rgba(14,11,10,0.7)] border border-[rgba(210,180,130,0.2)] rounded-xl px-4 py-2.5 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.5)]"
           />
-          <select
+          <CustomSelect
             name="condition"
-            defaultValue={filters.condition}
-            className="text-sm bg-[rgba(14,11,10,0.7)] border border-[rgba(210,180,130,0.2)] rounded-xl px-4 py-2.5 text-[rgba(242,236,224,0.7)] focus:outline-none focus:border-[rgba(210,180,130,0.5)]"
-          >
-            <option value="">Todas las condiciones</option>
-            {CONDITIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            value={conditionFilter}
+            onChange={setConditionFilter}
+            options={CONDITION_OPTIONS}
+            placeholder="Todas las condiciones"
+          />
           <button
             type="submit"
             className="px-5 py-2.5 text-sm rounded-xl bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] transition-colors"

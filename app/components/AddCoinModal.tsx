@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { countries } from "~/lib/countries";
 import { ImageCropEditor } from "~/components/ImageCropEditor";
 import { COINS_BY_COUNTRY } from "~/lib/coins/index";
+import { CustomSelect } from "~/components/ui/CustomSelect";
 
 const CONDITIONS = [
   { value: "MS", label: "MS — Mint State" },
@@ -55,6 +56,7 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
   const [selectedDenomination, setSelectedDenomination] = useState("");
   const [selectedName, setSelectedName] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [selectedCondition, setSelectedCondition] = useState("");
 
   const countryCoins = COINS_BY_COUNTRY[selectedCountry] ?? [];
   const hasCoinData = countryCoins.length > 0;
@@ -80,7 +82,14 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
   }, [fetcher.data]);
 
   useEffect(() => {
-    if (!isOpen) setStep("form");
+    if (!isOpen) {
+      setStep("form");
+      setSelectedCountry("");
+      setSelectedDenomination("");
+      setSelectedName("");
+      setSelectedYear("");
+      setSelectedCondition("");
+    }
   }, [isOpen]);
 
   const handleFile = useCallback((slot: string, label: string, file: File | null) => {
@@ -219,24 +228,18 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
             {/* País */}
             <div className="flex flex-col gap-1.5">
               <label className={LABEL}>País</label>
-              <select
+              <CustomSelect
                 name="country"
-                className={INPUT}
                 value={selectedCountry}
-                onChange={(e) => {
-                  setSelectedCountry(e.target.value);
+                onChange={(v) => {
+                  setSelectedCountry(v);
                   setSelectedDenomination("");
                   setSelectedName("");
                   setSelectedYear("");
                 }}
-              >
-                <option value="">Seleccionar país</option>
-                {countries.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                options={countries}
+                placeholder="Seleccionar país"
+              />
             </div>
 
             {/* Denominación + Condición */}
@@ -244,35 +247,30 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
               <div className="flex flex-col gap-1.5">
                 <label className={LABEL}>Denominación</label>
                 {hasCoinData ? (
-                  <select
+                  <CustomSelect
                     name="denomination"
-                    className={INPUT}
                     value={selectedDenomination}
-                    onChange={(e) => {
-                      setSelectedDenomination(e.target.value);
+                    onChange={(v) => {
+                      setSelectedDenomination(v);
                       setSelectedYear("");
                       setSelectedName("");
                     }}
-                  >
-                    <option value="">Seleccionar denominación</option>
-                    {denominations.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                    options={denominations.map((d) => ({ value: d, label: d }))}
+                    placeholder="Seleccionar denominación"
+                  />
                 ) : (
                   <input name="denomination" placeholder="Ej: 1 Peso" className={INPUT} />
                 )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className={LABEL}>Estado / Condición</label>
-                <select name="condition" className={INPUT}>
-                  <option value="">Seleccionar estado</option>
-                  {CONDITIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  name="condition"
+                  value={selectedCondition}
+                  onChange={setSelectedCondition}
+                  options={CONDITIONS}
+                  placeholder="Seleccionar estado"
+                />
               </div>
             </div>
 
@@ -280,20 +278,16 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
             <div className="flex flex-col gap-1.5">
               <label className={LABEL}>Año</label>
               {hasCoinData && selectedDenomination ? (
-                <select
+                <CustomSelect
                   name="year"
-                  className={INPUT}
                   value={selectedYear}
-                  onChange={(e) => {
-                    setSelectedYear(e.target.value);
+                  onChange={(v) => {
+                    setSelectedYear(v);
                     setSelectedName("");
                   }}
-                >
-                  <option value="">Seleccionar año</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                  options={years.map((y) => ({ value: String(y), label: String(y) }))}
+                  placeholder="Seleccionar año"
+                />
               ) : (
                 <input
                   name="year"
@@ -310,18 +304,14 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
             <div className="flex flex-col gap-1.5">
               <label className={LABEL}>Nombre de la pieza *</label>
               {hasCoinData && selectedYear ? (
-                <select
+                <CustomSelect
                   name="name"
-                  required
-                  className={INPUT}
                   value={selectedName}
-                  onChange={(e) => setSelectedName(e.target.value)}
-                >
-                  <option value="">Seleccionar nombre</option>
-                  {names.map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+                  onChange={setSelectedName}
+                  options={names.map((n) => ({ value: n, label: n }))}
+                  placeholder="Seleccionar nombre"
+                  required
+                />
               ) : (
                 <input
                   name="name"
