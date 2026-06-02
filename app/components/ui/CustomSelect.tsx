@@ -56,7 +56,10 @@ export function CustomSelect({
         return;
       setIsOpen(false);
     };
-    const handleScroll = () => setIsOpen(false);
+    const handleScroll = (e: Event) => {
+      if (dropdownRef.current?.contains(e.target as Node)) return;
+      setIsOpen(false);
+    };
     document.addEventListener("mousedown", handleClose);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
