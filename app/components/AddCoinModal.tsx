@@ -103,6 +103,14 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
       setSelectedName("");
       setSelectedYear("");
       setSelectedCondition("");
+      setPreviews((prev) => {
+        Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+        return {};
+      });
+      setCropTarget(null);
+      Object.values(inputRefs.current).forEach((el) => {
+        if (el) el.value = "";
+      });
     }
   }, [isOpen]);
 
