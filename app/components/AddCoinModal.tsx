@@ -47,6 +47,7 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
   const isSubmitting = fetcher.state === "submitting";
   const formRef = useRef<HTMLFormElement>(null);
   const forceDupRef = useRef<HTMLInputElement>(null);
+  const wasSubmitting = useRef(false);
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [cropTarget, setCropTarget] = useState<{ slot: string; label: string; src: string } | null>(null);
@@ -80,6 +81,19 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
       setStep("confirm");
     }
   }, [fetcher.data]);
+
+  useEffect(() => {
+    if (fetcher.state === "submitting") {
+      wasSubmitting.current = true;
+    }
+  }, [fetcher.state]);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && wasSubmitting.current && fetcher.data === undefined) {
+      wasSubmitting.current = false;
+      onClose();
+    }
+  }, [fetcher.state, fetcher.data, onClose]);
 
   useEffect(() => {
     if (!isOpen) {
