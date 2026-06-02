@@ -153,6 +153,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
 const navItems = [
   { label: "Mi colección", href: "/mycollection" },
+  { label: "Colección Completa", href: "/full-collection" },
   { label: "Grandes colecciones", href: "/collections" },
   { label: "Mercados", href: "/markets" },
   { label: "Buzón", href: "/inbox" },
@@ -166,6 +167,17 @@ const drawerItems = [
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
         <path d="M18 14h-8M15 18h-5M10 6h8v4h-8z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Colección Completa",
+    href: "/full-collection",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
       </svg>
     ),
   },
