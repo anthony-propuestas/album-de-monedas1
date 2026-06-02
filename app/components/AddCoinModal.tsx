@@ -1,4 +1,4 @@
-import { Form, useNavigation } from "@remix-run/react";
+import { useFetcher } from "@remix-run/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { countries } from "~/lib/countries";
 import { ImageCropEditor } from "~/components/ImageCropEditor";
@@ -27,17 +27,28 @@ const INPUT =
 
 const LABEL = "text-xs text-[rgba(242,236,224,0.55)] uppercase tracking-wider";
 
+type DuplicateCoin = {
+  id: string;
+  name: string;
+  country: string | null;
+  year: number | null;
+  denomination: string | null;
+  condition: string | null;
+};
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function AddCoinModal({ isOpen, onClose }: Props) {
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const fetcher = useFetcher<{ duplicateWarning?: DuplicateCoin; error?: string }>();
+  const isSubmitting = fetcher.state === "submitting";
+  const formRef = useRef<HTMLFormElement>(null);
+  const forceDupRef = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<"form" | "confirm">("form");
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [cropTarget, setCropTarget] = useState<{ slot: string; label: string; src: string } | null>(null);
-  const wasSubmitting = useRef(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -63,14 +74,14 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
   const autoMint = countryCoins.find((c) => c.nombre === selectedName && c.anio === Number(selectedYear))?.casa_acunacion ?? "";
 
   useEffect(() => {
-    if (navigation.state === "submitting") {
-      wasSubmitting.current = true;
-    } else if (navigation.state === "idle" && wasSubmitting.current) {
-      wasSubmitting.current = false;
-      setPreviews({});
-      onClose();
+    if (fetcher.data?.duplicateWarning) {
+      setStep("confirm");
     }
-  }, [navigation.state, onClose]);
+  }, [fetcher.data]);
+
+  useEffect(() => {
+    if (!isOpen) setStep("form");
+  }, [isOpen]);
 
   const handleFile = useCallback((slot: string, label: string, file: File | null) => {
     if (file) {
@@ -107,6 +118,16 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
     setCropTarget(null);
   }, [cropTarget]);
 
+  const handleConfirmDuplicate = () => {
+    if (forceDupRef.current) forceDupRef.current.value = "true";
+    if (formRef.current) fetcher.submit(formRef.current, { method: "post", encType: "multipart/form-data" });
+  };
+
+  const handleCancelConfirm = () => {
+    if (forceDupRef.current) forceDupRef.current.value = "false";
+    setStep("form");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -118,6 +139,55 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
         />
 
         <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[rgba(210,180,130,0.25)] bg-[rgba(14,11,10,0.97)] shadow-2xl">
+          {/* Duplicate warning overlay */}
+          {step === "confirm" && fetcher.data?.duplicateWarning && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 rounded-2xl bg-[rgba(14,11,10,0.97)] px-8 py-8 text-center">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[rgba(201,164,106,0.1)] border border-[rgba(210,180,130,0.3)]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C9A46A" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-[#C9A46A]" style={{ fontFamily: "var(--font-display)" }}>
+                Ya tenés esta moneda
+              </h3>
+              <div className="w-full max-w-xs rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(255,255,255,0.03)] px-4 py-3 text-sm space-y-1 text-left">
+                <p className="text-[#F2ECE0] font-medium">{fetcher.data.duplicateWarning.name}</p>
+                {fetcher.data.duplicateWarning.country && (
+                  <p className="text-[rgba(242,236,224,0.55)]">{fetcher.data.duplicateWarning.country}</p>
+                )}
+                <p className="text-[rgba(242,236,224,0.55)]">
+                  {[
+                    fetcher.data.duplicateWarning.denomination,
+                    fetcher.data.duplicateWarning.year,
+                    fetcher.data.duplicateWarning.condition,
+                  ].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <p className="text-sm text-[rgba(242,236,224,0.55)] max-w-xs">
+                ¿Querés registrarla de todos modos? Podés tener varias copias de la misma pieza.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelConfirm}
+                  className="px-4 py-2 text-sm text-[rgba(242,236,224,0.55)] hover:text-[#F2ECE0] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDuplicate}
+                  disabled={isSubmitting}
+                  className="px-5 py-2 text-sm font-medium rounded-lg bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] hover:border-[rgba(210,180,130,0.5)] disabled:opacity-50 transition-colors"
+                >
+                  {isSubmitting ? "Guardando..." : "Agregar de todos modos"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(210,180,130,0.15)]">
             <h2
@@ -137,12 +207,14 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
             </button>
           </div>
 
-          <Form
+          <fetcher.Form
+            ref={formRef}
             method="post"
             encType="multipart/form-data"
             className="px-6 py-5 flex flex-col gap-5"
           >
             <input type="hidden" name="intent" value="add_coin" />
+            <input type="hidden" name="force_duplicate" defaultValue="false" ref={forceDupRef} />
 
             {/* País */}
             <div className="flex flex-col gap-1.5">
@@ -397,7 +469,7 @@ export function AddCoinModal({ isOpen, onClose }: Props) {
                 {isSubmitting ? "Guardando..." : "Agregar pieza"}
               </button>
             </div>
-          </Form>
+          </fetcher.Form>
         </div>
       </div>
 

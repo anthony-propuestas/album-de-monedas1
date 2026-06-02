@@ -178,27 +178,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const coinId = crypto.randomUUID();
   const images = context.cloudflare.env.IMAGES as R2Bucket | undefined;
 
-  const uploadPhoto = async (slot: string): Promise<string | null> => {
-    const file = form.get(slot);
-    if (!file || !(file instanceof File) || file.size === 0) return null;
-    if (file.size > 5 * 1024 * 1024) return null;
-    if (!images) return null;
-    const buffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return null;
-    const key = `${user.id}/${coinId}/${slot}`;
-    await images.put(key, buffer, { httpMetadata: { contentType: "image/jpeg" } });
-    return key;
-  };
-
-  const [photoObverse, photoReverse, photoEdge, photoDetail] =
-    await Promise.all([
-      uploadPhoto("photo_obverse"),
-      uploadPhoto("photo_reverse"),
-      uploadPhoto("photo_edge"),
-      uploadPhoto("photo_detail"),
-    ]);
-
   const name = form.get("name")?.toString().trim() ?? "";
   if (!name) return json({ error: "El nombre es obligatorio." }, { status: 400 });
   const country = form.get("country")?.toString() || null;
@@ -235,6 +214,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
   }
 
+  const forceDuplicate = form.get("force_duplicate")?.toString() === "true";
+  if (!forceDuplicate) {
+    const existing = await db
+      .prepare(
+        `SELECT id, name, country, year, denomination, condition
+         FROM coins
+         WHERE user_id = ? AND country IS ? AND denomination IS ? AND name = ? AND year IS ?
+         LIMIT 1`
+      )
+      .bind(user.id, country, denomination, name, year ?? null)
+      .first<{ id: string; name: string; country: string | null; year: number | null; denomination: string | null; condition: string | null }>();
+    if (existing) {
+      return json({ duplicateWarning: existing });
+    }
+  }
+
   const rl = await checkRateLimit(db, user.id, "add_coin", 20, 24);
   if (!rl.allowed) {
     return json({ error: `Límite de monedas diario alcanzado. Podés volver a intentar en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
@@ -254,6 +249,27 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (coinCount >= MAX_COINS) {
     return json({ error: "Límite de monedas alcanzado." }, { status: 429 });
   }
+
+  const uploadPhoto = async (slot: string): Promise<string | null> => {
+    const file = form.get(slot);
+    if (!file || !(file instanceof File) || file.size === 0) return null;
+    if (file.size > 5 * 1024 * 1024) return null;
+    if (!images) return null;
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return null;
+    const key = `${user.id}/${coinId}/${slot}`;
+    await images.put(key, buffer, { httpMetadata: { contentType: "image/jpeg" } });
+    return key;
+  };
+
+  const [photoObverse, photoReverse, photoEdge, photoDetail] =
+    await Promise.all([
+      uploadPhoto("photo_obverse"),
+      uploadPhoto("photo_reverse"),
+      uploadPhoto("photo_edge"),
+      uploadPhoto("photo_detail"),
+    ]);
 
   const uploadedKeys = [photoObverse, photoReverse, photoEdge, photoDetail].filter(
     (k): k is string => k !== null
