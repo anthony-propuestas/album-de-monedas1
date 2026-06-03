@@ -1,311 +1,76 @@
-# Sistema de Recompensas Onchain — AC Token
+# Plan de Implementación — Sistema de Recompensas Onchain (AC Token)
 
-## 1. Visión General
+Objetivo: los usuarios que suben monedas verificadas reciben **1 AC (Album Coin)**, un token ERC-20 en Base Mainnet, tras revisión manual del admin y confirmación onchain con su wallet.
 
-Album de Monedas agrega un sistema de incentivos onchain donde los usuarios que contribuyen con monedas verificadas en el registro oficial reciben **AC (Album Coin)**, un token ERC-20 desplegado en Base (chain ID 8453).
+## Estado actual
 
-La recompensa **no es automática**: pasa por validación humana (admin) antes de ejecutarse onchain.
-
----
-
-## 2. Token — AC (Album Coin)
-
-| Propiedad | Valor |
-|-----------|-------|
-| Nombre | Album Coin |
-| Símbolo | AC |
-| Red | Base Mainnet (chain ID 8453) |
-| Supply | Ilimitado (minteo por contribución) |
-| Minter | Solo el smart contract |
-| Estándar | ERC-20 |
-| Cantidad por claim | 1 AC |
-
-El contrato ERC-20 tiene un único minter autorizado: el contrato de recompensas. Nadie puede mintear AC directamente, solo a través del flujo de claim validado.
+| Componente | Estado |
+|------------|--------|
+| Smart contracts (Solidity) | ❌ No existe |
+| Deploy en Base | ❌ No existe |
+| Tabla `claim_requests` en D1 | ❌ No existe |
+| Columna `registry_match` en `coins` | ❌ No existe |
+| `BACKEND_SIGNER_KEY` en Cloudflare | ❌ No configurada |
+| Endpoints `/api/rewards/*` | ❌ No existen |
+| Endpoints `/admin/rewards/*` | ❌ No existen |
+| Componentes frontend (wagmi, RainbowKit) | ❌ No existen |
+| Datos `COINS_BY_COUNTRY` completos | ⚠️ Solo Argentina |
 
 ---
 
-## 3. Smart Contract — RewardClaimer
+## Fase 0 — Prerrequisitos
 
-### Variables de estado
+Hacer esto antes de escribir una sola línea de código.
 
-```solidity
-mapping(bytes32 => bool)    public coinClaimed;      // coinId → ya fue reclamada
-mapping(address => uint256) public lastClaimTime;    // wallet → timestamp último claim
-address public backendSigner;                         // clave del backend (Cloudflare)
-AlbumCoin public token;                               // contrato ERC-20
-```
-
-### Función principal
-
-```solidity
-function claimReward(bytes32 coinId, bytes memory signature) external {
-    require(!coinClaimed[coinId], "Moneda ya reclamada");
-    require(block.timestamp - lastClaimTime[msg.sender] >= 24h, "Cooldown activo");
-    require(isValidSignature(msg.sender, coinId, signature), "Firma inválida");
-
-    coinClaimed[coinId] = true;
-    lastClaimTime[msg.sender] = block.timestamp;
-    token.mint(msg.sender, 1 ether); // 1 AC con 18 decimales
-}
-```
-
-### Generación del coinId
-
-```solidity
-coinId = keccak256(abi.encodePacked(país, denominación, nombre, año))
-// Ejemplo: keccak256("Argentina|1 Peso|Serie 1|1994")
-```
-
----
-
-## 4. Base de Datos — Nuevas Tablas D1
-
-### Tabla `claim_requests`
-
-```sql
-CREATE TABLE claim_requests (
-  id                TEXT PRIMARY KEY,
-  user_id           TEXT NOT NULL,            -- FK users
-  coin_id           TEXT NOT NULL,            -- FK coins (D1)
-  coin_registry_key TEXT NOT NULL,            -- "Argentina|1 Peso|Serie 1|1994"
-  coin_id_hash      TEXT NOT NULL,            -- keccak256 del registry_key
-  wallet_address    TEXT NOT NULL,
-  status            TEXT DEFAULT 'pending',   -- pending | approved | rejected | claimed | expired
-  reject_reason     TEXT,
-  created_at        INTEGER NOT NULL,
-  reviewed_at       INTEGER,
-  approved_at       INTEGER,
-  expires_at        INTEGER,                  -- approved_at + 7 días
-  claimed_at        INTEGER,
-  tx_hash           TEXT                      -- hash de la TX onchain
-);
-```
-
-### Cambio en tabla `coins` (D1 existente)
-
-```sql
-ALTER TABLE coins ADD COLUMN registry_match BOOLEAN DEFAULT FALSE;
--- TRUE si el país+denominación+nombre+año existe en COINS_BY_COUNTRY
-```
-
----
-
-## 5. Flujo Completo — 5 Etapas
-
-### Etapa 1 — Subir moneda
-
-```
-Usuario sube moneda en /mycollection
-       ↓
-Backend verifica si coincide con COINS_BY_COUNTRY
-       ↓
-Si coincide → registry_match = TRUE en D1
-CoinCard muestra botón "Reclamar Token" (estado: eligible)
-```
-
-### Etapa 2 — Solicitar recompensa
-
-```
-Usuario conecta wallet (RainbowKit/wagmi)
-       ↓
-Click en "Reclamar Token" en una CoinCard específica
-       ↓
-Backend valida:
-  ✓ La moneda pertenece al usuario (D1)
-  ✓ registry_match = TRUE
-  ✓ No existe claim_request activo para esta moneda (pending/approved)
-  ✓ coinClaimed[coinId] = false (consulta al contrato Base)
-       ↓
-Crea registro en claim_requests con status = 'pending'
-Botón cambia a: "⏳ En revisión"
-```
-
-> Si la moneda ya fue `rejected`, el botón muestra el motivo y queda desactivado permanentemente para esa moneda. No puede volver a solicitarse.
-
-### Etapa 3 — Revisión en /admin
-
-```
-Admin ve lista de claim_requests con status = 'pending'
-Cada fila muestra:
-  - Foto(s) de la moneda subida por el usuario
-  - Datos: país, denominación, nombre, año
-  - Referencia del registro oficial (COINS_BY_COUNTRY)
-  - Wallet del usuario
-       ↓
-Admin compara foto con datos manualmente
-       ↓
-APROBAR → status = 'approved', expires_at = now + 7 días
-RECHAZAR → status = 'rejected', reject_reason = texto del admin
-```
-
-### Etapa 4 — Confirmación del usuario
-
-```
-Usuario vuelve a /mycollection
-       ↓
-CoinCard aprobada muestra botón "Confirmar Recompensa 🎁"
-(con contador de expiración: "Expira en X días")
-       ↓
-Click → Backend valida ANTES de firmar:
-  ✓ claim_request existe y status = 'approved'
-  ✓ expires_at > now (no expiró)
-  ✓ coinClaimed[coinId] = false (race condition check)
-  ✓ El wallet_address coincide con el conectado
-       ↓
-Backend firma mensaje EIP-712 con su clave privada (Cloudflare Secret)
-Devuelve la firma al frontend
-```
-
-### Etapa 5 — Ejecución onchain
-
-```
-Frontend recibe firma del backend
-       ↓
-wagmi ejecuta claimReward(coinId, signature)
-Usuario paga gas en Base (ETH)
-       ↓
-Contrato valida:
-  ✓ Firma del backend válida
-  ✓ coinClaimed[coinId] = false
-  ✓ lastClaimTime[wallet] < now - 24h
-       ↓
-Mintea 1 AC al wallet
-coinClaimed[coinId] = true (permanente)
-lastClaimTime[wallet] = now
-       ↓
-Frontend detecta TX confirmada
-Backend actualiza claim_requests: status = 'claimed', tx_hash = "0x..."
-CoinCard muestra: "✅ Reclamado — TX: 0x..." (link a basescan)
-```
-
----
-
-## 6. Estados de una CoinCard
-
-### Diagrama de transiciones
-
-```
-eligible → pending → approved → claimed
-                   ↘ rejected  
-                   ↘ expired → (vuelve a eligible para solicitar de nuevo)
-```
-
-### Tabla de estados
-
-| Estado | Botón visible |
-|--------|---------------|
-| `eligible` | "Reclamar Token" (activo) |
-| `pending` | "⏳ En revisión" (desactivado) |
-| `approved` | "Confirmar Recompensa 🎁 — expira en Xd" (activo) |
-| `rejected` | "❌ Rechazado: [motivo]" (desactivado permanente) |
-| `expired` | "Reclamar Token" (activo de nuevo) |
-| `claimed` | "✅ Reclamado" (desactivado) |
-
-> Para otras wallets/usuarios: Si `coinClaimed[coinId] = true` en el contrato → botón "🔒 Ya reclamada por otro usuario" (desactivado).
-
----
-
-## 7. Cooldown de 24 h
-
-El límite vive **onchain** (no en D1). Aplica al momento de ejecutar la TX de "Confirmar Recompensa".
-
-- El usuario puede tener 5 monedas `approved` al mismo tiempo
-- Solo puede ejecutar **1 TX cada 24 h**
-- El frontend consulta `lastClaimTime[wallet]` y muestra: _"Próximo claim disponible en: Xh Xm"_
-- Si intenta la segunda TX antes de 24 h → el contrato la revierte
-
----
-
-## 8. Endpoints Backend (nuevos)
-
-| Método | Ruta | Acción |
-|--------|------|--------|
-| `POST` | `/api/rewards/request` | Crea claim_request (pendiente) |
-| `GET` | `/api/rewards/status/:coinId` | Estado del claim de esa moneda |
-| `POST` | `/api/rewards/sign` | Valida y firma EIP-712 para TX |
-| `GET` | `/admin/rewards` | Lista pendientes para admin |
-| `POST` | `/admin/rewards/:id/approve` | Admin aprueba |
-| `POST` | `/admin/rewards/:id/reject` | Admin rechaza con motivo |
-
----
-
-## 9. Cambios en Frontend
-
-### Nuevas dependencias
+### 0.1 Instalar Foundry
 
 ```bash
-npm install wagmi @rainbow-me/rainbowkit viem --legacy-peer-deps
-```
-
-| Paquete | Uso |
-|---------|-----|
-| `wagmi` | Hooks de wallet y contratos |
-| `@rainbow-me/rainbowkit` | UI de conexión de wallet |
-| `viem` | Interacción con contratos Base |
-
-### Nuevos componentes
-
-| Componente | Ubicación | Descripción |
-|------------|-----------|-------------|
-| `WalletConnectButton` | `app/components/` | Botón de conexión en el header |
-| `ClaimButton` | `app/components/` | Dentro de CoinCard, reemplaza área vacía |
-| `ClaimStatusBadge` | `app/components/` | Muestra estado + countdown de expiración |
-| `AdminRewardsPanel` | `app/components/` | Nueva sección en `/admin` |
-
----
-
-## 10. Viabilidad y Requisitos
-
-### Estado actual del proyecto
-
-El diseño es técnicamente sólido. El patrón "backend signer + contrato validador" es estándar en producción (OpenSea, Zora, Layer3 lo usan). Los riesgos y mitigaciones están cubiertos en la sección 10.
-
-### Lo que falta para que esto funcione
-
-| Componente | Estado | Trabajo estimado |
-|------------|--------|-----------------|
-| Smart contracts (Solidity) | ❌ No existe | 2–3 días (dev) + 1 semana (audit opcional) |
-| Deploy en Base | ❌ No existe | 1 día (Foundry + scripts) |
-| Clave privada del signer en Cloudflare | ❌ No configurada | 2 horas |
-| Tabla `claim_requests` en D1 | ❌ No existe | 1 hora (migración SQL) |
-| Columna `registry_match` en `coins` | ❌ No existe | 1 hora |
-| Endpoints `/api/rewards/*` | ❌ No existen | 3–5 días |
-| Endpoints `/admin/rewards/*` | ❌ No existen | 1–2 días |
-| Componentes frontend (wagmi, RainbowKit) | ❌ No existen | 3–4 días |
-| Datos COINS_BY_COUNTRY completos | ⚠️ Parcial (solo Argentina) | Variable |
-
-### Dependencias críticas (bloqueantes)
-
-1. **ETH en wallet de usuario** — el usuario paga su propio gas en Base (~$0.01–0.05 USD por TX). **El proyecto no patrocina gas.** Si el usuario no tiene ETH en Base, no puede reclamar — esto es por diseño y no se cambiará.
-
-2. **Clave privada del backend** — necesita vivir en un Cloudflare Secret (`BACKEND_SIGNER_KEY`). Si se filtra, cualquiera puede generar firmas válidas y mintear AC ilimitado. Protección: el contrato también valida `coinClaimed[coinId]`, lo que limita el daño a una sola moneda por ID.
-
-3. **Dirección del contrato hardcodeada** — el frontend necesita la address del contrato desplegado. Cambiarla requiere redeploy del frontend.
-
-4. **ABI del contrato** — wagmi necesita el ABI compilado para llamar `claimReward`. Debe incluirse en el repo.
-
----
-
-## 11. Implementación Onchain — Guía Completa
-
-Esta sección explica exactamente cómo se construye, despliega e integra la parte onchain.
-
-### 11.1 Herramientas necesarias
-
-```bash
-# Foundry (toolchain Solidity recomendado)
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
-
-# También necesitas:
-# - Node.js (ya tienes)
-# - Una wallet con ETH en Base Mainnet (para pagar deploy ~$2–5 USD)
-# - Una cuenta en Basescan para verificar el contrato (gratis)
+forge --version   # debe mostrar versión
 ```
 
-### 11.2 Los dos contratos Solidity
+### 0.2 Generar par de claves del backend signer
 
-**Contrato 1: AlbumCoin.sol** (ERC-20 con minter único)
+Esta clave privada es la que firma los mensajes EIP-712 en el backend. Se genera una sola vez y nunca se commitea.
+
+```bash
+node -e "
+const { privateKeyToAccount, generatePrivateKey } = require('viem/accounts');
+const key = generatePrivateKey();
+const account = privateKeyToAccount(key);
+console.log('Private key:', key);       // → Cloudflare Secret
+console.log('Address:', account.address); // → BACKEND_SIGNER_ADDRESS en deploy
+"
+```
+
+Guarda ambos valores en un lugar seguro. La dirección pública va al script de deploy; la clave privada va al paso 3.
+
+### 0.3 Registrar proyecto en WalletConnect Cloud
+
+Ir a [cloud.walletconnect.com](https://cloud.walletconnect.com), crear proyecto gratuito, copiar el `projectId`. Se usa en el paso 6.
+
+### 0.4 Crear cuenta en Basescan
+
+Registrarse en [basescan.org](https://basescan.org) y obtener un API key gratuito. Se necesita para verificar los contratos en el paso 2.
+
+---
+
+## Paso 1 — Contratos Solidity
+
+**Qué:** crear la carpeta `contracts/` en la raíz del repo con dos contratos: el token ERC-20 y el contrato que valida firmas y mintea.
+
+**Por qué:** el token necesita un minter único (el contrato RewardClaimer) para que nadie pueda mintear AC directamente.
+
+### 1.1 Inicializar proyecto Foundry
+
+```bash
+forge init contracts
+cd contracts
+forge install OpenZeppelin/openzeppelin-contracts
+```
+
+### 1.2 Crear `contracts/src/AlbumCoin.sol`
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -330,7 +95,7 @@ contract AlbumCoin is ERC20, Ownable {
 }
 ```
 
-**Contrato 2: RewardClaimer.sol** (valida firma + llama mint)
+### 1.3 Crear `contracts/src/RewardClaimer.sol`
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -338,6 +103,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "./AlbumCoin.sol";
 
 contract RewardClaimer is EIP712 {
     using ECDSA for bytes32;
@@ -349,11 +115,9 @@ contract RewardClaimer is EIP712 {
     mapping(bytes32 => bool) public coinClaimed;
     mapping(address => uint256) public lastClaimTime;
 
-    // EIP-712: define el tipo del mensaje que firma el backend
     bytes32 private constant CLAIM_TYPEHASH = keccak256(
         "Claim(address wallet,bytes32 coinId)"
     );
-
     uint256 private constant COOLDOWN = 24 hours;
 
     constructor(address _token, address _signer) EIP712("RewardClaimer", "1") {
@@ -369,13 +133,10 @@ contract RewardClaimer is EIP712 {
             "Cooldown activo"
         );
 
-        // Reconstruye el hash que firmó el backend
         bytes32 structHash = keccak256(
             abi.encode(CLAIM_TYPEHASH, msg.sender, coinId)
         );
         bytes32 digest = _hashTypedDataV4(structHash);
-
-        // Verifica que la firma viene del backend (backendSigner)
         address recovered = digest.recover(signature);
         require(recovered == backendSigner, "Firma invalida");
 
@@ -391,21 +152,13 @@ contract RewardClaimer is EIP712 {
 }
 ```
 
-### 11.3 Deploy con Foundry
-
-```bash
-# 1. Crear proyecto Foundry (dentro de /contracts/ en el repo)
-forge init contracts
-cd contracts
-forge install OpenZeppelin/openzeppelin-contracts
-
-# 2. Script de deploy: contracts/script/Deploy.s.sol
-```
+### 1.4 Crear `contracts/script/Deploy.s.sol`
 
 ```solidity
-// contracts/script/Deploy.s.sol
 pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
+import "../src/AlbumCoin.sol";
+import "../src/RewardClaimer.sol";
 
 contract Deploy is Script {
     function run() external {
@@ -415,8 +168,6 @@ contract Deploy is Script {
 
         AlbumCoin token = new AlbumCoin();
         RewardClaimer claimer = new RewardClaimer(address(token), backendSigner);
-
-        // El minter del token es el contrato RewardClaimer
         token.setMinter(address(claimer));
 
         vm.stopBroadcast();
@@ -427,51 +178,159 @@ contract Deploy is Script {
 }
 ```
 
-```bash
-# 3. Variables de entorno para deploy
-# .env (nunca commitear)
-DEPLOYER_PRIVATE_KEY=0x...       # tu wallet con ETH en Base
-BACKEND_SIGNER_ADDRESS=0x...     # dirección pública derivada de BACKEND_SIGNER_KEY
+### ✅ Verificar paso 1
 
-# 4. Ejecutar deploy en Base Mainnet
+```bash
+cd contracts
+forge test   # debe compilar y pasar (aunque no haya tests aún, al menos debe compilar)
+```
+
+---
+
+## Paso 2 — Deploy en Testnet (Base Sepolia)
+
+**Qué:** desplegar los contratos en Base Sepolia para probar el flujo completo antes de tocar mainnet.
+
+**Por qué:** los errores en testnet son gratuitos; en mainnet cuestan gas real.
+
+### 2.1 Crear `.env` en `contracts/` (nunca commitear)
+
+```bash
+DEPLOYER_PRIVATE_KEY=0x...    # wallet con ETH en Base Sepolia (faucet gratuito)
+BACKEND_SIGNER_ADDRESS=0x...  # dirección pública del par generado en paso 0.2
+BASESCAN_API_KEY=...           # del paso 0.4
+```
+
+### 2.2 Ejecutar deploy
+
+```bash
+cd contracts
 forge script script/Deploy.s.sol \
-  --rpc-url https://mainnet.base.org \
+  --rpc-url https://sepolia.base.org \
   --broadcast \
-  --verify \                     # verifica en Basescan automáticamente
+  --verify \
   --etherscan-api-key $BASESCAN_API_KEY
-
-# Output:
-# AlbumCoin deployed to: 0xABC...
-# RewardClaimer deployed to: 0xDEF...
 ```
 
-### 11.4 El signer del backend (Cloudflare Worker)
+### ✅ Verificar paso 2
 
-El backend necesita una clave privada para firmar mensajes EIP-712. Esta clave nunca sale del entorno de Cloudflare.
+- El output muestra `AlbumCoin: 0xABC...` y `RewardClaimer: 0xDEF...`
+- Ambas addresses aparecen verificadas en [sepolia.basescan.org](https://sepolia.basescan.org)
+- Anotar las addresses; se necesitan en pasos 5 y 6
 
-**Generar el par de claves:**
-```bash
-# Usar viem o ethers.js para generar un wallet desechable
-node -e "
-const { privateKeyToAccount, generatePrivateKey } = require('viem/accounts');
-const key = generatePrivateKey();
-const account = privateKeyToAccount(key);
-console.log('Private key:', key);      // → va a Cloudflare Secret
-console.log('Address:', account.address); // → va a BACKEND_SIGNER_ADDRESS
-"
-```
+---
 
-**Configurar en Cloudflare:**
+## Paso 3 — Configurar Signer en Cloudflare
+
+**Qué:** subir la clave privada del backend (paso 0.2) como secret de Wrangler. Esta clave firma los mensajes EIP-712 que autoriza al usuario a ejecutar la TX onchain.
+
+**Por qué:** si la clave viviera en el frontend o en una variable de entorno normal, cualquiera podría robarla y mintear AC libremente.
+
 ```bash
 wrangler secret put BACKEND_SIGNER_KEY
-# Pega la clave privada (0x...) cuando pregunte
+# Pegar la private key (0x...) cuando pregunte
 ```
 
-**Código del endpoint `/api/rewards/sign` en el Worker:**
+### ✅ Verificar paso 3
+
+```bash
+wrangler secret list
+# Debe aparecer BACKEND_SIGNER_KEY en la lista
+```
+
+---
+
+## Paso 4 — Migración de Base de Datos (D1)
+
+**Qué:** agregar la tabla `claim_requests` y la columna `registry_match` a la tabla `coins` existente.
+
+### 4.1 Nueva tabla `claim_requests`
+
+```sql
+CREATE TABLE claim_requests (
+  id                TEXT PRIMARY KEY,
+  user_id           TEXT NOT NULL,
+  coin_id           TEXT NOT NULL,
+  coin_registry_key TEXT NOT NULL,     -- "Argentina|1 Peso|Serie 1|1994"
+  coin_id_hash      TEXT NOT NULL,     -- keccak256 del registry_key (bytes32 hex)
+  wallet_address    TEXT NOT NULL,
+  status            TEXT DEFAULT 'pending',  -- pending | approved | rejected | claimed | expired
+  reject_reason     TEXT,
+  created_at        INTEGER NOT NULL,
+  reviewed_at       INTEGER,
+  approved_at       INTEGER,
+  expires_at        INTEGER,           -- approved_at + 7 días (en segundos Unix)
+  claimed_at        INTEGER,
+  tx_hash           TEXT
+);
+```
+
+### 4.2 Columna nueva en `coins`
+
+```sql
+ALTER TABLE coins ADD COLUMN registry_match BOOLEAN DEFAULT FALSE;
+-- TRUE si el país+denominación+nombre+año existe en COINS_BY_COUNTRY
+```
+
+### 4.3 Ejecutar en D1
+
+```bash
+# Local
+wrangler d1 execute album-monedas-db --local --command "CREATE TABLE ..."
+# Producción
+wrangler d1 execute album-monedas-db --command "CREATE TABLE ..."
+```
+
+### ✅ Verificar paso 4
+
+```bash
+wrangler d1 execute album-monedas-db --command "SELECT * FROM claim_requests LIMIT 1"
+# Debe retornar sin error (tabla vacía)
+wrangler d1 execute album-monedas-db --command "SELECT registry_match FROM coins LIMIT 1"
+# Debe retornar sin error
+```
+
+---
+
+## Paso 5 — Endpoints Backend `/api/rewards/*`
+
+**Qué:** 6 rutas Remix nuevas que manejan todo el ciclo de vida del claim en el servidor.
+
+### Tabla de endpoints
+
+| Método | Ruta | Acción |
+|--------|------|--------|
+| `POST` | `/api/rewards/request` | Usuario solicita recompensa para una moneda |
+| `GET` | `/api/rewards/status/:coinId` | Retorna el estado del claim de esa moneda |
+| `POST` | `/api/rewards/sign` | Valida aprobación y firma EIP-712 para la TX |
+| `GET` | `/admin/rewards` | Lista claims pendientes para el admin |
+| `POST` | `/admin/rewards/:id/approve` | Admin aprueba (status → approved, sets expires_at) |
+| `POST` | `/admin/rewards/:id/reject` | Admin rechaza con motivo de texto |
+
+### Lógica de `/api/rewards/request`
+
+Validaciones antes de crear el registro:
+1. La moneda pertenece al usuario autenticado (D1)
+2. `registry_match = TRUE` en esa moneda
+3. No existe un `claim_request` con `status IN ('pending', 'approved')` para esa moneda
+4. `coinClaimed[coinIdHash]` es `false` en el contrato (llamada a Base Sepolia/Mainnet)
+
+Si pasa: crear registro en `claim_requests` con `status = 'pending'`.
+
+### Lógica de `/api/rewards/sign`
+
+Validaciones antes de firmar:
+1. Existe el `claim_request` y `status = 'approved'`
+2. `expires_at > now` (no expirado)
+3. `coinClaimed[coinIdHash]` es `false` en el contrato (race condition check)
+4. `wallet_address` coincide con la wallet conectada en el request
+
+Si pasa: firmar EIP-712 con la clave del backend y retornar la firma.
+
+### Función de firma (en el Worker)
+
 ```typescript
-// Dentro del loader/action de Remix (server-side, Cloudflare)
 import { privateKeyToAccount } from "viem/accounts";
-import { hashTypedData } from "viem";
 
 async function signClaim(
   wallet: `0x${string}`,
@@ -479,14 +338,12 @@ async function signClaim(
   env: Env
 ) {
   const account = privateKeyToAccount(env.BACKEND_SIGNER_KEY as `0x${string}`);
-
-  // Firma el mismo struct que valida el contrato
-  const signature = await account.signTypedData({
+  return account.signTypedData({
     domain: {
       name: "RewardClaimer",
       version: "1",
-      chainId: 8453, // Base Mainnet
-      verifyingContract: "0xDEF..." // address del contrato desplegado
+      chainId: 8453,
+      verifyingContract: "0xDEF..." // address del contrato (mainnet o testnet según env)
     },
     types: {
       Claim: [
@@ -497,17 +354,47 @@ async function signClaim(
     primaryType: "Claim",
     message: { wallet, coinId }
   });
-
-  return signature; // "0x..." — va al frontend para ejecutar la TX
 }
 ```
 
-### 11.5 Frontend con wagmi
-
-**Configuración inicial** (una vez, en `app/root.tsx` o un provider wrapper):
+### Función para generar el coinId
 
 ```typescript
-// app/providers/WagmiProvider.tsx
+import { keccak256, toHex } from "viem";
+
+function getCoinIdHash(country: string, denomination: string, name: string, year: number): `0x${string}` {
+  const registryKey = `${country}|${denomination}|${name}|${year}`;
+  return keccak256(toHex(registryKey));
+}
+// Ejemplo: getCoinIdHash("Argentina", "1 Peso", "Serie 1", 1994) → "0x7f3a..."
+```
+
+### ✅ Verificar paso 5
+
+```bash
+# Solicitar claim (con sesión activa)
+curl -X POST http://localhost:5173/api/rewards/request \
+  -H "Content-Type: application/json" \
+  -d '{"coinId": "uuid-de-la-moneda", "walletAddress": "0x..."}'
+
+# Debe retornar { claimRequestId: "...", status: "pending" }
+```
+
+---
+
+## Paso 6 — Integración Frontend: Provider wagmi + RainbowKit
+
+**Qué:** instalar las dependencias onchain y wrapear la app para que los componentes puedan usar hooks de wallet.
+
+### 6.1 Instalar dependencias
+
+```bash
+npm install wagmi @rainbow-me/rainbowkit viem --legacy-peer-deps
+```
+
+### 6.2 Crear `app/providers/WagmiProvider.tsx`
+
+```typescript
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { base } from "wagmi/chains";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
@@ -515,7 +402,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 
 const config = getDefaultConfig({
   appName: "Album de Monedas",
-  projectId: "TU_WALLETCONNECT_PROJECT_ID", // gratis en cloud.walletconnect.com
+  projectId: "TU_WALLETCONNECT_PROJECT_ID", // del paso 0.3
   chains: [base],
   transports: { [base.id]: http() }
 });
@@ -529,20 +416,54 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-**El botón de claim en CoinCard:**
+### 6.3 Wrapear `app/root.tsx`
+
+Envolver el `<Outlet />` (o el layout completo) con `<Providers>`.
+
+### 6.4 Crear `app/lib/contracts/addresses.ts`
 
 ```typescript
-// app/components/ClaimButton.tsx
+export const REWARD_CLAIMER_ADDRESS = "0xDEF..." as const; // del paso 2
+export const ALBUM_COIN_ADDRESS     = "0xABC..." as const;
+```
+
+### ✅ Verificar paso 6
+
+Abrir `npm run dev` → el botón "Connect Wallet" debe aparecer en el header sin errores en consola.
+
+---
+
+## Paso 7 — Componente ClaimButton en CoinCard
+
+**Qué:** botón dentro de cada `CoinCard` que refleja el estado del claim y permite ejecutar la TX onchain.
+
+### Estados del botón
+
+| Estado | Botón |
+|--------|-------|
+| `eligible` | "Reclamar Token" (activo) |
+| `pending` | "⏳ En revisión" (desactivado) |
+| `approved` | "Confirmar Recompensa 🎁 — expira en Xd" (activo) |
+| `rejected` | "❌ Rechazado: [motivo]" (desactivado permanente) |
+| `expired` | "Reclamar Token" (activo de nuevo) |
+| `claimed` | "✅ Reclamado" (desactivado) |
+| `claimed_by_other` | "🔒 Ya reclamada por otro usuario" (desactivado) |
+
+### Implementación `app/components/ClaimButton.tsx`
+
+```typescript
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 
-export function ClaimButton({ coinId }: { coinId: string }) {
+export function ClaimButton({ coinId, claimStatus }: {
+  coinId: string;
+  claimStatus: "eligible" | "pending" | "approved" | "rejected" | "claimed" | "expired";
+}) {
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   async function handleClaim() {
-    // 1. Pedir firma al backend
     const res = await fetch("/api/rewards/sign", {
       method: "POST",
       body: JSON.stringify({ coinId }),
@@ -550,7 +471,6 @@ export function ClaimButton({ coinId }: { coinId: string }) {
     });
     const { signature, coinIdHash } = await res.json();
 
-    // 2. Ejecutar TX onchain (usuario firma con su wallet)
     writeContract({
       address: REWARD_CLAIMER_ADDRESS,
       abi: REWARD_CLAIMER_ABI,
@@ -559,23 +479,33 @@ export function ClaimButton({ coinId }: { coinId: string }) {
     });
   }
 
-  if (isSuccess) return <span>✅ Reclamado</span>;
-  if (isConfirming) return <span>⏳ Confirmando TX...</span>;
-
-  return (
-    <button onClick={handleClaim} disabled={isPending}>
+  if (isSuccess || claimStatus === "claimed") return <span>✅ Reclamado</span>;
+  if (isConfirming)                           return <span>⏳ Confirmando TX...</span>;
+  if (claimStatus === "pending")              return <button disabled>⏳ En revisión</button>;
+  if (claimStatus === "rejected")             return <button disabled>❌ Rechazado</button>;
+  if (claimStatus === "approved") {
+    return <button onClick={handleClaim} disabled={isPending}>
       {isPending ? "Esperando wallet..." : "Confirmar Recompensa 🎁"}
-    </button>
-  );
+    </button>;
+  }
+
+  // eligible o expired: botón para solicitar
+  async function handleRequest() {
+    await fetch("/api/rewards/request", {
+      method: "POST",
+      body: JSON.stringify({ coinId }),
+      headers: { "Content-Type": "application/json" }
+    });
+    // revalidar la página para que el estado cambie a pending
+  }
+
+  return <button onClick={handleRequest}>Reclamar Token</button>;
 }
 ```
 
-### 11.6 ABI necesario para wagmi
-
-Después del deploy, Foundry genera el ABI en `contracts/out/RewardClaimer.sol/RewardClaimer.json`. Solo necesitas el fragmento relevante:
+### ABI necesario — `app/lib/contracts/abi.ts`
 
 ```typescript
-// app/lib/contracts/abi.ts
 export const REWARD_CLAIMER_ABI = [
   {
     name: "claimReward",
@@ -604,43 +534,90 @@ export const REWARD_CLAIMER_ABI = [
 ] as const;
 ```
 
-### 11.7 Generar el coinId en el backend
+### ✅ Verificar paso 7
 
-El `coinId` que usa el contrato es un `bytes32 = keccak256(registryKey)`. Cloudflare Workers no tiene la función `keccak256` nativa, se usa `viem`:
-
-```typescript
-import { keccak256, toHex, encodePacked } from "viem";
-
-function getCoinIdHash(country: string, denomination: string, name: string, year: number): `0x${string}` {
-  const registryKey = `${country}|${denomination}|${name}|${year}`;
-  // keccak256 de la string UTF-8 codificada
-  return keccak256(toHex(registryKey));
-}
-
-// Ejemplo: getCoinIdHash("Argentina", "1 Peso", "Serie 1", 1994)
-// → "0x7f3a..." (bytes32 único para esa moneda)
-```
-
-### 11.8 Orden de pasos para implementar
-
-```
-1. Escribir y testear contratos con Foundry (forge test)
-2. Deploy en Base Sepolia (testnet) para pruebas
-3. Configurar BACKEND_SIGNER_KEY en Cloudflare (wrangler secret)
-4. Migrar D1: crear claim_requests + ALTER coins ADD registry_match
-5. Implementar endpoints /api/rewards/* en Remix actions/loaders
-6. Implementar endpoints /admin/rewards/* 
-7. Instalar wagmi + RainbowKit (npm install --legacy-peer-deps)
-8. Crear WagmiProvider y wrapear app/root.tsx
-9. Implementar ClaimButton en CoinCard
-10. Probar flujo completo en testnet
-11. Deploy en Base Mainnet
-12. Actualizar addresses en frontend y redeploy
-```
+Con contratos en testnet: ejecutar el flujo `eligible → request → pending`. El botón debe cambiar de estado correctamente tras recargar la página.
 
 ---
 
-## 10. Seguridad y Anti-abuso
+## Paso 8 — Panel Admin `/admin/rewards`
+
+**Qué:** sección en la ruta `/admin` para que el admin vea los claims pendientes, compare la foto con los datos y apruebe o rechace.
+
+### Datos que muestra cada fila
+
+- Foto(s) de la moneda subida por el usuario
+- País, denominación, nombre, año de la moneda
+- Referencia en `COINS_BY_COUNTRY` (los datos del registro oficial)
+- Wallet del usuario solicitante
+- Fecha de solicitud
+
+### Crear `app/components/AdminRewardsPanel.tsx`
+
+El componente usa el loader de `/admin` para obtener la lista de `claim_requests` con `status = 'pending'` y llama a las actions `/admin/rewards/:id/approve` y `/admin/rewards/:id/reject`.
+
+La action de rechazar debe pedir un `reject_reason` (campo de texto libre antes de confirmar).
+
+La action de aprobar setea `expires_at = now + 7 días` y cambia `status = 'approved'`.
+
+### ✅ Verificar paso 8
+
+1. El admin ve la lista de pendientes en `/admin`
+2. Aprueba un claim → el usuario en `/mycollection` ve el botón "Confirmar Recompensa 🎁"
+3. El usuario rechazado ve el motivo y el botón permanece desactivado
+
+---
+
+## Paso 9 — Deploy en Base Mainnet
+
+**Qué:** repetir el deploy del paso 2, ahora apuntando a mainnet. Requiere ETH real en la wallet del deployer (~$2–5 USD en gas).
+
+```bash
+cd contracts
+forge script script/Deploy.s.sol \
+  --rpc-url https://mainnet.base.org \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $BASESCAN_API_KEY
+```
+
+Después del deploy:
+1. Actualizar `app/lib/contracts/addresses.ts` con las addresses de mainnet
+2. Actualizar la address del contrato en la función `signClaim` del Worker
+3. Redeploy del frontend: `npm run deploy`
+
+---
+
+## Paso 10 — Prueba del Flujo Completo en Mainnet
+
+Checklist de aceptación final:
+
+- [ ] Usuario sube una moneda que existe en `COINS_BY_COUNTRY` → `registry_match = TRUE`
+- [ ] `CoinCard` muestra botón "Reclamar Token"
+- [ ] Usuario conecta wallet (RainbowKit) y hace click → claim queda en `pending`
+- [ ] Admin ve el claim en `/admin/rewards`, compara foto con datos, aprueba
+- [ ] Usuario vuelve a `/mycollection` → botón "Confirmar Recompensa 🎁" con countdown
+- [ ] Usuario confirma → wallet pide firma → TX ejecutada en Base Mainnet
+- [ ] TX visible en [basescan.org](https://basescan.org) con estado "Success"
+- [ ] `CoinCard` muestra "✅ Reclamado — TX: 0x..." (link a Basescan)
+- [ ] Si otro usuario intenta la misma moneda → "🔒 Ya reclamada por otro usuario"
+- [ ] Segundo claim del mismo usuario antes de 24h → contrato revierte con "Cooldown activo"
+
+---
+
+## Apéndice A — Diagrama de Estados
+
+```
+eligible → pending → approved → claimed
+                   ↘ rejected   (permanente)
+                   ↘ expired  → eligible (puede volver a solicitar)
+```
+
+## Apéndice B — Cooldown de 24 h
+
+El límite vive **onchain**, no en D1. El usuario puede tener múltiples claims `approved` al mismo tiempo, pero solo puede ejecutar **1 TX cada 24 h**. El frontend consulta `lastClaimTime[wallet]` y muestra: _"Próximo claim disponible en: Xh Xm"_. Si intenta antes, el contrato revierte.
+
+## Apéndice C — Seguridad y Anti-abuso
 
 | Riesgo | Protección |
 |--------|-----------|
@@ -648,6 +625,20 @@ function getCoinIdHash(country: string, denomination: string, name: string, year
 | Doble claim de misma moneda | `coinClaimed[coinId]` permanente onchain |
 | Spam de requests | Un solo `pending`/`approved` activo por moneda |
 | Farm con múltiples wallets | Cada `coinId` solo se reclama una vez (globalmente) |
-| Firma robada/replay | EIP-712 incluye `wallet + coinId + chainId` |
+| Firma robada / replay | EIP-712 incluye `wallet + coinId + chainId + verifyingContract` |
 | Race condition | Backend verifica contrato justo antes de firmar |
 | Expiración ignorada | Backend valida `expires_at` antes de firmar |
+| Clave signer filtrada | Daño limitado: `coinClaimed` bloquea doble mint por moneda |
+
+## Apéndice D — Propiedades del Token AC
+
+| Propiedad | Valor |
+|-----------|-------|
+| Nombre | Album Coin |
+| Símbolo | AC |
+| Red | Base Mainnet (chain ID 8453) |
+| Supply | Ilimitado (minteo por contribución verificada) |
+| Minter | Solo el contrato RewardClaimer |
+| Estándar | ERC-20 |
+| Cantidad por claim | 1 AC (1e18 unidades mínimas) |
+| Gas por TX | ~$0.01–0.05 USD (pagado por el usuario) |
