@@ -98,12 +98,13 @@ export default function AdminPage() {
           >
             Panel de administración
           </h1>
-          <a
-            href="/admin/rewards"
+          <Link
+            to="/admin/rewards"
+            reloadDocument
             className="ml-auto text-xs px-4 py-2 rounded-xl border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:text-[#C9A46A] hover:border-[rgba(210,180,130,0.45)] transition-colors"
           >
             Recompensas
-          </a>
+          </Link>
         </div>
 
         {/* Formulario nueva publicación */}
