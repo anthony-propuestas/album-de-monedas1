@@ -31,9 +31,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (claim.expires_at < now) return json({ error: "La solicitud expiró" }, { status: 410 });
   if (claim.wallet_address !== walletAddress.toLowerCase()) return json({ error: "Wallet no coincide" }, { status: 403 });
 
+  if (!context.cloudflare.env.BACKEND_SIGNER_KEY) {
+    return json({ error: "Servidor no configurado" }, { status: 500 });
+  }
+
   const coinIdHash = claim.coin_id_hash as `0x${string}`;
 
-  const signature = await signClaim(walletAddress as `0x${string}`, coinIdHash, context.cloudflare.env);
-
-  return json({ signature, coinIdHash });
+  try {
+    const signature = await signClaim(walletAddress as `0x${string}`, coinIdHash, context.cloudflare.env);
+    return json({ signature, coinIdHash });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Error al firmar";
+    return json({ error: msg }, { status: 500 });
+  }
 }
