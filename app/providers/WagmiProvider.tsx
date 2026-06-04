@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { WagmiProvider, createConfig, http } from "wagmi";
-import { base } from "wagmi/chains";
+import { WagmiProvider, http } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@rainbow-me/rainbowkit/styles.css";
 
+const WALLETCONNECT_PROJECT_ID = "14787ba0b7b7e79c3ca503e0c4ab6175";
+
 const config = getDefaultConfig({
   appName: "Album de Monedas",
-  projectId: "YOUR_WALLETCONNECT_PROJECT_ID",
-  chains: [base],
-  transports: { [base.id]: http() },
+  projectId: WALLETCONNECT_PROJECT_ID,
+  chains: [baseSepolia],
+  transports: { [baseSepolia.id]: http() },
   ssr: true,
 });
 
