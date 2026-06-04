@@ -6,13 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "remix vite:dev",
-    "build": "remix vite:build",
+    "build": "remix vite:build && node scripts/build-worker.mjs",
     "typecheck": "tsc",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "preview": "npm run build && node scripts/build-worker.mjs && wrangler pages dev ./build/client",
-    "deploy": "npm run build && node scripts/build-worker.mjs && node scripts/deploy.mjs"
+    "preview": "npm run build && wrangler pages dev ./build/client",
+    "deploy": "npm run build && node scripts/deploy.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
