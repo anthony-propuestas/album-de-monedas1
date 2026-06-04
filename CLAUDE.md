@@ -84,7 +84,7 @@ app/
     api.rewards.request.tsx     # action POST → solicitar claim de recompensa onchain
     api.rewards.sign.tsx        # action POST → obtener firma EIP-712 para reclamar
     api.rewards.status.$coinId.tsx # loader GET → estado del claim de una moneda
-    admin.rewards.tsx           # loader → panel admin de claims pendientes
+    admin_.rewards.tsx          # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx # action → aprobar claim (expira en 7 días)
     admin.rewards.$id.reject.tsx  # action → rechazar claim con motivo
     api.rewards.claimed.tsx     # action POST → marcar claim como reclamado tras tx onchain

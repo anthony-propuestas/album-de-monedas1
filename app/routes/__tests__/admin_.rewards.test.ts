@@ -3,7 +3,7 @@ import type { Env } from "~/types/env";
 
 vi.mock("~/lib/auth.server");
 
-const { loader } = await import("~/routes/admin.rewards");
+const { loader } = await import("~/routes/admin_.rewards");
 
 const ADMIN_EMAIL = "admin@example.com";
 const mockAdmin = { id: "admin-1", email: ADMIN_EMAIL, name: "Admin", picture: "" };
@@ -54,7 +54,7 @@ function makeRequest() {
   return new Request("https://example.com/admin/rewards");
 }
 
-describe("admin.rewards loader", () => {
+describe("admin_.rewards loader", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("throws redirect when unauthenticated", async () => {

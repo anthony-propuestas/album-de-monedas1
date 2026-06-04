@@ -95,7 +95,7 @@ app/
     api.rewards.sign.tsx      # action POST → obtener firma EIP-712 para reclamar
     api.rewards.status.$coinId.tsx  # loader GET → estado del claim de una moneda
     api.rewards.claimed.tsx   # action POST → marcar claim como reclamado tras tx onchain
-    admin.rewards.tsx         # loader → panel admin de claims pendientes
+    admin_.rewards.tsx        # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx   # action → aprobar claim (expira en 7 días)
     admin.rewards.$id.reject.tsx    # action → rechazar claim con motivo
     full-collection.tsx       # loader → vista completa de colección propia con filtros
@@ -116,11 +116,19 @@ app/
     AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes, botones aprobar/rechazar
     ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
     DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
+    ui/__tests__/
+      button.test.tsx         # 26 tests: variantes (6), tamaños (4), onClick, disabled + buttonVariants
     __tests__/
-      AddCoinModal.test.tsx   # 28 tests: render/flujo de fotos + cascada (selects, opciones, reset)
-      CategoryTile.test.tsx   # 19 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
-      CollectorRow.test.tsx   # 15 tests: medallas, link con/sin ?from=, avatar, stat
-      AdminRewardsPanel.test.tsx  # Tests del panel admin de claims
+      AddCoinModal.test.tsx       # 28 tests: render/flujo de fotos + cascada (selects, opciones, reset)
+      AdminRewardsPanel.test.tsx  # 12 tests: empty state, claim cards, aprobar/rechazar, modal de rechazo
+      CategoryTile.test.tsx       # 19 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
+      ClaimButton.test.tsx        # 9 tests: registry_match guard, estados del claim, fetch POST
+      CoinCard.test.tsx           # 10 tests: foto placeholder/img, rounded-full, estimated_value
+      CoinDetailModal.test.tsx    # 24 tests: render, datos opcionales, galería de fotos, cierre
+      CoinFilters.test.tsx        # 8 tests: inputs de búsqueda, selects de país/condición, prefill
+      CollectorRow.test.tsx       # 15 tests: medallas, link con/sin ?from=, avatar, stat
+      ImageCropEditor.test.tsx    # 11 tests: zoom, crop vía canvas, cancelar/confirmar
+      ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
   providers/
     WagmiProvider.tsx         # wagmi (Base Sepolia) + RainbowKit + TanStack Query
   lib/

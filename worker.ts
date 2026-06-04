@@ -12,6 +12,16 @@ interface Env {
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const isAsset = url.pathname.startsWith("/assets/") || url.pathname.startsWith("/favicon");
+
+    if (isAsset) {
+      if (!env.ASSETS) {
+        return new Response("ASSETS binding unavailable", { status: 503 });
+      }
+      return env.ASSETS.fetch(new Request(request.url));
+    }
+
     try {
       const assetResponse = await env.ASSETS.fetch(request.clone());
       if (assetResponse.ok) return assetResponse;

@@ -302,6 +302,7 @@ El loader de `/mycollection` computa `registry_match` dinámicamente desde el ca
 ### Hardening de infraestructura
 
 - **`worker.ts` asset check**: cambiado de `assetResponse.status !== 404` a `assetResponse.ok`. La versión anterior reenviaba respuestas 5xx y 3xx del asset server al cliente. La versión nueva solo reenvía 2xx, evitando filtrar errores internos de Cloudflare Pages Assets.
+- **`worker.ts` routing explícito por pathname**: los paths `/assets/*` y `/favicon*` se cortocircuitan antes del handler de Remix mediante un check de `url.pathname`. Se usa `new Request(request.url)` (sin `request.clone()`) para que las cookies de sesión no se reenvíen al servidor de assets. Si el binding `ASSETS` no está disponible para esas rutas, devuelve 503 en lugar de lanzar excepción.
 
 ---
 

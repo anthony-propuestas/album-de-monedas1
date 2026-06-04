@@ -22,7 +22,7 @@ export function AdminRewardsPanel({ claims }: { claims: Claim[] }) {
   if (claims.length === 0) {
     return (
       <p className="text-sm text-[rgba(242,236,224,0.35)] py-8 text-center">
-        No hay solicitudes pendientes.
+        No hay solicitudes pendientes
       </p>
     );
   }

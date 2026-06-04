@@ -752,8 +752,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
-### `app/routes/__tests__/admin.rewards.test.ts`
-**Qué prueba:** el `loader` de `app/routes/admin.rewards.tsx`.
+### `app/routes/__tests__/admin_.rewards.test.ts`
+**Qué prueba:** el `loader` de `app/routes/admin_.rewards.tsx`.
 
 | Test | Descripción |
 |---|---|
