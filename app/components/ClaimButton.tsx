@@ -39,6 +39,17 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [rejectReason, setRejectReason] = useState<string | null>(initialRejectReason ?? null);
   const [loading, setLoading] = useState(false);
   const [txDone, setTxDone] = useState(false);
+  const [connectAttemptAt, setConnectAttemptAt] = useState<number | null>(null);
+  const [showReloadHint, setShowReloadHint] = useState(false);
+
+  useEffect(() => {
+    if (!connectAttemptAt || address) {
+      setShowReloadHint(false);
+      return;
+    }
+    const t = setTimeout(() => setShowReloadHint(true), 9000);
+    return () => clearTimeout(t);
+  }, [connectAttemptAt, address]);
 
   const { writeContract, data: hash, isPending: isWritePending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: txSuccess } = useWaitForTransactionReceipt({ hash });
@@ -62,6 +73,8 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
 
   async function handleRequest() {
     if (!address) {
+      setConnectAttemptAt(Date.now());
+      setShowReloadHint(false);
       openConnectModal?.();
       return;
     }
@@ -151,12 +164,19 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
 
   // eligible or expired
   return (
-    <button
-      onClick={handleRequest}
-      disabled={loading}
-      className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
-    >
-      {loading ? "..." : address ? "Reclamar Token" : "Conectar Wallet"}
-    </button>
+    <>
+      <button
+        onClick={handleRequest}
+        disabled={loading}
+        className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
+      >
+        {loading ? "..." : address ? "Reclamar Token" : "Conectar Wallet"}
+      </button>
+      {showReloadHint && (
+        <p className="text-[9px] text-amber-400/50 text-center mt-0.5 leading-tight">
+          MetaMask no responde — recargá la página e intentá de nuevo
+        </p>
+      )}
+    </>
   );
 }

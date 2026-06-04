@@ -14,7 +14,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       projectId: WALLETCONNECT_PROJECT_ID,
       chains: [baseSepolia],
       transports: { [baseSepolia.id]: http() },
-      ssr: true,
     })
   );
   const [queryClient] = useState(() => new QueryClient());
