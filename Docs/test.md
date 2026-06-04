@@ -309,6 +309,11 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | parses year filter as integer | El parámetro `year` se convierte a `number` antes de enviarse a D1 |
 | adds condition filter to query | El parámetro `condition` añade `condition = ?` a la query |
 | query always ends with ORDER BY created_at DESC | La query siempre incluye el ordenamiento por fecha descendente |
+| returns claimStatuses as empty object when no claims | Sin registros en `claim_requests`, `data.claimStatuses` es `{}` |
+| maps latest claim per coin_id into claimStatuses | El claim más reciente de cada moneda queda mapeado por `coin_id` |
+| sets registry_match to 1 for coin matching catalog | Coin con country AR, nombre y año exactos → `registry_match` pasa a 1 |
+| sets registry_match to 0 for coin not in catalog | Coin con country AR pero nombre inexistente → `registry_match` queda en 0 |
+| leaves coin unchanged when country has no catalog | Coin con país sin catálogo (ej. MX) → se retorna sin modificar |
 
 ---
 

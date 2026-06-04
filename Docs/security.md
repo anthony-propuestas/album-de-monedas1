@@ -213,13 +213,56 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 
 ---
 
+## Rutas de contenido y marketplace
+
+### `/news` y `/news/:id`
+
+- **Auth**: sesión requerida en ambas rutas (`authenticator.isAuthenticated` → redirect `/` si no autenticado).
+- **Queries**: `SELECT ... FROM posts ORDER BY created_at DESC` sin parámetros (no los necesita); `/news/:id` usa `WHERE id = ?` con `.bind(id)` y valida que el id sea entero positivo antes del bind.
+- **Exposición**: solo campos públicos de `posts` (id, title, body, created_at). Sin PII.
+- **Sin action**. Sin superficies de ataque adicionales.
+
+### `/inbox`
+
+- **Auth**: sesión requerida.
+- **Queries**: `SELECT ... FROM messages WHERE seller_id = ?` y `UPDATE messages SET read_at = ... WHERE seller_id = ? AND read_at IS NULL` — ambas usan `.bind(user.id)`. El `user.id` viene de la sesión, no de input del cliente.
+- **Aislamiento**: filtrado estrictamente por `seller_id = user.id` — un usuario solo ve sus propios mensajes recibidos.
+- **Sin action**. El UPDATE de marcado como leído es un side-effect del loader, acotado al mismo `user_id`.
+
+### `/markets`
+
+- **Auth**: sesión requerida tanto en loader como en action.
+- **Loader**: devuelve todas las monedas con `for_sale = 1` de todos los usuarios — comportamiento público intencional (marketplace). Los filtros de búsqueda (`q`, `country`, `condition`) se construyen dinámicamente pero siempre con `.bind(...values)`.
+- **Action (`contact_seller`)**: INSERT en `messages` con 8 parámetros bound. Validaciones: `coin_id` y `seller_id` requeridos, mensaje no vacío, `seller_id ≠ user.id` (no se puede contactar uno mismo). Rate limiting: `checkRateLimit(db, user.id, "contact_seller", 5, 1)` — 5 mensajes por minuto por usuario.
+- **Sin superficies adicionales**: `buyer_contact` es opcional y se guarda directamente (no se renderiza como HTML).
+
+### `/full-collection`
+
+- **Auth**: sesión requerida.
+- **Queries**: SELECT de una moneda representativa por tipo (country + denomination + name + year) con JOIN a `users`. Filtros opcionales usan `.bind()`. Los filtros de año usan `parseInt(..., 10)` antes del bind — previene inyección.
+- **Exposición**: devuelve datos de monedas con owner (nombre, foto) de todos los usuarios — vista global de catálogo, intencional.
+- **Sin action**. Sin superficies adicionales.
+
+### Resumen de riesgos
+
+| Ruta | Auth | Isolation | SQL seguro | Rate limit |
+|------|------|-----------|------------|------------|
+| `/news` | ✅ | N/A | ✅ | ❌ (no aplica) |
+| `/news/:id` | ✅ | N/A | ✅ + int check | ❌ (no aplica) |
+| `/inbox` | ✅ | ✅ seller_id | ✅ | ❌ (solo lectura) |
+| `/markets` loader | ✅ | público intencional | ✅ | ❌ |
+| `/markets` action | ✅ | self-contact check | ✅ | ✅ 5/min |
+| `/full-collection` | ✅ | público intencional | ✅ + parseInt | ❌ (solo lectura) |
+
+---
+
 ## Sistema de Recompensas Onchain
 
 ### Mecanismos implementados
 
 - **Autenticación de sesión**: todos los endpoints (`/api/rewards/request`, `/api/rewards/sign`, `/api/rewards/status/:coinId`) exigen sesión activa.
 - **Aislamiento por usuario**: `api.rewards.request` verifica `WHERE id = ? AND user_id = ?` — la moneda debe pertenecer al usuario que solicita.
-- **Verificación de registro**: solo monedas con `registry_match = 1` pueden iniciar un claim.
+- **Verificación de registro**: solo monedas con `registry_match = 1` pueden iniciar un claim. El loader de `/mycollection` recalcula este valor en memoria contra `COINS_BY_COUNTRY` antes de devolver datos al cliente — el valor de la DB no se expone directamente. `api.rewards.request` lo verifica directamente en DB (ver inconsistencia en superficies de ataque).
 - **Double-spend onchain**: antes de crear una solicitud y antes de firmar, se consulta `coinClaimed()` en el contrato para evitar duplicados.
 - **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 8453` y la dirección del contrato para evitar replay cross-chain.
 - **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
@@ -252,6 +295,13 @@ La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user
 
 #### [LOW] Sin mecanismo de revocación de aprobación
 El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se detecta irregularidad entre la aprobación y la ejecución onchain, la única opción es esperar que expire el `expires_at`.
+
+#### [INFO] Inconsistencia `registry_match` entre loader y `api.rewards.request`
+El loader de `/mycollection` computa `registry_match` dinámicamente desde el catálogo estático, pero `api.rewards.request` lo verifica leyendo el valor almacenado en DB (`WHERE id = ? AND user_id = ? AND registry_match = 1`). Si una moneda fue insertada cuando existía en el catálogo (DB queda en 1) y luego el catálogo cambia o el usuario edita `name`/`denomination`/`year` desde la acción, el loader mostraría `registry_match = 0` al usuario, pero la DB tendría el valor antiguo, permitiendo iniciar un claim. Impacto acotado: requiere una ventana de inconsistencia entre edición y claim.
+
+### Hardening de infraestructura
+
+- **`worker.ts` asset check**: cambiado de `assetResponse.status !== 404` a `assetResponse.ok`. La versión anterior reenviaba respuestas 5xx y 3xx del asset server al cliente. La versión nueva solo reenvía 2xx, evitando filtrar errores internos de Cloudflare Pages Assets.
 
 ---
 

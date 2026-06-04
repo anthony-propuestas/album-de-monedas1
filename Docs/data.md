@@ -68,7 +68,7 @@ Migraciones en `migrations/` — se aplican con `wrangler d1 migrations apply`.
 | `photo_detail` | TEXT | Clave R2 de foto detalle |
 | `for_sale` | INTEGER DEFAULT 0 | 1 = en venta en marketplace |
 | `asking_price` | REAL | Precio pedido (USD) |
-| `registry_match` | INTEGER DEFAULT 0 | 1 = moneda verificada contra catálogo oficial (habilita claim onchain) |
+| `registry_match` | INTEGER DEFAULT 0 | 1 = moneda verificada contra catálogo oficial (habilita claim onchain). El loader de `/mycollection` recalcula este valor en memoria comparando `name`, `denomination` y `year` contra `COINS_BY_COUNTRY[country]`; si no hay catálogo para el país o faltan esos campos, se retorna el valor almacenado en DB sin modificar. |
 | `created_at` | INTEGER | Unix timestamp |
 
 Índices: `idx_coins_user(user_id)`, `idx_coins_country(user_id, country)`, `idx_coins_year(user_id, year)`
@@ -111,7 +111,9 @@ Tabla mínima; usada por `/news` y `/news/:id`.
 
 Índices: `idx_messages_seller(seller_id, created_at DESC)`, `idx_messages_buyer(buyer_id)`.
 
-#### `claim_requests` — `migrations/0007_create_claim_requests.sql`
+> `migrations/0007_fix_messages_fks.sql` — fix posterior que agrega las FK constraints que faltaban en `0006`: `coin_id → coins(id)`, `seller_id → users(id)`, `buyer_id → users(id)`, todos `ON DELETE CASCADE`.
+
+#### `claim_requests` — `migrations/0009_create_claim_requests.sql`
 
 Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita → admin aprueba → el usuario obtiene firma EIP-712 → reclama en el contrato `RewardClaimer` en Base Sepolia.
 
@@ -337,13 +339,15 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 | `TURNSTILE_SITE_KEY` | string? | Clave client de Cloudflare Turnstile (opcional) |
 | `BACKEND_SIGNER_KEY` | string? | Clave privada EVM (0x…) del firmante backend — genera firmas EIP-712 para claims onchain (secret en Cloudflare) |
 
+> Los bindings de Cloudflare (`DB: D1Database`, `IMAGES: R2Bucket`) no son variables de `.dev.vars` — se configuran en `wrangler.toml` y están documentados en la sección **Bindings Cloudflare** de `CLAUDE.md`.
+
 ---
 
 ## Estado: implementado vs pendiente
 
 | Feature | Estado | Nota |
 |---------|--------|------|
-| D1 (SQLite) | Implementado | 6 migraciones, todas las tablas operativas |
+| D1 (SQLite) | Implementado | 9 migraciones, todas las tablas operativas |
 | R2 (imágenes) | Implementado | Upload con validación, serving con cache |
 | OAuth Google + sesiones | Implementado | Cookie HttpOnly, 30 días |
 | Protección de rutas | Implementado | `isAuthenticated()` en todos los loaders privados |

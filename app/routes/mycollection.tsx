@@ -100,7 +100,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       if (!claimStatuses[row.coin_id]) claimStatuses[row.coin_id] = row;
     }
 
-    return json({ user, coins, filters: { q, country, year, condition }, seriesProgressByCountry, allCoins, claimStatuses });
+    const coinsWithMatch = coins.map((coin) => {
+      const catalog = coin.country ? COINS_BY_COUNTRY[coin.country] : null;
+      if (!catalog || coin.year == null || !coin.denomination) return coin;
+      const match = catalog.some(
+        (e) => e.denominacion === coin.denomination && e.nombre === coin.name && e.anio === coin.year
+      );
+      return { ...coin, registry_match: match ? 1 : 0 };
+    });
+
+    return json({ user, coins: coinsWithMatch, filters: { q, country, year, condition }, seriesProgressByCountry, allCoins, claimStatuses });
   } catch (e) {
     throw new Response("Error al cargar la colección", { status: 500 });
   }

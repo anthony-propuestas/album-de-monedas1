@@ -228,4 +228,58 @@ describe("mycollection loader", () => {
 
     expect(data.claimStatuses["coin-99"]).toMatchObject({ status: "pending" });
   });
+
+  it("sets registry_match to 1 for coin matching catalog", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+
+    const coins = [{
+      id: "coin-ar", user_id: "user-123",
+      name: "Un Peso — Jacarandá", country: "AR",
+      denomination: "1 Peso", year: 2017, registry_match: 0,
+    }];
+    const { db } = makeMockDb(coins);
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+
+    expect(data.coins[0].registry_match).toBe(1);
+  });
+
+  it("sets registry_match to 0 for coin not in catalog", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+
+    const coins = [{
+      id: "coin-x", user_id: "user-123",
+      name: "Moneda Inventada", country: "AR",
+      denomination: "1 Peso", year: 2017, registry_match: 0,
+    }];
+    const { db } = makeMockDb(coins);
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+
+    expect(data.coins[0].registry_match).toBe(0);
+  });
+
+  it("leaves coin unchanged when country has no catalog", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+
+    const coins = [{
+      id: "coin-mx", user_id: "user-123",
+      name: "Peso Mexicano", country: "MX",
+      denomination: "1 Peso", year: 1964, registry_match: 1,
+    }];
+    const { db } = makeMockDb(coins);
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+
+    expect(data.coins[0].registry_match).toBe(1);
+  });
 });

@@ -29,11 +29,14 @@ BACKEND_SIGNER_KEY=0x...
 ## Comandos
 
 ```bash
-npm run dev       # desarrollo local (puerto 5173)
-npm run build     # build para producción
-npm run typecheck # verificar tipos TypeScript
-npm run preview   # preview local con Wrangler
-npm run deploy    # build + deploy a Cloudflare Pages
+npm run dev          # desarrollo local (puerto 5173)
+npm run build        # build para producción
+npm run typecheck    # verificar tipos TypeScript
+npm run preview      # preview local con Wrangler
+npm run deploy       # build + deploy a Cloudflare Pages
+npm run test         # tests en modo watch
+npm run test:run     # tests en modo single-pass (CI)
+npm run test:coverage # tests con reporte de cobertura
 ```
 
 ## Rutas
