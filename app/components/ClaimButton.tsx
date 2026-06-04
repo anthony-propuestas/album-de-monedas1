@@ -41,6 +41,9 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [txDone, setTxDone] = useState(false);
   const [connectAttemptAt, setConnectAttemptAt] = useState<number | null>(null);
   const [showReloadHint, setShowReloadHint] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!connectAttemptAt || address) {
@@ -97,7 +100,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
       const res = await fetch("/api/rewards/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coinId }),
+        body: JSON.stringify({ coinId, walletAddress: address }),
       });
       if (!res.ok) return;
       const { signature, coinIdHash: hash } = await res.json<{ signature: `0x${string}`; coinIdHash: `0x${string}` }>();
@@ -170,7 +173,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
         disabled={loading}
         className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
       >
-        {loading ? "..." : address ? "Reclamar Token" : "Conectar Wallet"}
+        {loading ? "..." : (mounted && address) ? "Reclamar Token" : "Conectar Wallet"}
       </button>
       {showReloadHint && (
         <p className="text-[9px] text-amber-400/50 text-center mt-0.5 leading-tight">
