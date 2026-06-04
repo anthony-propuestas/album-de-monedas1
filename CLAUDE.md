@@ -131,6 +131,7 @@ wrangler.toml                   # Config Cloudflare Pages + D1 + R2 bindings
 worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
 scripts/
   build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js
+  deploy.mjs                    # deploy helper: renombra functions/ temporalmente para evitar errores de Pages Functions en Advanced Mode
 ```
 
 ## Routing en Remix

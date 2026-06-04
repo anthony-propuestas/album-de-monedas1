@@ -14,6 +14,7 @@ await esbuild.build({
     "@coinbase/wallet-sdk",
     "@metamask/connect-evm",
     "porto",
+    "porto/internal",
     "@safe-global/safe-apps-sdk",
     "@safe-global/safe-apps-provider",
     "@walletconnect/ethereum-provider",
