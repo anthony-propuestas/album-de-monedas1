@@ -11,8 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "preview": "npm run build && wrangler pages dev ./build/client",
-    "deploy": "npm run build && wrangler pages deploy ./build/client"
+    "preview": "npm run build && node scripts/build-worker.mjs && wrangler pages dev ./build/client",
+    "deploy": "npm run build && node scripts/build-worker.mjs && wrangler pages deploy ./build/client"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

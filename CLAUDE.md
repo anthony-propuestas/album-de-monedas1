@@ -22,7 +22,8 @@ npm run deploy       # build + deploy a Cloudflare Pages
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **DB**: D1 (SQLite) · raw SQL vía `db.prepare().bind()` (sin Drizzle)
 - **Storage**: R2 (imágenes de monedas)
-- **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
+- **Onchain/Wallet**: viem · wagmi · RainbowKit · TanStack Query (Base Sepolia)
+- **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
 > **Pendiente de implementar:** Drizzle ORM · Durable Objects (chat) · KV · WAF
 
@@ -38,9 +39,13 @@ binding = "IMAGES"    # bucket: album-monedas-images
 
 ## DB Schema
 
-- `users`: id, name, picture, collecting_since
-- `coins`: id, user_id, country, year, denomination, condition, estimated_value, created_at, registry_match
-- `claim_requests`: id, user_id, coin_id, coin_registry_key, coin_id_hash, wallet_address, status (pending|approved|rejected), reviewed_at, approved_at, expires_at, reject_reason, created_at
+- `users`: id, email, name, picture, country, collecting_since, goals, profile_completed, created_at
+- `coins`: id, user_id, name, country, year, denomination, condition, mint, catalog_ref, estimated_value, notes, photo_obverse, photo_reverse, photo_edge, photo_detail, for_sale, asking_price, registry_match, created_at
+- `claim_requests`: id, user_id, coin_id, coin_registry_key, coin_id_hash, wallet_address, status (pending|approved|rejected|claimed), reviewed_at, approved_at, expires_at, reject_reason, tx_hash, claimed_at, created_at
+- `user_badges`: user_id, badge_id, unlocked_at
+- `posts`: id, title, body, created_at
+- `messages`: id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message, created_at, read_at
+- `rate_limits`: user_id, action, window_start, count
 
 ## Reglas
 
@@ -82,8 +87,11 @@ app/
     admin.rewards.tsx           # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx # action → aprobar claim (expira en 7 días)
     admin.rewards.$id.reject.tsx  # action → rechazar claim con motivo
+    api.rewards.claimed.tsx     # action POST → marcar claim como reclamado tras tx onchain
+    full-collection.tsx         # loader → vista completa de colección propia con filtros
   components/
     ui/button.tsx               # Button shadcn/ui
+    ui/CustomSelect.tsx         # Select accesible para dropdowns en cascada
     AddCoinModal.tsx            # Modal agregar moneda a colección
     BadgesGrid.tsx              # Grid de logros del usuario
     CategoryTile.tsx            # Tile de categoría en rankings
@@ -96,6 +104,8 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
+    ClaimButton.tsx             # Botón de claim onchain (conecta wallet + ejecuta tx)
+    DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     badges.ts                   # Sistema de logros/badges
@@ -118,6 +128,9 @@ public/                         # Assets estáticos
 vite.config.ts                  # Remix plugin + Tailwind v4 plugin + tsconfigPaths
 wrangler.toml                   # Config Cloudflare Pages + D1 + R2 bindings
 .dev.vars                       # Variables de entorno locales (no commitear)
+worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
+scripts/
+  build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js
 ```
 
 ## Routing en Remix

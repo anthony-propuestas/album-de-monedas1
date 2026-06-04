@@ -213,6 +213,48 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 
 ---
 
+## Sistema de Recompensas Onchain
+
+### Mecanismos implementados
+
+- **Autenticación de sesión**: todos los endpoints (`/api/rewards/request`, `/api/rewards/sign`, `/api/rewards/status/:coinId`) exigen sesión activa.
+- **Aislamiento por usuario**: `api.rewards.request` verifica `WHERE id = ? AND user_id = ?` — la moneda debe pertenecer al usuario que solicita.
+- **Verificación de registro**: solo monedas con `registry_match = 1` pueden iniciar un claim.
+- **Double-spend onchain**: antes de crear una solicitud y antes de firmar, se consulta `coinClaimed()` en el contrato para evitar duplicados.
+- **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 8453` y la dirección del contrato para evitar replay cross-chain.
+- **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
+- **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
+- **Admin protegido por email**: los endpoints `/admin/rewards/*` verifican `user.email === ADMIN_EMAIL`.
+- **SQL parametrizado**: todas las queries usan `.prepare().bind()`.
+
+### Nuevas superficies de ataque
+
+#### [HIGH] Sin rate limiting en endpoints de rewards
+`api.rewards.request` y `api.rewards.sign` no invocan `checkRateLimit` (la función existe en `app/lib/rateLimit.server.ts` pero no se usa aquí). Un usuario autenticado puede hacer spam de solicitudes sin restricción, saturando el flujo de revisión admin y forzando lecturas RPC al contrato.
+
+#### [MEDIUM] La firma EIP-712 no tiene expiración onchain
+El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez entregada, la firma es válida onchain indefinidamente hasta que `coinClaimed` sea `true`. Si se detecta fraude después de que el usuario obtiene la firma (pero antes de ejecutar la tx), no hay mecanismo para invalidarla onchain.
+
+#### [MEDIUM] `walletAddress` se almacena sin validación de formato
+`api.rewards.request` recibe `walletAddress` del body JSON y solo aplica `.toLowerCase()`. No se verifica que sea una dirección Ethereum válida (`/^0x[0-9a-f]{40}$/i`). Cualquier string arbitrario queda guardado en `claim_requests.wallet_address` y luego es incluido como parámetro en la firma EIP-712.
+
+#### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
+`rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
+
+#### [LOW] `api.rewards.sign` no verifica propiedad de la moneda por `user_id`
+La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
+
+#### [LOW] RPC público sin fallback ni timeout
+`isCoinClaimedOnchain` usa `http()` sin URL explícita (RPC público por defecto de viem). Un fallo del RPC lanza excepción y bloquea el endpoint de request/sign. No hay manejo de error ni timeout configurado.
+
+#### [LOW] `api.rewards.claimed` — `txHash` no se valida
+`api.rewards.claimed.tsx` recibe `txHash` del body JSON y lo almacena directamente en `claim_requests.tx_hash` sin validar que sea un hash de transacción Ethereum válido (`/^0x[0-9a-f]{64}$/i`). No tiene loader que retorne 405 para GET. Impacto bajo: el campo es solo informativo y el UPDATE filtra por `user_id` y `status = 'approved'`.
+
+#### [LOW] Sin mecanismo de revocación de aprobación
+El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se detecta irregularidad entre la aprobación y la ejecución onchain, la única opción es esperar que expire el `expires_at`.
+
+---
+
 ## Variables de entorno sensibles
 
 | Variable | Uso | Riesgo si se expone |
@@ -221,6 +263,7 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 | `GOOGLE_CLIENT_SECRET` | Autentica la app ante Google | **Alto** — permite impersonar la app |
 | `SESSION_SECRET` | Firma las cookies de sesión | **Crítico** — permite forjar sesiones |
 | `ADMIN_EMAIL` | Email del único usuario administrador (`/admin`) | **Alto** — permite saber qué cuenta tiene acceso admin |
+| `BACKEND_SIGNER_KEY` | Clave privada del signer EIP-712 para recompensas onchain | **Crítico** — permite forjar firmas válidas y reclamar cualquier recompensa |
 
 - En local: `.dev.vars` (ignorado por git vía `.gitignore`).
 - En producción: configurar en el dashboard de Cloudflare Pages (nunca en el repo).
@@ -254,6 +297,11 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 | Sin límite de tamaño de archivo | **Implementado** | Rechaza archivos >5 MB antes de llamar a R2 |
 | Sin límite de monedas por usuario | **Implementado** | Máximo 500 monedas por `user_id`; devuelve 429 al superarlo |
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
+| Sin rate limiting en endpoints de rewards | **Pendiente** | Llamar a `checkRateLimit` en `api.rewards.request` y `api.rewards.sign` (función ya implementada en `rateLimit.server.ts`) |
+| `walletAddress` sin validación de formato | **Pendiente** | Validar `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests` |
+| Hash EIP-712 vulnerable a colisión por `\|` | **Pendiente** | Usar ABI encoding (`encodeAbiParameters`) en lugar de concatenación con separador |
+| Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
+| Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
 
 ---
 
@@ -269,3 +317,7 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - [ ] Revisar CSP vía Cloudflare Transform Rules.
 - [ ] Validar `country` contra lista ISO y `collecting_since` contra valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
+- [ ] `BACKEND_SIGNER_KEY` configurado en Cloudflare Pages (nunca en el repo); dirección correspondiente debe coincidir con la desplegada en el contrato `RewardClaimer`.
+- [ ] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (usar `checkRateLimit` ya existente).
+- [ ] Validar `walletAddress` con regex `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests`.
+- [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.

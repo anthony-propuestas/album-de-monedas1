@@ -6,7 +6,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 
 - **Frontend**: Remix v2 (Vite) · Tailwind CSS v4 · shadcn/ui (@base-ui/react) → Cloudflare Pages
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
-- **Infra**: Cloudflare Pages + Pages Functions (`functions/[[path]].ts`)
+- **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
 > **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Sepolia vía EIP-712)
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
@@ -19,7 +19,11 @@ Crea `.dev.vars` en la raíz para desarrollo local:
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SESSION_SECRET=...
-BACKEND_SIGNER_KEY=0x...  # clave privada EVM del firmante backend (rewards)
+ADMIN_EMAIL=...
+BACKEND_SIGNER_KEY=0x...
+# Opcionales
+# TURNSTILE_SITE_KEY=...
+# TURNSTILE_SECRET_KEY=...
 ```
 
 ## Comandos
@@ -39,18 +43,26 @@ npm run deploy    # build + deploy a Cloudflare Pages
 | `/` | Landing pública: Hero · stats de comunidad (usuarios y piezas) · "¿Por qué?" · "Cómo funciona" · login |
 | `/auth/google` | Inicia flujo OAuth con Google (action POST) |
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
+| `/auth/logout` | Cierra sesión y limpia la cookie (action POST) |
 | `/home` | Dashboard protegido: menú lateral + stats personales (piezas, valor estimado, condición top) + modal de configuración de perfil |
 | `/mycollection` | Colección personal: galería filtrable + formulario para agregar piezas |
+| `/full-collection` | Vista completa de la colección propia con todos los filtros (protegida) |
 | `/collections` | Ranking social: grid de 8 categorías en orden aleatorio por visita |
 | `/collections/:category` | Top 10 coleccionistas de una categoría (most-pieces, oldest, highest-value…) |
 | `/collection/:userId` | Colección pública de otro usuario (read-only, con filtros) |
 | `/images/*` | Proxy de imágenes almacenadas en R2 (loader, sin auth — claves son UUIDs) |
-| `/api/rewards/request` | Solicitar claim de recompensa onchain para una moneda verificada (action POST) |
-| `/api/rewards/sign` | Obtener firma EIP-712 para reclamar la recompensa aprobada (action POST) |
-| `/api/rewards/status/:coinId` | Estado actual del claim de una moneda (loader GET) |
+| `/news` | Feed de noticias numismáticas |
+| `/news/:id` | Artículo de noticias individual |
+| `/markets` | Marketplace de monedas en venta |
+| `/inbox` | Mensajería / notificaciones |
+| `/admin` | Panel de administración (requiere ADMIN_EMAIL) |
 | `/admin/rewards` | Panel admin: lista de claims pendientes para aprobar o rechazar (loader) |
 | `/admin/rewards/:id/approve` | Aprobar un claim — genera ventana de 7 días para reclamar (action POST) |
 | `/admin/rewards/:id/reject` | Rechazar un claim con motivo (action POST) |
+| `/api/rewards/request` | Solicitar claim de recompensa onchain para una moneda verificada (action POST) |
+| `/api/rewards/sign` | Obtener firma EIP-712 para reclamar la recompensa aprobada (action POST) |
+| `/api/rewards/status/:coinId` | Estado actual del claim de una moneda (loader GET) |
+| `/api/rewards/claimed` | Registrar una recompensa como reclamada después de la tx onchain (action POST) |
 
 ## Arquitectura
 
@@ -79,11 +91,14 @@ app/
     api.rewards.request.tsx   # action POST → solicitar claim de recompensa onchain
     api.rewards.sign.tsx      # action POST → obtener firma EIP-712 para reclamar
     api.rewards.status.$coinId.tsx  # loader GET → estado del claim de una moneda
+    api.rewards.claimed.tsx   # action POST → marcar claim como reclamado tras tx onchain
     admin.rewards.tsx         # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx   # action → aprobar claim (expira en 7 días)
     admin.rewards.$id.reject.tsx    # action → rechazar claim con motivo
+    full-collection.tsx       # loader → vista completa de colección propia con filtros
   components/
     ui/button.tsx             # Button shadcn/ui
+    ui/CustomSelect.tsx       # Select accesible para dropdowns en cascada
     ProfileSetupModal.tsx     # Modal de configuración de perfil
     AddCoinModal.tsx          # Modal multipart: 4 slots de foto + editor de recorte + dropdowns en cascada
     ImageCropEditor.tsx       # Editor circular: drag-to-pan, zoom, crop via Canvas 512×512 → JPEG
@@ -96,6 +111,8 @@ app/
     SeriesProgress.tsx        # Progreso de una serie numismática
     YearTimeline.tsx          # Timeline de monedas por año
     AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes, botones aprobar/rechazar
+    ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
+    DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
     __tests__/
       AddCoinModal.test.tsx   # 28 tests: render/flujo de fotos + cascada (selects, opciones, reset)
       CategoryTile.test.tsx   # 19 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
@@ -124,7 +141,10 @@ app/
   types/
     env.d.ts                  # Env interface (DB: D1Database, IMAGES?: R2Bucket, BACKEND_SIGNER_KEY?)
 functions/
-  [[path]].ts                 # Entry point Cloudflare Pages Functions
+  [[path]].ts                 # Entry point Cloudflare Pages Functions (dev local)
+worker.ts                     # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
+scripts/
+  build-worker.mjs            # esbuild: compila worker.ts → build/client/_worker.js
 migrations/
   0001_create_users.sql       # Tabla users
   0002_create_coins.sql       # Tabla coins (fotos, condición, valor)
@@ -132,7 +152,9 @@ migrations/
   0004_create_posts.sql       # Tabla posts (noticias)
   0005_market.sql             # Columnas for_sale, asking_price en coins
   0006_create_messages.sql    # Tabla messages (marketplace)
-  0007_create_claim_requests.sql  # Tabla claim_requests + columna registry_match en coins
+  0007_fix_messages_fks.sql   # Recrea messages con FK constraints (ON DELETE CASCADE)
+  0008_rate_limits.sql        # Tabla rate_limits (rate limiting por usuario+acción)
+  0009_create_claim_requests.sql  # Tabla claim_requests + columna registry_match en coins
 ```
 
 ## Dropdowns en cascada
@@ -150,35 +172,14 @@ Para agregar un nuevo país:
 ## Tests
 
 ```bash
-npm run test           # ejecutar todos los tests
-npm run test:ui        # interfaz visual de Vitest
-npm run coverage       # reporte de cobertura
+npm run test           # ejecutar todos los tests (watch mode)
+npm run test:run       # single pass (sin watch)
+npm run test:coverage  # reporte de cobertura en /coverage
 ```
 
 Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
-| Suite | Archivo |
-|-------|---------|
-| Landing — componente | `app/routes/__tests__/_index.test.tsx` |
-| Landing — loader | `app/routes/__tests__/_index.loader.test.ts` |
-| Módulo de monedas | `app/lib/__tests__/coins.test.ts` |
-| Categorías de ranking | `app/lib/__tests__/collections.test.ts` |
-| AddCoinModal | `app/components/__tests__/AddCoinModal.test.tsx` |
-| CategoryTile | `app/components/__tests__/CategoryTile.test.tsx` |
-| CollectorRow | `app/components/__tests__/CollectorRow.test.tsx` |
-| AdminRewardsPanel | `app/components/__tests__/AdminRewardsPanel.test.tsx` |
-| /collections loader | `app/routes/__tests__/collections.loader.test.ts` |
-| /collections/:category loader | `app/routes/__tests__/collections.category.loader.test.ts` |
-| /collection/:userId loader | `app/routes/__tests__/collection.userId.loader.test.ts` |
-| rewards.server | `app/lib/__tests__/rewards.server.test.ts` |
-| /api/rewards/request | `app/routes/__tests__/api.rewards.request.test.ts` |
-| /api/rewards/sign | `app/routes/__tests__/api.rewards.sign.test.ts` |
-| /api/rewards/status/:coinId | `app/routes/__tests__/api.rewards.status.coinId.test.ts` |
-| /admin/rewards | `app/routes/__tests__/admin.rewards.test.ts` |
-| /admin/rewards/:id/approve | `app/routes/__tests__/admin.rewards.id.approve.test.ts` |
-| /admin/rewards/:id/reject | `app/routes/__tests__/admin.rewards.id.reject.test.ts` |
-
-Ver `Docs/test.md` para la descripción completa de cada test.
+38 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
 
 ## Seguridad
 
