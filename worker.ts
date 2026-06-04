@@ -14,7 +14,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
       const assetResponse = await env.ASSETS.fetch(request.clone());
-      if (assetResponse.status !== 404) return assetResponse;
+      if (assetResponse.ok) return assetResponse;
     } catch {}
     return handler(request, { cloudflare: { env, ctx } });
   },
