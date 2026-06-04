@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "@remix-run/cloudflare";
 import { json } from "@remix-run/cloudflare";
 import { createAuth } from "~/lib/auth.server";
 import { getCoinIdHash, isCoinClaimedOnchain } from "~/lib/rewards.server";
+import { COINS_BY_COUNTRY } from "~/lib/coins";
 
 export async function loader() {
   return json({ error: "Method not allowed" }, { status: 405 });
@@ -26,7 +27,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
     .first<{ id: string; user_id: string; country: string; denomination: string; name: string; year: number; registry_match: number }>();
 
   if (!coin) return json({ error: "Moneda no encontrada" }, { status: 404 });
-  if (!coin.registry_match) return json({ error: "Esta moneda no está verificada en el registro" }, { status: 400 });
+
+  const catalog = coin.country ? COINS_BY_COUNTRY[coin.country] : null;
+  const isVerified = catalog?.some(
+    (e) => e.denominacion === coin.denomination && e.nombre === coin.name && e.anio === coin.year
+  ) ?? false;
+  if (!isVerified) return json({ error: "Esta moneda no está verificada en el registro" }, { status: 400 });
 
   const existing = await db
     .prepare("SELECT id FROM claim_requests WHERE coin_id = ? AND status IN ('pending', 'approved')")
