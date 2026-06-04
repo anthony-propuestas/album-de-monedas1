@@ -68,7 +68,7 @@ Migraciones en `migrations/` — se aplican con `wrangler d1 migrations apply`.
 | `photo_detail` | TEXT | Clave R2 de foto detalle |
 | `for_sale` | INTEGER DEFAULT 0 | 1 = en venta en marketplace |
 | `asking_price` | REAL | Precio pedido (USD) |
-| `registry_match` | INTEGER DEFAULT 0 | 1 = moneda verificada contra catálogo oficial (habilita claim onchain). El loader de `/mycollection` recalcula este valor en memoria comparando `name`, `denomination` y `year` contra `COINS_BY_COUNTRY[country]`; si no hay catálogo para el país o faltan esos campos, se retorna el valor almacenado en DB sin modificar. |
+| `registry_match` | INTEGER DEFAULT 0 | 1 = moneda verificada contra catálogo oficial (habilita claim onchain). El loader de `/mycollection` recalcula este valor en memoria comparando `name`, `denomination` y `year` contra `COINS_BY_COUNTRY[country]`. `api.rewards.request` también verifica en memoria (no lee este campo de la DB para autorizar claims). |
 | `created_at` | INTEGER | Unix timestamp |
 
 Índices: `idx_coins_user(user_id)`, `idx_coins_country(user_id, country)`, `idx_coins_year(user_id, year)`

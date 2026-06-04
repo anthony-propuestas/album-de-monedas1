@@ -262,9 +262,9 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 
 - **Autenticación de sesión**: todos los endpoints (`/api/rewards/request`, `/api/rewards/sign`, `/api/rewards/status/:coinId`) exigen sesión activa.
 - **Aislamiento por usuario**: `api.rewards.request` verifica `WHERE id = ? AND user_id = ?` — la moneda debe pertenecer al usuario que solicita.
-- **Verificación de registro**: solo monedas con `registry_match = 1` pueden iniciar un claim. El loader de `/mycollection` recalcula este valor en memoria contra `COINS_BY_COUNTRY` antes de devolver datos al cliente — el valor de la DB no se expone directamente. `api.rewards.request` lo verifica directamente en DB (ver inconsistencia en superficies de ataque).
-- **Double-spend onchain**: antes de crear una solicitud y antes de firmar, se consulta `coinClaimed()` en el contrato para evitar duplicados.
-- **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 8453` y la dirección del contrato para evitar replay cross-chain.
+- **Verificación de registro**: solo monedas verificadas pueden iniciar un claim. Tanto el loader de `/mycollection` como `api.rewards.request` verifican en memoria contra `COINS_BY_COUNTRY` — ninguno confía en el valor almacenado en `registry_match` para tomar la decisión de autorización.
+- **Double-spend onchain**: antes de crear una solicitud, se consulta `coinClaimed()` en el contrato para evitar duplicados.
+- **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 84532` (Base Sepolia) y la dirección del contrato para evitar replay cross-chain.
 - **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
 - **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
 - **Admin protegido por email**: los endpoints `/admin/rewards/*` verifican `user.email === ADMIN_EMAIL`.
@@ -288,7 +288,7 @@ El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez 
 La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
 
 #### [LOW] RPC público sin fallback ni timeout
-`isCoinClaimedOnchain` usa `http()` sin URL explícita (RPC público por defecto de viem). Un fallo del RPC lanza excepción y bloquea el endpoint de request/sign. No hay manejo de error ni timeout configurado.
+`isCoinClaimedOnchain` usa `http()` sin URL explícita (RPC público por defecto de viem). Un fallo del RPC lanza excepción y bloquea `api.rewards.request`. No hay manejo de error ni timeout configurado.
 
 #### [LOW] `api.rewards.claimed` — `txHash` no se valida
 `api.rewards.claimed.tsx` recibe `txHash` del body JSON y lo almacena directamente en `claim_requests.tx_hash` sin validar que sea un hash de transacción Ethereum válido (`/^0x[0-9a-f]{64}$/i`). No tiene loader que retorne 405 para GET. Impacto bajo: el campo es solo informativo y el UPDATE filtra por `user_id` y `status = 'approved'`.
@@ -296,8 +296,6 @@ La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user
 #### [LOW] Sin mecanismo de revocación de aprobación
 El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se detecta irregularidad entre la aprobación y la ejecución onchain, la única opción es esperar que expire el `expires_at`.
 
-#### [INFO] Inconsistencia `registry_match` entre loader y `api.rewards.request`
-El loader de `/mycollection` computa `registry_match` dinámicamente desde el catálogo estático, pero `api.rewards.request` lo verifica leyendo el valor almacenado en DB (`WHERE id = ? AND user_id = ? AND registry_match = 1`). Si una moneda fue insertada cuando existía en el catálogo (DB queda en 1) y luego el catálogo cambia o el usuario edita `name`/`denomination`/`year` desde la acción, el loader mostraría `registry_match = 0` al usuario, pero la DB tendría el valor antiguo, permitiendo iniciar un claim. Impacto acotado: requiere una ventana de inconsistencia entre edición y claim.
 
 ### Hardening de infraestructura
 

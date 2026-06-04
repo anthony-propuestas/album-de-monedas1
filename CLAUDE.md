@@ -22,7 +22,7 @@ npm run deploy       # build + deploy a Cloudflare Pages
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **DB**: D1 (SQLite) · raw SQL vía `db.prepare().bind()` (sin Drizzle)
 - **Storage**: R2 (imágenes de monedas)
-- **Onchain/Wallet**: viem · wagmi · RainbowKit · TanStack Query (Base Sepolia)
+- **Onchain/Wallet**: viem · wagmi · TanStack Query (Base Sepolia)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
 > **Pendiente de implementar:** Drizzle ORM · Durable Objects (chat) · KV · WAF
@@ -104,7 +104,7 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
-    ClaimButton.tsx             # Botón de claim onchain; sin wallet muestra "Conectar Wallet" y abre modal RainbowKit; con wallet envía solicitud al admin o ejecuta la TX
+    ClaimButton.tsx             # Botón de claim onchain; sin wallet conecta MetaMask directamente vía `injected()`; con wallet envía solicitud al admin o ejecuta la TX
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
@@ -119,7 +119,7 @@ app/
     contracts/abi.ts            # ABI del contrato RewardClaimer (claimReward, coinClaimed, lastClaimTime)
     contracts/addresses.ts      # Addresses de AlbumCoin y RewardClaimer en Base Sepolia
   providers/
-    WagmiProvider.tsx           # Providers: wagmi (Base Sepolia) + RainbowKit + TanStack Query
+    WagmiProvider.tsx           # Providers: wagmi (Base Sepolia) + TanStack Query
   types/
     env.d.ts                    # Env interface + AppLoadContext (GOOGLE_*, SESSION_SECRET, TURNSTILE_*, BACKEND_SIGNER_KEY)
 functions/

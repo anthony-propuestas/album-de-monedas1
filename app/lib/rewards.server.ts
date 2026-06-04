@@ -35,7 +35,7 @@ export async function signClaim(
     domain: {
       name: "RewardClaimer",
       version: "1",
-      chainId: 8453,
+      chainId: 84532,
       verifyingContract: REWARD_CLAIMER_ADDRESS,
     },
     types: {

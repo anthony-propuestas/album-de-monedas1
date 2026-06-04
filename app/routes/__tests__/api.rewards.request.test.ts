@@ -17,9 +17,9 @@ const mockCoin = {
   id: "coin-1",
   user_id: "user-1",
   country: "AR",
-  denomination: "1 Peso",
-  name: "Peso Nacional",
-  year: 1960,
+  denomination: "5 Pesos",
+  name: "Libertad Según Oudine",
+  year: 1881,
   registry_match: 1,
 };
 
@@ -81,12 +81,12 @@ describe("api.rewards.request action", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 400 when coin not registry_match", async () => {
+  it("returns 400 when coin not in catalog", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
       sessionStorage: {} as any,
     });
-    const { db } = makeDb([{ ...mockCoin, registry_match: 0 }]);
+    const { db } = makeDb([{ ...mockCoin, name: "Moneda Inexistente", year: 1900 }]);
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(res.status).toBe(400);
     const data = await res.json() as { error: string };

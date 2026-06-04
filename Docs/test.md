@@ -702,7 +702,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | is deterministic for the same inputs | Mismos inputs → mismo hash siempre |
 | produces different hashes for different inputs | Inputs distintos → hashes distintos |
 | returns the signature from signTypedData | `signClaim` retorna la firma del mock de viem |
-| calls signTypedData with correct EIP-712 domain | El dominio EIP-712 incluye `name: "RewardClaimer"`, `chainId: 84532` y `primaryType: "Claim"` |
+| calls signTypedData with correct EIP-712 domain | El dominio EIP-712 incluye `name: "RewardClaimer"`, `chainId: 84532` (Base Sepolia) y `primaryType: "Claim"` |
 | returns true when contract reports claimed | `isCoinClaimedOnchain` retorna `true` si el contrato lo indica |
 | returns false when contract reports not claimed | `isCoinClaimedOnchain` retorna `false` si el contrato lo indica |
 | calls readContract with correct functionName | Llama a `coinClaimed` con el hash correcto |
@@ -716,7 +716,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 |---|---|
 | returns 401 when unauthenticated | Sin sesión activa retorna 401 |
 | returns 404 when coin not found | Moneda no encontrada en D1 retorna 404 |
-| returns 400 when coin not registry_match | `registry_match = 0` retorna 400 |
+| returns 400 when coin not in catalog | Coin no encontrado en el catálogo → 400 |
 | returns 409 when active claim request exists | Ya hay pending/approved → 409 |
 | returns 409 when already claimed onchain | Reclamado onchain → 409 |
 | returns 200 with claimRequestId on happy path | Inserta registro y retorna `{ claimRequestId, status: "pending" }` |
@@ -733,7 +733,6 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 404 when no approved claim exists | Sin claim aprobado → 404 |
 | returns 410 when claim is expired | Claim expirado → 410 |
 | returns 403 when wallet does not match | Wallet diferente → 403 |
-| returns 409 when already claimed onchain | Ya reclamado onchain → 409 |
 | returns 200 with signature on happy path | Retorna `{ signature, coinIdHash }` |
 | returns 400 when missing walletAddress | Sin wallet en body → 400 |
 
@@ -810,9 +809,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/providers/__tests__/WagmiProvider.test.tsx`
-**Qué prueba:** el componente `Providers` de `app/providers/WagmiProvider.tsx`, que envuelve la app con wagmi, RainbowKit y TanStack Query para soporte de wallet onchain.
+**Qué prueba:** el componente `Providers` de `app/providers/WagmiProvider.tsx`, que envuelve la app con wagmi y TanStack Query para soporte de wallet onchain.
 
-> `wagmi`, `wagmi/chains`, `@rainbow-me/rainbowkit`, `@rainbow-me/rainbowkit/styles.css` y `@tanstack/react-query` se mockean completamente; son librerías browser-only que requieren wallet real y no funcionan en happy-dom sin mock.
+> `wagmi`, `wagmi/chains` y `@tanstack/react-query` se mockean completamente; son librerías browser-only que requieren wallet real y no funcionan en happy-dom sin mock.
 
 | Test | Descripción |
 |---|---|
@@ -824,7 +823,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/components/__tests__/ClaimButton.test.tsx`
 **Qué prueba:** el componente `ClaimButton` de `app/components/ClaimButton.tsx`, que gestiona el ciclo de vida del claim de recompensa onchain por moneda.
 
-> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `@rainbow-me/rainbowkit` (`useConnectModal`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
+> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`, `useConnect`) y `wagmi/connectors` (`injected`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
 
 | Test | Descripción |
 |---|---|
@@ -838,7 +837,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | shows Reclamar Token when approved but expired | `expiresAt` pasado → trata el claim como eligible |
 | click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
 | shows Conectar Wallet button when status=eligible and no wallet | Sin wallet conectada el botón muestra "Conectar Wallet" |
-| click sin wallet llama openConnectModal y no hace fetch | Click sin wallet abre el modal de RainbowKit y no llama a fetch |
+| click sin wallet llama connect y no hace fetch | Click sin wallet llama a `connect({ connector: injected() })` y no llama a fetch |
 
 ---
 

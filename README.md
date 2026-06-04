@@ -130,7 +130,7 @@ app/
       ImageCropEditor.test.tsx    # 11 tests: zoom, crop vía canvas, cancelar/confirmar
       ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
   providers/
-    WagmiProvider.tsx         # wagmi (Base Sepolia) + RainbowKit + TanStack Query
+    WagmiProvider.tsx         # wagmi (Base Sepolia) + TanStack Query
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     countries.ts              # Lista de países para formularios

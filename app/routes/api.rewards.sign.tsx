@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/cloudflare";
 import { json } from "@remix-run/cloudflare";
 import { createAuth } from "~/lib/auth.server";
-import { signClaim, isCoinClaimedOnchain } from "~/lib/rewards.server";
+import { signClaim } from "~/lib/rewards.server";
 
 export async function loader() {
   return json({ error: "Method not allowed" }, { status: 405 });
@@ -32,8 +32,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (claim.wallet_address !== walletAddress.toLowerCase()) return json({ error: "Wallet no coincide" }, { status: 403 });
 
   const coinIdHash = claim.coin_id_hash as `0x${string}`;
-  const claimed = await isCoinClaimedOnchain(coinIdHash);
-  if (claimed) return json({ error: "Esta moneda ya fue reclamada onchain" }, { status: 409 });
 
   const signature = await signClaim(walletAddress as `0x${string}`, coinIdHash, context.cloudflare.env);
 

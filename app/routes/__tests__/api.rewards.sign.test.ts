@@ -4,7 +4,6 @@ import type { Env } from "~/types/env";
 vi.mock("~/lib/auth.server");
 vi.mock("~/lib/rewards.server", () => ({
   signClaim: vi.fn().mockResolvedValue("0xsignature" as `0x${string}`),
-  isCoinClaimedOnchain: vi.fn().mockResolvedValue(false),
 }));
 
 import * as rewardsModule from "~/lib/rewards.server";
@@ -103,23 +102,11 @@ describe("api.rewards.sign action", () => {
     expect(res.status).toBe(403);
   });
 
-  it("returns 409 when already claimed onchain", async () => {
-    vi.mocked(authModule.createAuth).mockReturnValue({
-      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
-      sessionStorage: {} as any,
-    });
-    vi.mocked(rewardsModule.isCoinClaimedOnchain).mockResolvedValue(true);
-    const { db } = makeDb(mockClaim);
-    const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
-    expect(res.status).toBe(409);
-  });
-
   it("returns 200 with signature on happy path", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
       sessionStorage: {} as any,
     });
-    vi.mocked(rewardsModule.isCoinClaimedOnchain).mockResolvedValue(false);
     vi.mocked(rewardsModule.signClaim).mockResolvedValue("0xsignature" as `0x${string}`);
     const { db } = makeDb(mockClaim);
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
