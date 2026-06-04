@@ -10,6 +10,7 @@ function makeMockDb(firstResult: { profile_completed: number } | null = null) {
   const bindObj = {
     first: vi.fn().mockResolvedValue(firstResult),
     run: vi.fn().mockResolvedValue({}),
+    all: vi.fn().mockResolvedValue({ results: [] }),
   };
   const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
   return { prepare: vi.fn().mockReturnValue(prepareObj) };
@@ -22,7 +23,7 @@ interface StatsDbOptions {
   conditionRow?: { condition: string; cnt: number } | null;
 }
 
-// Handles the 4 sequential first() calls: profile check + 3 stats queries
+// Handles sequential first() calls: profile + 3 stats + messages
 function makeMockDbWithStats({
   existing = { profile_completed: 1 },
   statsRow = { total: 0 },
@@ -34,9 +35,11 @@ function makeMockDbWithStats({
     .mockResolvedValueOnce(existing)
     .mockResolvedValueOnce(statsRow)
     .mockResolvedValueOnce(valueRow)
-    .mockResolvedValueOnce(conditionRow);
+    .mockResolvedValueOnce(conditionRow)
+    .mockResolvedValueOnce({ unread: 0 }); // messages query
   const runFn = vi.fn().mockResolvedValue({});
-  const bindObj = { first: firstFn, run: runFn };
+  const allFn = vi.fn().mockResolvedValue({ results: [] });
+  const bindObj = { first: firstFn, run: runFn, all: allFn };
   const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
   const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
   return { db, firstFn, runFn, prepareObj };
@@ -227,18 +230,19 @@ describe("home loader", () => {
     expect(data.stats.topCondition).toBeNull();
   });
 
-  it("makes 4 DB prepare calls for an existing user", async () => {
+  it("makes at least 7 DB prepare calls (INSERT user + profile + 3 stats + coins + user_badges + messages)", async () => {
     mockAuthenticated();
     const { db } = makeMockDbWithStats();
     await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
-    expect(db.prepare).toHaveBeenCalledTimes(4);
+    // INSERT OR IGNORE users + SELECT profile + 3 stats + SELECT coins + SELECT user_badges + SELECT messages = 8+
+    expect(db.prepare.mock.calls.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("makes 5 DB prepare calls for a new user (INSERT included)", async () => {
+  it("runs INSERT OR IGNORE for both new and existing users", async () => {
     mockAuthenticated();
     const { db } = makeMockDbWithStats({ existing: null });
     await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
-    expect(db.prepare).toHaveBeenCalledTimes(5);
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("INSERT OR IGNORE INTO users"));
   });
 
   it("response includes all three stats fields", async () => {

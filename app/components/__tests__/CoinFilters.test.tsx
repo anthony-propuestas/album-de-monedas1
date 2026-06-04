@@ -7,6 +7,23 @@ vi.mock("@remix-run/react", () => ({
   useSearchParams: vi.fn(),
 }));
 
+vi.mock("~/components/ui/CustomSelect", () => ({
+  CustomSelect: ({ value, onChange, options, placeholder, name, required, className }: any) => (
+    <select
+      name={name}
+      value={value}
+      required={required}
+      className={className}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt: any) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  ),
+}));
+
 const defaultFilters = { q: "", country: "", year: "", condition: "" };
 
 describe("CoinFilters", () => {

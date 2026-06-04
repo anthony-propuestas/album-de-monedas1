@@ -44,9 +44,9 @@ describe("MONEDAS_ARGENTINA data", () => {
     ).toBe(true);
   });
 
-  it("all years are within reasonable range (2000–2030)", () => {
+  it("all years are within reasonable range (1800–2030)", () => {
     for (const coin of MONEDAS_ARGENTINA) {
-      expect(coin.anio).toBeGreaterThanOrEqual(2000);
+      expect(coin.anio).toBeGreaterThanOrEqual(1800);
       expect(coin.anio).toBeLessThanOrEqual(2030);
     }
   });
@@ -84,21 +84,23 @@ describe("MONEDAS_ARGENTINA data", () => {
       .filter((c) => c.nombre === "Un Peso — Jacarandá")
       .map((c) => c.anio)
       .sort((a, b) => a - b);
-    expect(years[0]).toBe(2018);
+    expect(years[0]).toBe(2017);
     expect(years).toEqual([...years].sort((a, b) => a - b));
   });
 
   it("find returns the exact coin for a given nombre + anio", () => {
     const coin = MONEDAS_ARGENTINA.find(
-      (c) => c.nombre === "Un Peso — Jacarandá" && c.anio === 2021
+      (c) => c.nombre === "Un Peso — Jacarandá" && c.anio === 2020
     );
     expect(coin).toBeDefined();
     expect(coin?.casa_acunacion).toBe("Casa de Moneda de la Argentina");
     expect(coin?.denominacion).toBe("1 Peso");
   });
 
-  it("no duplicate (nombre + anio) pairs", () => {
-    const keys = MONEDAS_ARGENTINA.map((c) => `${c.nombre}__${c.anio}`);
+  it("no duplicate (denominacion + nombre + anio + serie + material) entries", () => {
+    const keys = MONEDAS_ARGENTINA.map(
+      (c) => `${c.denominacion}__${c.nombre}__${c.anio}__${c.serie ?? ""}__${c.material ?? ""}`
+    );
     expect(new Set(keys).size).toBe(keys.length);
   });
 });

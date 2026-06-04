@@ -17,6 +17,7 @@ export interface Coin {
   created_at: number;
   for_sale: number;
   asking_price: number | null;
+  registry_match?: number;
 }
 
 export function CoinCard({ coin, onClick }: { coin: Coin; onClick?: () => void }) {

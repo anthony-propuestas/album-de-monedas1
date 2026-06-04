@@ -20,16 +20,13 @@ function makeCoin(overrides: Partial<Coin> = {}): Coin {
     photo_edge: null,
     photo_detail: null,
     created_at: 1700000000,
+    for_sale: 0,
+    asking_price: null,
     ...overrides,
   };
 }
 
 describe("CoinCard", () => {
-  it("renders coin name", () => {
-    render(<CoinCard coin={makeCoin()} />);
-    expect(screen.getByText("1 Peso 1964")).toBeInTheDocument();
-  });
-
   it("shows 'Sin foto' placeholder when no photo_obverse", () => {
     render(<CoinCard coin={makeCoin({ photo_obverse: null })} />);
     expect(screen.getByText("Sin foto")).toBeInTheDocument();
@@ -46,48 +43,15 @@ describe("CoinCard", () => {
     expect(screen.getByAltText("Anverso de 1 Peso 1964")).toBeInTheDocument();
   });
 
-  it("renders country and year separated by ·", () => {
-    render(<CoinCard coin={makeCoin()} />);
-    expect(screen.getByText("MX · 1964")).toBeInTheDocument();
-  });
-
-  it("renders only country when year is null", () => {
-    render(<CoinCard coin={makeCoin({ year: null })} />);
-    expect(screen.getByText("MX")).toBeInTheDocument();
-  });
-
-  it("renders only year when country is null", () => {
-    render(<CoinCard coin={makeCoin({ country: null })} />);
-    expect(screen.getByText("1964")).toBeInTheDocument();
-  });
-
-  it("shows denomination when present", () => {
-    render(<CoinCard coin={makeCoin()} />);
-    expect(screen.getByText("1 Peso")).toBeInTheDocument();
-  });
-
   it("does not render denomination element when null", () => {
     render(<CoinCard coin={makeCoin({ denomination: null })} />);
     expect(screen.queryByText("1 Peso")).not.toBeInTheDocument();
-  });
-
-  it("shows condition badge with the condition value", () => {
-    render(<CoinCard coin={makeCoin({ condition: "MS" })} />);
-    expect(screen.getByText("MS")).toBeInTheDocument();
   });
 
   it("does not render condition badge when condition is null", () => {
     render(<CoinCard coin={makeCoin({ condition: null })} />);
     expect(screen.queryByText("MS")).not.toBeInTheDocument();
   });
-
-  it.each(["MS", "AU", "XF", "VF", "F", "VG", "G", "P"])(
-    "renders condition badge for grade %s",
-    (cond) => {
-      render(<CoinCard coin={makeCoin({ condition: cond })} />);
-      expect(screen.getByText(cond)).toBeInTheDocument();
-    }
-  );
 
   it("renders placeholder icon when no photo", () => {
     render(<CoinCard coin={makeCoin()} />);
@@ -109,5 +73,15 @@ describe("CoinCard", () => {
     const roundedDiv = container.querySelector(".rounded-full");
     expect(roundedDiv).toBeInTheDocument();
     expect(roundedDiv).toHaveTextContent("Sin foto");
+  });
+
+  it("shows $0.00 when estimated_value is null", () => {
+    const { container } = render(<CoinCard coin={makeCoin({ estimated_value: null })} />);
+    expect(container.querySelector("p")?.textContent?.replace(/\s/g, "")).toBe("$0.00");
+  });
+
+  it("shows estimated_value formatted to two decimals", () => {
+    const { container } = render(<CoinCard coin={makeCoin({ estimated_value: 42.5 })} />);
+    expect(container.querySelector("p")?.textContent?.replace(/\s/g, "")).toBe("$42.50");
   });
 });

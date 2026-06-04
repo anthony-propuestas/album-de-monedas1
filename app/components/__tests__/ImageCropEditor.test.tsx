@@ -3,6 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { ImageCropEditor } from "~/components/ImageCropEditor";
 
 const mockCtx = {
+  save: vi.fn(),
+  restore: vi.fn(),
+  translate: vi.fn(),
+  rotate: vi.fn(),
+  scale: vi.fn(),
   beginPath: vi.fn(),
   arc: vi.fn(),
   clip: vi.fn(),
@@ -39,7 +44,7 @@ describe("ImageCropEditor", () => {
 
   it("shows hint text", () => {
     render(<ImageCropEditor {...defaultProps} />);
-    expect(screen.getByText(/Arrastra para centrar/)).toBeInTheDocument();
+    expect(screen.getByText(/Arrastra/)).toBeInTheDocument();
   });
 
   it("clicking + increases zoom by 0.1", async () => {

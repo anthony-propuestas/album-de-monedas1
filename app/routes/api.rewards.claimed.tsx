@@ -1,0 +1,24 @@
+import type { ActionFunctionArgs } from "@remix-run/cloudflare";
+import { json } from "@remix-run/cloudflare";
+import { createAuth } from "~/lib/auth.server";
+
+export async function action({ request, context }: ActionFunctionArgs) {
+  const { authenticator } = createAuth(context.cloudflare.env);
+  const user = await authenticator.isAuthenticated(request);
+  if (!user) return json({ error: "No autenticado" }, { status: 401 });
+
+  const { coinId, txHash } = await request.json<{ coinId: string; txHash: string }>();
+  if (!coinId || !txHash) return json({ error: "Parámetros requeridos." }, { status: 400 });
+
+  const db = context.cloudflare.env.DB;
+  const now = Math.floor(Date.now() / 1000);
+
+  await db
+    .prepare(
+      "UPDATE claim_requests SET status = 'claimed', tx_hash = ?, claimed_at = ? WHERE coin_id = ? AND user_id = ? AND status = 'approved'"
+    )
+    .bind(txHash, now, coinId, user.id)
+    .run();
+
+  return json({ ok: true });
+}

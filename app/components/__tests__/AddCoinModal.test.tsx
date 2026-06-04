@@ -1,12 +1,28 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useNavigation } from "@remix-run/react";
+import { useFetcher } from "@remix-run/react";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { COINS_BY_COUNTRY } from "~/lib/coins/index";
 
 vi.mock("@remix-run/react", () => ({
-  useNavigation: vi.fn(),
-  Form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
+  useFetcher: vi.fn(),
+}));
+
+vi.mock("~/components/ui/CustomSelect", () => ({
+  CustomSelect: ({ value, onChange, options, placeholder, name, required, className }: any) => (
+    <select
+      name={name}
+      value={value}
+      required={required}
+      className={className}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt: any) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  ),
 }));
 
 vi.mock("~/components/ImageCropEditor", () => ({
@@ -26,8 +42,17 @@ vi.mock("~/components/ImageCropEditor", () => ({
 const makeFile = (name = "coin.jpg") =>
   new File(["x"], name, { type: "image/jpeg" });
 
+function makeFetcher(state = "idle", data?: any) {
+  return {
+    state,
+    data,
+    Form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
+    submit: vi.fn(),
+  };
+}
+
 beforeEach(() => {
-  vi.mocked(useNavigation).mockReturnValue({ state: "idle" } as any);
+  vi.mocked(useFetcher).mockReturnValue(makeFetcher() as any);
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   (global as any).DataTransfer = class {
@@ -121,13 +146,13 @@ describe("AddCoinModal", () => {
   });
 
   it("shows 'Guardando...' while submitting", () => {
-    vi.mocked(useNavigation).mockReturnValue({ state: "submitting" } as any);
+    vi.mocked(useFetcher).mockReturnValue(makeFetcher("submitting") as any);
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: /guardando/i })).toBeInTheDocument();
   });
 
   it("submit button is disabled while submitting", () => {
-    vi.mocked(useNavigation).mockReturnValue({ state: "submitting" } as any);
+    vi.mocked(useFetcher).mockReturnValue(makeFetcher("submitting") as any);
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: /guardando/i })).toBeDisabled();
   });
@@ -135,7 +160,6 @@ describe("AddCoinModal", () => {
   it("calls onClose when clicking the X button", async () => {
     const onClose = vi.fn();
     render(<AddCoinModal isOpen onClose={onClose} />);
-    // The X button is the one inside the header (not Cancelar)
     const buttons = screen.getAllByRole("button");
     const xButton = buttons.find((b) => b.querySelector("svg line"));
     await userEvent.click(xButton!);
@@ -208,53 +232,22 @@ describe("AddCoinModal — cascade dropdowns", () => {
     expect(nameInput).toBeInTheDocument();
   });
 
-  it("selecting a denomination converts name to a select", () => {
-    render(<AddCoinModal isOpen onClose={vi.fn()} />);
-    fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
-
-    const denSelect = document.querySelector("select[name='denomination']") as HTMLSelectElement;
-    fireEvent.change(denSelect, { target: { value: "1 Peso" } });
-
-    const nameSelect = document.querySelector("select[name='name']");
-    expect(nameSelect).toBeInTheDocument();
-    expect(nameSelect?.tagName).toBe("SELECT");
-  });
-
-  it("name select options match coins of the selected denomination", () => {
+  it("selecting a denomination converts year to a select", () => {
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
-
-    const expectedNames = [...new Set(arCoins.filter((c) => c.denominacion === "1 Peso").map((c) => c.nombre))];
-    const nameSelect = document.querySelector("select[name='name']") as HTMLSelectElement;
-    const optionValues = Array.from(nameSelect.options).map((o) => o.value).filter((v) => v !== "");
-
-    for (const name of expectedNames) {
-      expect(optionValues).toContain(name);
-    }
-  });
-
-  it("selecting a name converts year to a select", () => {
-    render(<AddCoinModal isOpen onClose={vi.fn()} />);
-    fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
-    fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
-    fireEvent.change(document.querySelector("select[name='name']")!, { target: { value: "Un Peso — Jacarandá" } });
 
     const yearSelect = document.querySelector("select[name='year']");
     expect(yearSelect).toBeInTheDocument();
     expect(yearSelect?.tagName).toBe("SELECT");
   });
 
-  it("year select options match the years for the selected coin name", () => {
+  it("year select options match years of the selected denomination", () => {
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
-    fireEvent.change(document.querySelector("select[name='name']")!, { target: { value: "Un Peso — Jacarandá" } });
 
-    const expectedYears = arCoins
-      .filter((c) => c.nombre === "Un Peso — Jacarandá")
-      .map((c) => String(c.anio));
-
+    const expectedYears = [...new Set(arCoins.filter((c) => c.denominacion === "1 Peso").map((c) => String(c.anio)))];
     const yearSelect = document.querySelector("select[name='year']") as HTMLSelectElement;
     const optionValues = Array.from(yearSelect.options).map((o) => o.value).filter((v) => v !== "");
 
@@ -263,12 +256,40 @@ describe("AddCoinModal — cascade dropdowns", () => {
     }
   });
 
+  it("selecting a year converts name to a select", () => {
+    render(<AddCoinModal isOpen onClose={vi.fn()} />);
+    fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
+    fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
+    fireEvent.change(document.querySelector("select[name='year']")!, { target: { value: "2020" } });
+
+    const nameSelect = document.querySelector("select[name='name']");
+    expect(nameSelect).toBeInTheDocument();
+    expect(nameSelect?.tagName).toBe("SELECT");
+  });
+
+  it("name select options match names for selected denomination and year", () => {
+    render(<AddCoinModal isOpen onClose={vi.fn()} />);
+    fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
+    fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
+    fireEvent.change(document.querySelector("select[name='year']")!, { target: { value: "2020" } });
+
+    const expectedNames = [...new Set(arCoins
+      .filter((c) => c.denominacion === "1 Peso" && c.anio === 2020)
+      .map((c) => c.nombre))];
+    const nameSelect = document.querySelector("select[name='name']") as HTMLSelectElement;
+    const optionValues = Array.from(nameSelect.options).map((o) => o.value).filter((v) => v !== "");
+
+    for (const name of expectedNames) {
+      expect(optionValues).toContain(name);
+    }
+  });
+
   it("mint auto-fills and is read-only after selecting a complete chain", () => {
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
+    fireEvent.change(document.querySelector("select[name='year']")!, { target: { value: "2020" } });
     fireEvent.change(document.querySelector("select[name='name']")!, { target: { value: "Un Peso — Jacarandá" } });
-    fireEvent.change(document.querySelector("select[name='year']")!, { target: { value: "2021" } });
 
     const mintInput = document.querySelector("input[name='mint']") as HTMLInputElement;
     expect(mintInput.value).toBe("Casa de Moneda de la Argentina");
@@ -286,12 +307,10 @@ describe("AddCoinModal — cascade dropdowns", () => {
 
   it("changing country resets denomination, name and year to free inputs", () => {
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
-    // Build up a full chain for AR
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
-    fireEvent.change(document.querySelector("select[name='name']")!, { target: { value: "Un Peso — Jacarandá" } });
 
-    // Now switch to a country with no coin data
+    // Switch to a country with no coin data
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "BR" } });
 
     expect(document.querySelector("input[name='denomination']")).toBeInTheDocument();
@@ -299,17 +318,19 @@ describe("AddCoinModal — cascade dropdowns", () => {
     expect(document.querySelector("input[name='year']")).toBeInTheDocument();
   });
 
-  it("changing denomination resets name and year", () => {
+  it("changing denomination resets year value and name to free input", () => {
     render(<AddCoinModal isOpen onClose={vi.fn()} />);
     fireEvent.change(document.querySelector("select[name='country']") as HTMLSelectElement, { target: { value: "AR" } });
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "1 Peso" } });
-    fireEvent.change(document.querySelector("select[name='name']")!, { target: { value: "Un Peso — Jacarandá" } });
+    fireEvent.change(document.querySelector("select[name='year']")!, { target: { value: "2020" } });
 
-    // Change denomination — name and year should reset
+    // Change denomination — year value resets, name goes back to free input
     fireEvent.change(document.querySelector("select[name='denomination']")!, { target: { value: "2 Pesos" } });
 
-    const nameSelect = document.querySelector("select[name='name']") as HTMLSelectElement;
-    expect(nameSelect.value).toBe("");
-    expect(document.querySelector("select[name='year']")).not.toBeInTheDocument();
+    const yearSelect = document.querySelector("select[name='year']") as HTMLSelectElement;
+    expect(yearSelect).toBeInTheDocument();
+    expect(yearSelect.value).toBe("");
+    expect(document.querySelector("input[name='name']")).toBeInTheDocument();
+    expect(document.querySelector("select[name='name']")).not.toBeInTheDocument();
   });
 });

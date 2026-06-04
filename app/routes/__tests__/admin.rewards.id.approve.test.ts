@@ -1,0 +1,107 @@
+import * as authModule from "~/lib/auth.server";
+import type { Env } from "~/types/env";
+
+vi.mock("~/lib/auth.server");
+
+const { action } = await import("~/routes/admin.rewards.$id.approve");
+
+const ADMIN_EMAIL = "admin@example.com";
+const mockAdmin = { id: "admin-1", email: ADMIN_EMAIL, name: "Admin", picture: "" };
+const mockNonAdmin = { id: "user-1", email: "user@example.com", name: "User", picture: "" };
+
+function makeDb() {
+  const run = vi.fn().mockResolvedValue({});
+  const bind = vi.fn().mockReturnValue({ run });
+  const prepare = vi.fn().mockReturnValue({ bind });
+  return { db: { prepare }, run };
+}
+
+const mockEnv: Env = {
+  GOOGLE_CLIENT_ID: "x",
+  GOOGLE_CLIENT_SECRET: "x",
+  SESSION_SECRET: "x",
+  ADMIN_EMAIL,
+  DB: {} as unknown as D1Database,
+};
+
+function makeContext(db: ReturnType<typeof makeDb>["db"]) {
+  return {
+    cloudflare: {
+      env: { ...mockEnv, DB: db as unknown as D1Database },
+      ctx: { waitUntil: vi.fn(), passThroughOnException: vi.fn() },
+      cf: {},
+      caches: {} as CacheStorage,
+    },
+  };
+}
+
+function makeRequest() {
+  return new Request("https://example.com/admin/rewards/claim-1/approve", { method: "POST" });
+}
+
+describe("admin.rewards.$id.approve action", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("throws redirect to / when unauthenticated", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(null) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeDb();
+    let thrown: unknown;
+    try {
+      await action({ request: makeRequest(), context: makeContext(db) as any, params: { id: "claim-1" } });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(302);
+    expect((thrown as Response).headers.get("Location")).toBe("/");
+  });
+
+  it("throws redirect to / when user is not admin", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockNonAdmin) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeDb();
+    let thrown: unknown;
+    try {
+      await action({ request: makeRequest(), context: makeContext(db) as any, params: { id: "claim-1" } });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).headers.get("Location")).toBe("/");
+  });
+
+  it("runs UPDATE and redirects to /admin/rewards for admin", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockAdmin) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db, run } = makeDb();
+    let thrown: unknown;
+    try {
+      await action({ request: makeRequest(), context: makeContext(db) as any, params: { id: "claim-1" } });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(run).toHaveBeenCalledOnce();
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).headers.get("Location")).toBe("/admin/rewards");
+  });
+
+  it("passes claim id to the UPDATE query", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockAdmin) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db, db: { prepare } } = makeDb();
+    try {
+      await action({ request: makeRequest(), context: makeContext(db) as any, params: { id: "my-claim-id" } });
+    } catch {}
+    const bindCalls = (prepare as ReturnType<typeof vi.fn>).mock.results[0].value.bind.mock.calls[0];
+    expect(bindCalls).toContain("my-claim-id");
+  });
+});

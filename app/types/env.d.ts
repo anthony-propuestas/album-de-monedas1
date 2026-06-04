@@ -5,6 +5,7 @@ export interface Env {
   ADMIN_EMAIL: string;
   TURNSTILE_SECRET_KEY?: string;
   TURNSTILE_SITE_KEY?: string;
+  BACKEND_SIGNER_KEY?: string;
   DB: D1Database;
   IMAGES?: R2Bucket;
 }

@@ -68,6 +68,7 @@ Migraciones en `migrations/` — se aplican con `wrangler d1 migrations apply`.
 | `photo_detail` | TEXT | Clave R2 de foto detalle |
 | `for_sale` | INTEGER DEFAULT 0 | 1 = en venta en marketplace |
 | `asking_price` | REAL | Precio pedido (USD) |
+| `registry_match` | INTEGER DEFAULT 0 | 1 = moneda verificada contra catálogo oficial (habilita claim onchain) |
 | `created_at` | INTEGER | Unix timestamp |
 
 Índices: `idx_coins_user(user_id)`, `idx_coins_country(user_id, country)`, `idx_coins_year(user_id, year)`
@@ -110,13 +111,38 @@ Tabla mínima; usada por `/news` y `/news/:id`.
 
 Índices: `idx_messages_seller(seller_id, created_at DESC)`, `idx_messages_buyer(buyer_id)`.
 
+#### `claim_requests` — `migrations/0007_create_claim_requests.sql`
+
+Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita → admin aprueba → el usuario obtiene firma EIP-712 → reclama en el contrato `RewardClaimer` en Base Sepolia.
+
+| Columna | Tipo | Notas |
+|---------|------|-------|
+| `id` | TEXT PK | UUID v4 |
+| `user_id` | TEXT NOT NULL | FK → `users.id` |
+| `coin_id` | TEXT NOT NULL | FK → `coins.id` |
+| `coin_registry_key` | TEXT NOT NULL | `country\|denomination\|name\|year` — clave del catálogo |
+| `coin_id_hash` | TEXT NOT NULL | keccak256 del registry_key (bytes32 hex) — usado en el contrato |
+| `wallet_address` | TEXT NOT NULL | Wallet EVM del usuario (lowercase) |
+| `status` | TEXT NOT NULL | `pending` / `approved` / `rejected` / `claimed` / `expired` |
+| `reviewed_at` | INTEGER | Unix timestamp de revisión admin (nullable) |
+| `approved_at` | INTEGER | Unix timestamp de aprobación (nullable) |
+| `expires_at` | INTEGER | Unix timestamp de expiración de firma — 7 días desde aprobación (nullable) |
+| `reject_reason` | TEXT | Motivo del rechazo visible al usuario (nullable) |
+| `created_at` | INTEGER | Unix timestamp de creación |
+| `claimed_at` | INTEGER | Unix timestamp de cuando el usuario confirmó la TX (nullable) |
+| `tx_hash` | TEXT | Hash de la TX onchain de claim (nullable) |
+
+Constraint UNIQUE: `(coin_id, status)` para `pending` y `approved` — evita solicitudes duplicadas activas.
+
 ### Relaciones
 
 ```
-users (1) ──< coins (N)        via coins.user_id
-users (1) ──< user_badges (N)  via user_badges.user_id
-users (1) ──< messages (N)     via messages.seller_id o buyer_id
-coins (1) ──< messages (N)     via messages.coin_id
+users (1) ──< coins (N)           via coins.user_id
+users (1) ──< user_badges (N)     via user_badges.user_id
+users (1) ──< messages (N)        via messages.seller_id o buyer_id
+users (1) ──< claim_requests (N)  via claim_requests.user_id
+coins (1) ──< messages (N)        via messages.coin_id
+coins (1) ──< claim_requests (N)  via claim_requests.coin_id
 ```
 
 ### Patrón de acceso
@@ -309,6 +335,7 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 | `ADMIN_EMAIL` | string | Email con acceso a `/admin` |
 | `TURNSTILE_SECRET_KEY` | string? | Clave server de Cloudflare Turnstile (opcional) |
 | `TURNSTILE_SITE_KEY` | string? | Clave client de Cloudflare Turnstile (opcional) |
+| `BACKEND_SIGNER_KEY` | string? | Clave privada EVM (0x…) del firmante backend — genera firmas EIP-712 para claims onchain (secret en Cloudflare) |
 
 ---
 
@@ -323,8 +350,9 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 | Badges | Implementado | 6 badges calculados dinámicamente |
 | Marketplace (listado) | Implementado | `for_sale`, `asking_price`, UI en `markets.tsx` |
 | Mensajes (tabla) | Implementado | Tabla `messages` creada y con índices |
+| Rewards onchain (backend) | Implementado | Tabla `claim_requests`, endpoints `/api/rewards/*`, `/admin/rewards/*`, firma EIP-712 vía `viem` |
+| Rate limiting (D1) | Implementado | `checkRateLimit` en `app/lib/rateLimit.server.ts` — ventana por usuario+acción en tabla `rate_limits` |
 | Mensajes (Durable Objects) | Pendiente | Chat en tiempo real no implementado |
 | Cloudflare Images | Pendiente | Transformaciones/resizing — usar R2 directo por ahora |
 | KV | Pendiente | No usado |
 | WAF | Pendiente | Activar en dashboard Cloudflare |
-| Rate limiting | Pendiente | Sin límite a nivel app — depende de Cloudflare network |

@@ -195,4 +195,37 @@ describe("mycollection loader", () => {
 
     expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("ORDER BY created_at DESC"));
   });
+
+  it("returns claimStatuses as empty object when no claims", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+
+    const { db } = makeMockDb([]);
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+
+    expect(data.claimStatuses).toEqual({});
+  });
+
+  it("maps latest claim per coin_id into claimStatuses", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+
+    const claimRow = { coin_id: "coin-99", status: "pending", reject_reason: null, expires_at: null, coin_id_hash: "0xhash" };
+    // El loader hace 3 .all(): coins, allCoins, claim_requests. Necesitamos que la tercera devuelva el claim.
+    const all = vi.fn()
+      .mockResolvedValueOnce({ results: [] })   // coins
+      .mockResolvedValueOnce({ results: [] })   // allCoins
+      .mockResolvedValueOnce({ results: [claimRow] }); // claim_requests
+    const db = { prepare: vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all }) }) };
+
+    const result = await loader({ request: makeRequest(), context: makeContext(db as any) as any, params: {} });
+    const data = await result.json();
+
+    expect(data.claimStatuses["coin-99"]).toMatchObject({ status: "pending" });
+  });
 });

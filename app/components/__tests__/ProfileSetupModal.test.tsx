@@ -5,6 +5,23 @@ import { ProfileSetupModal } from "~/components/ProfileSetupModal";
 
 vi.mock("@remix-run/react", () => ({ useFetcher: vi.fn() }));
 
+vi.mock("~/components/ui/CustomSelect", () => ({
+  CustomSelect: ({ value, onChange, options, placeholder, name, required, className }: any) => (
+    <select
+      name={name}
+      value={value}
+      required={required}
+      className={className}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt: any) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  ),
+}));
+
 function makeFetcher(state = "idle", data?: { success?: boolean; error?: string }) {
   return {
     state,

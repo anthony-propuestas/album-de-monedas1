@@ -2,13 +2,17 @@ import * as authModule from "~/lib/auth.server";
 import type { Env } from "~/types/env";
 
 vi.mock("~/lib/auth.server");
+vi.mock("~/lib/rateLimit.server", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
+}));
 
 const { action } = await import("~/routes/mycollection");
 
 function makeMockDb() {
   const bindObj = {
     run: vi.fn().mockResolvedValue({}),
-    first: vi.fn().mockResolvedValue({ count: 0 }),
+    first: vi.fn().mockResolvedValue(null),
+    all: vi.fn().mockResolvedValue({ results: [] }),
   };
   const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
   const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
@@ -60,7 +64,7 @@ const mockUser = {
 };
 
 describe("mycollection action", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it("throws redirect to '/' when unauthenticated", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
@@ -93,7 +97,7 @@ describe("mycollection action", () => {
 
     const { db } = makeMockDb();
     const result = await action({
-      request: makeRequest({ intent: "delete_coin" }),
+      request: makeRequest({ intent: "unknown_xyz" }),
       context: makeContext(db) as any,
       params: {},
     });
@@ -154,7 +158,8 @@ describe("mycollection action", () => {
     });
 
     const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
-    expect(bindArgs.slice(-4)).toEqual([null, null, null, null]);
+    // last 5 are [photo_obverse, photo_reverse, photo_edge, photo_detail, registry_match]
+    expect(bindArgs.slice(-5, -1)).toEqual([null, null, null, null]);
   });
 
   it("uploads photo_obverse to R2 and stores its key in DB", async () => {
@@ -181,7 +186,8 @@ describe("mycollection action", () => {
       { httpMetadata: { contentType: "image/jpeg" } }
     );
     const bindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
-    const photoObverse = bindArgs[bindArgs.length - 4] as string;
+    // bind order: ..., photo_obverse, photo_reverse, photo_edge, photo_detail, registry_match
+    const photoObverse = bindArgs[bindArgs.length - 5] as string;
     expect(photoObverse).not.toBeNull();
     expect(photoObverse).toContain(mockUser.id);
     expect(photoObverse).toContain("photo_obverse");

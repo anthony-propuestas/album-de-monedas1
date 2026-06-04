@@ -11,6 +11,7 @@ import { CoinCard } from "~/components/CoinCard";
 import { CoinDetailModal } from "~/components/CoinDetailModal";
 import { DeleteConfirmModal } from "~/components/DeleteConfirmModal";
 import { CoinFilters } from "~/components/CoinFilters";
+import { ClaimButton } from "~/components/ClaimButton";
 import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
 import { createAuth } from "~/lib/auth.server";
@@ -87,7 +88,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       );
     }
 
-    return json({ user, coins, filters: { q, country, year, condition }, seriesProgressByCountry, allCoins });
+    const { results: claimRows } = await db
+      .prepare(
+        "SELECT coin_id, status, reject_reason, expires_at, coin_id_hash FROM claim_requests WHERE user_id = ? ORDER BY created_at DESC"
+      )
+      .bind(user.id)
+      .all<{ coin_id: string; status: string; reject_reason: string | null; expires_at: number | null; coin_id_hash: string }>();
+
+    const claimStatuses: Record<string, typeof claimRows[number]> = {};
+    for (const row of claimRows) {
+      if (!claimStatuses[row.coin_id]) claimStatuses[row.coin_id] = row;
+    }
+
+    return json({ user, coins, filters: { q, country, year, condition }, seriesProgressByCountry, allCoins, claimStatuses });
   } catch (e) {
     throw new Response("Error al cargar la colección", { status: 500 });
   }
@@ -202,6 +215,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   const coinsForCountry = country ? COINS_BY_COUNTRY[country] : null;
+  const registryMatch = coinsForCountry != null && year != null && coinsForCountry.some(
+    (e) => e.denominacion === denomination && e.nombre === name && e.anio === year
+  );
   if (coinsForCountry) {
     const validDenominations = [...new Set(coinsForCountry.map(c => c.denominacion))];
     if (denomination && !validDenominations.includes(denomination)) {
@@ -282,13 +298,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
         `INSERT INTO coins
           (id, user_id, name, country, year, denomination, condition, mint,
            catalog_ref, estimated_value, notes,
-           photo_obverse, photo_reverse, photo_edge, photo_detail)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           photo_obverse, photo_reverse, photo_edge, photo_detail, registry_match)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         coinId, user.id, name, country, year, denomination, condition, mint,
         catalogRef, estimatedValue, notes,
-        photoObverse, photoReverse, photoEdge, photoDetail
+        photoObverse, photoReverse, photoEdge, photoDetail, registryMatch ? 1 : 0
       )
       .run();
   } catch (e) {
@@ -403,7 +419,7 @@ function DeleteCoinButton({ coinId, coinName }: { coinId: string; coinName: stri
 }
 
 export default function MyCollection() {
-  const { user, coins, filters, seriesProgressByCountry, allCoins } = useLoaderData<typeof loader>();
+  const { user, coins, filters, seriesProgressByCountry, allCoins, claimStatuses } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
@@ -490,6 +506,14 @@ export default function MyCollection() {
                 <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />
                 <SellCoinControl coin={coin} />
                 <DeleteCoinButton coinId={coin.id} coinName={coin.name} />
+                <ClaimButton
+                  coinId={coin.id}
+                  registryMatch={coin.registry_match}
+                  initialStatus={(claimStatuses[coin.id]?.status ?? "eligible") as "eligible" | "pending" | "approved" | "rejected" | "claimed"}
+                  initialExpiresAt={claimStatuses[coin.id]?.expires_at}
+                  initialCoinIdHash={claimStatuses[coin.id]?.coin_id_hash}
+                  initialRejectReason={claimStatuses[coin.id]?.reject_reason}
+                />
               </div>
             ))}
           </div>

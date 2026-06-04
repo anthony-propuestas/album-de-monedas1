@@ -6,19 +6,19 @@ Objetivo: los usuarios que suben monedas verificadas reciben **1 AC (Album Coin)
 
 | Componente | Estado |
 |------------|--------|
-| Smart contracts (Solidity) | ❌ No existe |
-| Deploy en Base | ❌ No existe |
-| Tabla `claim_requests` en D1 | ❌ No existe |
-| Columna `registry_match` en `coins` | ❌ No existe |
-| `BACKEND_SIGNER_KEY` en Cloudflare | ❌ No configurada |
-| Endpoints `/api/rewards/*` | ❌ No existen |
-| Endpoints `/admin/rewards/*` | ❌ No existen |
-| Componentes frontend (wagmi, RainbowKit) | ❌ No existen |
+| Smart contracts (Solidity) | ✅ Completado |
+| Deploy en Base Sepolia | ✅ Completado |
+| Tabla `claim_requests` en D1 | ✅ Completado |
+| Columna `registry_match` en `coins` | ✅ Completado |
+| `BACKEND_SIGNER_KEY` en Cloudflare | ✅ Configurada (.dev.vars) |
+| Endpoints `/api/rewards/*` | ✅ Completado |
+| Endpoints `/admin/rewards/*` | ✅ Completado |
+| Componentes frontend (wagmi, RainbowKit) | ✅ Completado |
 | Datos `COINS_BY_COUNTRY` completos | ⚠️ Solo Argentina |
 
 ---
 
-## Fase 0 — Prerrequisitos
+## ✅ Fase 0 — Prerrequisitos
 
 Hacer esto antes de escribir una sola línea de código.
 
@@ -56,7 +56,7 @@ Registrarse en [basescan.org](https://basescan.org) y obtener un API key gratuit
 
 ---
 
-## Paso 1 — Contratos Solidity
+## ✅ Paso 1 — Contratos Solidity
 
 **Qué:** crear la carpeta `contracts/` en la raíz del repo con dos contratos: el token ERC-20 y el contrato que valida firmas y mintea.
 
@@ -187,7 +187,11 @@ forge test   # debe compilar y pasar (aunque no haya tests aún, al menos debe c
 
 ---
 
-## Paso 2 — Deploy en Testnet (Base Sepolia)
+## ✅ Paso 2 — Deploy en Testnet (Base Sepolia)
+
+> **Contratos desplegados (2026-06-03):**
+> - AlbumCoin: `0xe80E34fa9bddaaeA563f67BE2590E329817b1E84`
+> - RewardClaimer: `0x50c78a44FA70c765695E2B836474d83d1776F718`
 
 **Qué:** desplegar los contratos en Base Sepolia para probar el flujo completo antes de tocar mainnet.
 
@@ -220,7 +224,7 @@ forge script script/Deploy.s.sol \
 
 ---
 
-## Paso 3 — Configurar Signer en Cloudflare
+## ✅ Paso 3 — Configurar Signer en Cloudflare
 
 **Qué:** subir la clave privada del backend (paso 0.2) como secret de Wrangler. Esta clave firma los mensajes EIP-712 que autoriza al usuario a ejecutar la TX onchain.
 
@@ -240,7 +244,7 @@ wrangler secret list
 
 ---
 
-## Paso 4 — Migración de Base de Datos (D1)
+## ✅ Paso 4 — Migración de Base de Datos (D1)
 
 **Qué:** agregar la tabla `claim_requests` y la columna `registry_match` a la tabla `coins` existente.
 
@@ -292,7 +296,7 @@ wrangler d1 execute album-monedas-db --command "SELECT registry_match FROM coins
 
 ---
 
-## Paso 5 — Endpoints Backend `/api/rewards/*`
+## ✅ Paso 5 — Endpoints Backend `/api/rewards/*`
 
 **Qué:** 6 rutas Remix nuevas que manejan todo el ciclo de vida del claim en el servidor.
 
@@ -306,6 +310,7 @@ wrangler d1 execute album-monedas-db --command "SELECT registry_match FROM coins
 | `GET` | `/admin/rewards` | Lista claims pendientes para el admin |
 | `POST` | `/admin/rewards/:id/approve` | Admin aprueba (status → approved, sets expires_at) |
 | `POST` | `/admin/rewards/:id/reject` | Admin rechaza con motivo de texto |
+| `POST` | `/api/rewards/claimed` | Marca claim como `claimed` tras confirmar TX onchain; guarda `tx_hash` |
 
 ### Lógica de `/api/rewards/request`
 
@@ -342,8 +347,8 @@ async function signClaim(
     domain: {
       name: "RewardClaimer",
       version: "1",
-      chainId: 8453,
-      verifyingContract: "0xDEF..." // address del contrato (mainnet o testnet según env)
+      chainId: 84532, // Base Sepolia; cambiar a 8453 al migrar a mainnet
+      verifyingContract: "0x50c78a44FA70c765695E2B836474d83d1776F718"
     },
     types: {
       Claim: [
@@ -382,7 +387,7 @@ curl -X POST http://localhost:5173/api/rewards/request \
 
 ---
 
-## Paso 6 — Integración Frontend: Provider wagmi + RainbowKit
+## ✅ Paso 6 — Integración Frontend: Provider wagmi + RainbowKit
 
 **Qué:** instalar las dependencias onchain y wrapear la app para que los componentes puedan usar hooks de wallet.
 
@@ -396,15 +401,15 @@ npm install wagmi @rainbow-me/rainbowkit viem --legacy-peer-deps
 
 ```typescript
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 
 const config = getDefaultConfig({
   appName: "Album de Monedas",
   projectId: "TU_WALLETCONNECT_PROJECT_ID", // del paso 0.3
-  chains: [base],
-  transports: { [base.id]: http() }
+  chains: [baseSepolia],
+  transports: { [baseSepolia.id]: http() }
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -423,8 +428,8 @@ Envolver el `<Outlet />` (o el layout completo) con `<Providers>`.
 ### 6.4 Crear `app/lib/contracts/addresses.ts`
 
 ```typescript
-export const REWARD_CLAIMER_ADDRESS = "0xDEF..." as const; // del paso 2
-export const ALBUM_COIN_ADDRESS     = "0xABC..." as const;
+export const REWARD_CLAIMER_ADDRESS = "0x50c78a44FA70c765695E2B836474d83d1776F718" as const;
+export const ALBUM_COIN_ADDRESS     = "0xe80E34fa9bddaaeA563f67BE2590E329817b1E84" as const;
 ```
 
 ### ✅ Verificar paso 6
@@ -433,7 +438,7 @@ Abrir `npm run dev` → el botón "Connect Wallet" debe aparecer en el header si
 
 ---
 
-## Paso 7 — Componente ClaimButton en CoinCard
+## ✅ Paso 7 — Componente ClaimButton en CoinCard
 
 **Qué:** botón dentro de cada `CoinCard` que refleja el estado del claim y permite ejecutar la TX onchain.
 
@@ -540,7 +545,7 @@ Con contratos en testnet: ejecutar el flujo `eligible → request → pending`. 
 
 ---
 
-## Paso 8 — Panel Admin `/admin/rewards`
+## ✅ Paso 8 — Panel Admin `/admin/rewards`
 
 **Qué:** sección en la ruta `/admin` para que el admin vea los claims pendientes, compare la foto con los datos y apruebe o rechace.
 

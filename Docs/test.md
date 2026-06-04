@@ -104,8 +104,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | stats.total defaults to 0 when DB returns null | Si `first()` devuelve `null` para la query de COUNT, `stats.total` es `0` |
 | stats.estimatedValue defaults to 0 when DB returns null | Si `first()` devuelve `null` para la query de SUM, `stats.estimatedValue` es `0` |
 | stats.topCondition defaults to null when DB returns null conditionRow | Si `first()` devuelve `null` para la query de condición, `stats.topCondition` es `null` |
-| makes 4 DB prepare calls for an existing user | Para un usuario existente, `db.prepare` se invoca 4 veces: `SELECT profile_completed` + 3 stats |
-| makes 5 DB prepare calls for a new user (INSERT included) | Para un usuario nuevo, `db.prepare` se invoca 5 veces: `SELECT` + `INSERT` + 3 stats |
+| makes at least 7 DB prepare calls | El loader invoca `db.prepare` ≥ 7 veces: INSERT OR IGNORE users + profile + 3 stats + coins + user_badges + messages |
+| runs INSERT OR IGNORE for both new and existing users | La query `INSERT OR IGNORE INTO users` siempre se ejecuta, independiente de si el usuario existe |
 | response includes all three stats fields | La respuesta contiene `{ total, estimatedValue, topCondition }` con los valores correctos de la DB |
 
 ---
@@ -319,7 +319,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | Test | Descripción |
 |---|---|
 | throws redirect to '/' when unauthenticated | Sin sesión activa, el action lanza `Response` 302 → `/` |
-| returns 400 for unknown intent | Si `intent` no es `add_coin`, retorna `{ error: "Acción no reconocida." }` con status 400 |
+| returns 400 for unknown intent | Si `intent` no coincide con ningún handler conocido, retorna `{ error: "Acción no reconocida." }` con status 400 |
 | redirects to /mycollection after successful insert | Con intent y nombre válidos, retorna `Response` 302 → `/mycollection` |
 | calls DB INSERT with user_id and coin name | Verifica que `prepare` recibe `INSERT INTO coins` y `bind` contiene `user.id` y el nombre |
 | stores null for all photos when IMAGES binding is absent | Sin binding R2, los cuatro slots de foto se guardan como `null` en D1 |
@@ -387,20 +387,20 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | every entry has the required CoinEntry fields with correct types | Cada entrada tiene `pais`, `denominacion`, `nombre`, `anio` y `casa_acunacion` con los tipos correctos |
 | all entries have pais = 'Argentina' | El campo `pais` es siempre `"Argentina"` |
 | all entries have casa_acunacion = 'Casa de Moneda de la Argentina' | El campo `casa_acunacion` es siempre el mismo para todas las entradas |
-| all years are within reasonable range (2000–2030) | Todos los `anio` están entre 2000 y 2030 inclusive |
+| all years are within reasonable range (1800–2030) | Todos los `anio` están entre 1800 y 2030 inclusive (incluye monedas históricas desde 1881) |
 | contains the expected denominations | Las 8 denominaciones (5 Centavos, 10 Centavos, 25 Centavos, 50 Centavos, 1 Peso, 2 Pesos, 5 Pesos, 10 Pesos) están presentes |
 | Serie 2 names appear for the correct denominations | "Un Peso — Jacarandá" pertenece a `1 Peso`; "Diez Pesos — Caldén" pertenece a `10 Pesos` |
 | filtering by denomination returns only matching entries | `filter(c => c.denominacion === "1 Peso")` devuelve solo entradas de esa denominación |
-| filtering by nombre returns matching years in order | Los años de "Un Peso — Jacarandá" comienzan en 2018 y están ordenados |
-| find returns the exact coin for a given nombre + anio | Buscar "Un Peso — Jacarandá" + 2021 devuelve la entrada correcta con `casa_acunacion` y `denominacion` correctos |
-| no duplicate (nombre + anio) pairs | No existen dos entradas con el mismo `nombre` y `anio` simultáneamente |
+| filtering by nombre returns matching years in order | Los años de "Un Peso — Jacarandá" comienzan en 2017 y están ordenados |
+| find returns the exact coin for a given nombre + anio | Buscar "Un Peso — Jacarandá" + 2020 devuelve la entrada correcta con `casa_acunacion` y `denominacion` correctos |
+| no duplicate (denominacion + nombre + anio + serie + material) entries | No existen dos entradas con el mismo quinteto completo |
 
 ---
 
 ### `app/components/__tests__/AddCoinModal.test.tsx`
 **Qué prueba:** el componente `AddCoinModal` de `app/components/AddCoinModal.tsx`, incluyendo el flujo de selección de foto, apertura del editor de crop, actualización del preview circular y los dropdowns en cascada alimentados por módulos de datos de monedas.
 
-> `@remix-run/react` se mockea (Form + useNavigation). `ImageCropEditor` se reemplaza por un stub que expone botones `mock-confirm` y `mock-cancel`. `URL.createObjectURL/revokeObjectURL` y `DataTransfer` se mockean.
+> `@remix-run/react` se mockea (`useFetcher` con `Form` funcional). `ImageCropEditor` se reemplaza por un stub que expone botones `mock-confirm` y `mock-cancel`. `CustomSelect` se mockea como `<select>` nativo. `URL.createObjectURL/revokeObjectURL` y `DataTransfer` se mockean.
 
 #### Render y flujo de fotos
 
@@ -417,7 +417,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | shows circular preview after confirming crop | Tras confirmar, aparece un `<img>` dentro de `.rounded-full` con `src="blob:mock"` |
 | closes crop editor after canceling | Tras `mock-cancel`, el editor desaparece del DOM |
 | does not show preview after canceling crop | Tras cancelar, no hay `<img>` dentro de `.rounded-full` |
-| shows 'Guardando...' while submitting | Con `navigation.state="submitting"`, el botón muestra "Guardando..." |
+| shows 'Guardando...' while submitting | Con `fetcher.state="submitting"`, el botón muestra "Guardando..." |
 | submit button is disabled while submitting | El botón de submit está deshabilitado durante el envío |
 | calls onClose when clicking the X button | El botón X del header llama a `onClose` |
 | calls onClose when clicking Cancelar | El botón "Cancelar" del footer llama a `onClose` |
@@ -430,39 +430,34 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | name is a free-text input before selecting a country | Sin país seleccionado, `name` es un `<input>` libre |
 | year is a number input before selecting a country | Sin país seleccionado, `year` es un `<input type="number">` |
 | selecting Argentina converts denomination to a select | Al seleccionar `AR`, el campo `denomination` se convierte en `<select>` |
-| Argentina denomination select has all expected options | El select de denominación incluye las 8 denominaciones del módulo de Argentina |
+| Argentina denomination select has all expected options | El select de denominación incluye todas las denominaciones del módulo de Argentina |
 | name remains free-text after selecting country but before selecting denomination | Con país pero sin denominación, `name` sigue siendo `<input>` libre |
-| selecting a denomination converts name to a select | Al elegir una denominación, `name` se convierte en `<select>` |
-| name select options match coins of the selected denomination | Las opciones de `name` corresponden exactamente a los nombres del módulo filtrados por la denominación elegida |
-| selecting a name converts year to a select | Al elegir un nombre, `year` se convierte en `<select>` |
-| year select options match the years for the selected coin name | Las opciones de `year` corresponden a los años del módulo filtrados por el nombre elegido |
-| mint auto-fills and is read-only after selecting a complete chain | Al completar País → Denominación → Nombre → Año, el campo `mint` muestra `"Casa de Moneda de la Argentina"` y tiene `readOnly=true` |
+| selecting a denomination converts year to a select | Al elegir una denominación, `year` se convierte en `<select>` (cascada: País → Denominación → Año → Nombre) |
+| year select options match years of the selected denomination | Las opciones de `year` corresponden a los años del módulo filtrados por la denominación elegida |
+| selecting a year converts name to a select | Al elegir un año, `name` se convierte en `<select>` |
+| name select options match names for selected denomination and year | Las opciones de `name` corresponden a los nombres del módulo filtrados por denominación + año |
+| mint auto-fills and is read-only after selecting a complete chain | Al completar País → Denominación → Año → Nombre, el campo `mint` muestra `"Casa de Moneda de la Argentina"` y tiene `readOnly=true` |
 | mint is empty before completing the chain | Sin una selección completa, `mint` está vacío y no es read-only |
 | changing country resets denomination, name and year to free inputs | Cambiar el país limpia todos los campos inferiores y los devuelve a inputs libres |
-| changing denomination resets name and year | Cambiar la denominación limpia `name` y elimina el `<select>` de `year` |
+| changing denomination resets year value and name to free input | Cambiar la denominación resetea el valor de `year` (queda Select vacío) y `name` vuelve a ser `<input>` libre |
 
 ---
 
 ### `app/components/__tests__/CoinCard.test.tsx`
-**Qué prueba:** el componente `CoinCard` de `app/components/CoinCard.tsx`, que muestra la tarjeta de una moneda en la galería.
+**Qué prueba:** el componente `CoinCard` de `app/components/CoinCard.tsx`, que muestra la tarjeta compacta de una moneda (foto circular + precio estimado).
 
 | Test | Descripción |
 |---|---|
-| renders coin name | El nombre de la moneda aparece en el DOM |
 | shows 'Sin foto' placeholder when no photo_obverse | Sin `photo_obverse`, se muestra el placeholder "Sin foto" |
 | renders img with correct /images/ src when photo_obverse is set | Con `photo_obverse`, el `<img>` tiene `src="/images/{key}"` |
 | renders alt text for obverse image | El `<img>` tiene alt `"Anverso de {nombre}"` |
-| renders country and year separated by · | País y año aparecen como `"MX · 1964"` |
-| renders only country when year is null | Sin año, solo se muestra el país |
-| renders only year when country is null | Sin país, solo se muestra el año |
-| shows denomination when present | La denominación se renderiza cuando tiene valor |
-| does not render denomination element when null | La denominación no aparece si es `null` |
-| shows condition badge with the condition value | El badge muestra el código de condición (`MS`, `VF`, etc.) |
-| does not render condition badge when condition is null | Sin condición, no hay badge |
-| renders condition badge for grade X (×8) | Cada uno de los 8 grados (`MS`, `AU`, `XF`, `VF`, `F`, `VG`, `G`, `P`) renderiza su badge |
+| does not render denomination element when null | La denominación no aparece (el componente no la renderiza) |
+| does not render condition badge when condition is null | Sin condición, no hay badge (el componente no lo renderiza) |
 | renders placeholder icon when no photo | Sin foto, no hay `<img>` en el DOM |
 | image is wrapped inside a rounded-full container | Con foto, el `<img>` está dentro de un elemento con clase `rounded-full` |
 | placeholder is inside the rounded-full container | Sin foto, el texto "Sin foto" está dentro del contenedor `rounded-full` |
+| shows $0.00 when estimated_value is null | Sin valor estimado, la etiqueta de precio muestra `$0.00` |
+| shows estimated_value formatted to two decimals | El valor `42.5` se muestra como `$42.50` |
 
 ---
 
@@ -692,6 +687,166 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/lib/__tests__/rewards.server.test.ts`
+**Qué prueba:** las tres funciones exportadas de `app/lib/rewards.server.ts` — `getCoinIdHash`, `signClaim`, `isCoinClaimedOnchain`.
+
+| Test | Descripción |
+|---|---|
+| returns a 0x-prefixed string | El hash resultante empieza con `0x` |
+| is deterministic for the same inputs | Mismos inputs → mismo hash siempre |
+| produces different hashes for different inputs | Inputs distintos → hashes distintos |
+| returns the signature from signTypedData | `signClaim` retorna la firma del mock de viem |
+| calls signTypedData with correct EIP-712 domain | El dominio EIP-712 incluye `name: "RewardClaimer"`, `chainId: 84532` y `primaryType: "Claim"` |
+| returns true when contract reports claimed | `isCoinClaimedOnchain` retorna `true` si el contrato lo indica |
+| returns false when contract reports not claimed | `isCoinClaimedOnchain` retorna `false` si el contrato lo indica |
+| calls readContract with correct functionName | Llama a `coinClaimed` con el hash correcto |
+
+---
+
+### `app/routes/__tests__/api.rewards.request.test.ts`
+**Qué prueba:** el `action` de `app/routes/api.rewards.request.tsx`.
+
+| Test | Descripción |
+|---|---|
+| returns 401 when unauthenticated | Sin sesión activa retorna 401 |
+| returns 404 when coin not found | Moneda no encontrada en D1 retorna 404 |
+| returns 400 when coin not registry_match | `registry_match = 0` retorna 400 |
+| returns 409 when active claim request exists | Ya hay pending/approved → 409 |
+| returns 409 when already claimed onchain | Reclamado onchain → 409 |
+| returns 200 with claimRequestId on happy path | Inserta registro y retorna `{ claimRequestId, status: "pending" }` |
+| returns 400 when missing coinId | Sin `coinId` en el body → 400 |
+
+---
+
+### `app/routes/__tests__/api.rewards.sign.test.ts`
+**Qué prueba:** el `action` de `app/routes/api.rewards.sign.tsx`.
+
+| Test | Descripción |
+|---|---|
+| returns 401 when unauthenticated | Sin sesión retorna 401 |
+| returns 404 when no approved claim exists | Sin claim aprobado → 404 |
+| returns 410 when claim is expired | Claim expirado → 410 |
+| returns 403 when wallet does not match | Wallet diferente → 403 |
+| returns 409 when already claimed onchain | Ya reclamado onchain → 409 |
+| returns 200 with signature on happy path | Retorna `{ signature, coinIdHash }` |
+| returns 400 when missing walletAddress | Sin wallet en body → 400 |
+
+---
+
+### `app/routes/__tests__/api.rewards.status.coinId.test.ts`
+**Qué prueba:** el `loader` de `app/routes/api.rewards.status.$coinId.tsx`.
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | Sin sesión lanza redirect 302 |
+| returns eligible when no claim exists | Sin registro en D1 → `{ status: "eligible" }` |
+| returns approved status with expiresAt and coinIdHash | Status approved incluye `expiresAt` y `coinIdHash` |
+| returns rejected status with rejectReason | Status rejected incluye `rejectReason` |
+| returns pending status | Status pending se retorna sin campos extra |
+
+---
+
+### `app/routes/__tests__/admin.rewards.test.ts`
+**Qué prueba:** el `loader` de `app/routes/admin.rewards.tsx`.
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | Sin sesión lanza redirect 302 |
+| throws redirect when user is not admin | Email no coincide con ADMIN_EMAIL → redirect |
+| returns claims for admin user | Admin recibe el array de claims pendientes |
+| returns empty array when no pending claims | Sin claims pendientes → `{ claims: [] }` |
+
+---
+
+### `app/routes/__tests__/admin.rewards.id.approve.test.ts`
+**Qué prueba:** el `action` de `app/routes/admin.rewards.$id.approve.tsx`.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to / when unauthenticated | Sin sesión → redirect a `/` |
+| throws redirect to / when user is not admin | No admin → redirect a `/` |
+| runs UPDATE and redirects to /admin/rewards for admin | Admin ejecuta UPDATE y redirige a `/admin/rewards` |
+| passes claim id to the UPDATE query | El `id` del param se pasa al bind del UPDATE |
+
+---
+
+### `app/routes/__tests__/admin.rewards.id.reject.test.ts`
+**Qué prueba:** el `action` de `app/routes/admin.rewards.$id.reject.tsx`.
+
+| Test | Descripción |
+|---|---|
+| throws redirect to / when unauthenticated | Sin sesión → redirect a `/` |
+| throws redirect to / when user is not admin | No admin → redirect a `/` |
+| runs UPDATE and redirects to /admin/rewards for admin | Admin ejecuta UPDATE y redirige a `/admin/rewards` |
+| passes reject_reason to the UPDATE query | El motivo del form se pasa al UPDATE |
+| uses fallback reason when reject_reason is absent | Sin campo → usa `"Sin motivo"` como fallback |
+
+---
+
+### `app/components/__tests__/AdminRewardsPanel.test.tsx`
+**Qué prueba:** el componente `AdminRewardsPanel` de `app/components/AdminRewardsPanel.tsx`.
+
+| Test | Descripción |
+|---|---|
+| shows placeholder when claims is empty | Lista vacía muestra "No hay solicitudes pendientes" |
+| renders claim card with name, denomination and year | Muestra `{name} — {denomination} ({year})` |
+| renders wallet address | La dirección de wallet se muestra en la tarjeta |
+| renders country | El país se muestra en la tarjeta |
+| renders Aprobar button with correct form action | El form apunta a `/admin/rewards/{id}/approve` |
+| renders Rechazar button | El botón Rechazar está presente |
+| opens reject modal when Rechazar is clicked | Click en Rechazar abre el modal con textarea |
+| reject modal form points to correct action | El form del modal apunta a `/admin/rewards/{id}/reject` |
+| closes modal when Cancelar is clicked | Click en Cancelar cierra el modal |
+| renders placeholder image when photo_obverse is null | Sin foto muestra "Sin foto" |
+| renders img when photo_obverse is set | Con foto renderiza `<img src="/images/{key}">` |
+| shows count of pending claims | Muestra el conteo de solicitudes pendientes |
+
+---
+
+### `app/providers/__tests__/WagmiProvider.test.tsx`
+**Qué prueba:** el componente `Providers` de `app/providers/WagmiProvider.tsx`, que envuelve la app con wagmi, RainbowKit y TanStack Query para soporte de wallet onchain.
+
+> `wagmi`, `wagmi/chains`, `@rainbow-me/rainbowkit`, `@rainbow-me/rainbowkit/styles.css` y `@tanstack/react-query` se mockean completamente; son librerías browser-only que requieren wallet real y no funcionan en happy-dom sin mock.
+
+| Test | Descripción |
+|---|---|
+| renders children | `<Providers>` renderiza su children en el DOM sin error |
+| creates a new QueryClient per mount | El constructor `QueryClient` se invoca al montar el componente |
+
+---
+
+### `app/components/__tests__/ClaimButton.test.tsx`
+**Qué prueba:** el componente `ClaimButton` de `app/components/ClaimButton.tsx`, que gestiona el ciclo de vida del claim de recompensa onchain por moneda.
+
+> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
+
+| Test | Descripción |
+|---|---|
+| returns null when registryMatch is 0 | Sin `registry_match`, el componente no renderiza nada |
+| returns null when registryMatch is undefined | Campo ausente también devuelve null |
+| shows Reclamar Token button when status=eligible | Estado eligible muestra botón activo |
+| shows disabled En revisión when status=pending | Estado pending desactiva el botón |
+| shows disabled rejected button with reason when status=rejected | Estado rejected muestra el motivo y está deshabilitado |
+| shows Reclamado text when status=claimed | Estado claimed muestra texto fijo sin botón |
+| shows countdown Confirmar button when status=approved and not expired | `expiresAt` futuro → botón "🎁 Confirmar — Xd Xh" |
+| shows Reclamar Token when approved but expired | `expiresAt` pasado → trata el claim como eligible |
+| click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
+
+---
+
+### `app/routes/__tests__/api.rewards.claimed.test.ts`
+**Qué prueba:** el `action` de `app/routes/api.rewards.claimed.tsx`, que marca un claim como `claimed` en D1 con el txHash de la TX onchain.
+
+| Test | Descripción |
+|---|---|
+| returns 401 when unauthenticated | Sin sesión devuelve 401 |
+| returns 400 when coinId is missing | Body sin coinId → 400 |
+| returns 400 when txHash is missing | Body sin txHash → 400 |
+| runs UPDATE filtering by user_id and status=approved | UPDATE incluye `status = 'approved'` en el WHERE y pasa user_id |
+| returns { ok: true } on success | Respuesta 200 con `{ ok: true }` |
+
+---
+
 ## Estrategia de mocking
 
 Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cosas:
@@ -700,5 +855,9 @@ Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cos
 - **`@remix-run/react`** — en tests de componentes que usan `Form`, `useLoaderData` o `useFetcher`, se inyectan valores directamente sin necesitar el router de Remix. El mock de `useFetcher` incluye un `Form` funcional que renderiza un `<form>` nativo real.
 - **D1 Database (`DB`)** — se simula con un objeto que encadena `prepare → bind → run/first/all` mediante `vi.fn()`, permitiendo verificar qué queries y valores se envían sin conectar a una base de datos real.
 - **R2 Bucket (`IMAGES`)** — se simula con `{ put: vi.fn(), get: vi.fn() }`. El objeto R2 devuelto por `get` implementa `writeHttpMetadata` como `vi.fn()`. Los archivos se crean con la API nativa `File` de happy-dom para probar el flujo completo de upload.
+
+- **`~/lib/rewards.server`** — en tests de rutas (`api.rewards.*`, `admin.rewards.*`) se mockea con `vi.mock` para aislar la lógica onchain. En el test propio de `rewards.server.ts` se mockean `viem` y `viem/accounts` con `vi.hoisted` para controlar `createPublicClient`, `http` y `privateKeyToAccount`.
+- **`~/components/ui/CustomSelect`** — en todos los tests de componentes que usan `CustomSelect` se mockea como un `<select>` nativo, manteniendo la API `onChange(value)`. Esto permite usar `getByRole("option")` y `fireEvent.change` estándar sin depender del portal del dropdown.
+- **`~/lib/rateLimit.server`** — en tests de acciones que invocan `checkRateLimit` se mockea para retornar `{ allowed: true }` y evitar consultas al DB de rate limiting durante los tests.
 
 Esto mantiene los tests rápidos, deterministas y sin efectos secundarios de red.

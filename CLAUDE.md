@@ -39,7 +39,8 @@ binding = "IMAGES"    # bucket: album-monedas-images
 ## DB Schema
 
 - `users`: id, name, picture, collecting_since
-- `coins`: id, user_id, country, year, denomination, condition, estimated_value, created_at
+- `coins`: id, user_id, country, year, denomination, condition, estimated_value, created_at, registry_match
+- `claim_requests`: id, user_id, coin_id, coin_registry_key, coin_id_hash, wallet_address, status (pending|approved|rejected), reviewed_at, approved_at, expires_at, reject_reason, created_at
 
 ## Reglas
 
@@ -75,6 +76,12 @@ app/
     news.$id.tsx                # Artículo de noticias individual
     markets.tsx                 # Precios de mercado de monedas
     inbox.tsx                   # Mensajería / notificaciones
+    api.rewards.request.tsx     # action POST → solicitar claim de recompensa onchain
+    api.rewards.sign.tsx        # action POST → obtener firma EIP-712 para reclamar
+    api.rewards.status.$coinId.tsx # loader GET → estado del claim de una moneda
+    admin.rewards.tsx           # loader → panel admin de claims pendientes
+    admin.rewards.$id.approve.tsx # action → aprobar claim (expira en 7 días)
+    admin.rewards.$id.reject.tsx  # action → rechazar claim con motivo
   components/
     ui/button.tsx               # Button shadcn/ui
     AddCoinModal.tsx            # Modal agregar moneda a colección
@@ -88,6 +95,7 @@ app/
     ProfileSetupModal.tsx       # Modal setup inicial de perfil
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
+    AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     badges.ts                   # Sistema de logros/badges
@@ -96,8 +104,14 @@ app/
     collections.ts              # Queries D1 para rankings y colecciones
     countries.ts                # Datos de países
     utils.ts                    # cn() — merge de clases Tailwind
+    rewards.server.ts           # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Sepolia)
+    rateLimit.server.ts         # checkRateLimit — rate limiting por usuario+acción en D1
+    contracts/abi.ts            # ABI del contrato RewardClaimer (claimReward, coinClaimed, lastClaimTime)
+    contracts/addresses.ts      # Addresses de AlbumCoin y RewardClaimer en Base Sepolia
+  providers/
+    WagmiProvider.tsx           # Providers: wagmi (Base Sepolia) + RainbowKit + TanStack Query
   types/
-    env.d.ts                    # Env interface + AppLoadContext (GOOGLE_*, SESSION_SECRET, TURNSTILE_*)
+    env.d.ts                    # Env interface + AppLoadContext (GOOGLE_*, SESSION_SECRET, TURNSTILE_*, BACKEND_SIGNER_KEY)
 functions/
   [[path]].ts                   # Entry point Cloudflare Pages Functions
 public/                         # Assets estáticos

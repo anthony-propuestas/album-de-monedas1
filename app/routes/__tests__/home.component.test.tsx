@@ -9,8 +9,17 @@ const mockUser = {
   picture: "https://example.com/pic.jpg",
 };
 
+const defaultLoaderData = {
+  user: mockUser,
+  profileCompleted: true,
+  stats: { total: 0, estimatedValue: 0, topCondition: null },
+  coinOfDay: null,
+  badges: [],
+  unreadMessages: 0,
+};
+
 vi.mock("@remix-run/react", () => ({
-  useLoaderData: vi.fn(() => ({ user: mockUser, profileCompleted: true })),
+  useLoaderData: vi.fn(() => defaultLoaderData),
   Form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
   useFetcher: vi.fn(() => ({
     state: "idle",
@@ -51,11 +60,11 @@ describe("Home component", () => {
 
 describe("Home component — ProfileSetupModal visibility", () => {
   afterEach(() => {
-    vi.mocked(useLoaderData).mockReturnValue({ user: mockUser, profileCompleted: true } as any);
+    vi.mocked(useLoaderData).mockReturnValue(defaultLoaderData as any);
   });
 
   it("renders ProfileSetupModal when profileCompleted is false", () => {
-    vi.mocked(useLoaderData).mockReturnValue({ user: mockUser, profileCompleted: false } as any);
+    vi.mocked(useLoaderData).mockReturnValue({ ...defaultLoaderData, user: mockUser, profileCompleted: false } as any);
     render(<Home />);
     expect(screen.getByText(/completa tu perfil/i)).toBeInTheDocument();
   });
