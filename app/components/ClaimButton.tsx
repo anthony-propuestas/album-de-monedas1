@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 
@@ -32,7 +32,7 @@ export function ClaimButton({
   initialRejectReason,
 }: Props) {
   const { address } = useAccount();
-  const { openConnectModal } = useConnectModal();
+  const { connect } = useConnect();
 const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [expiresAt, setExpiresAt] = useState<number | null>(initialExpiresAt ?? null);
   const [coinIdHash, setCoinIdHash] = useState<string | null>(initialCoinIdHash ?? null);
@@ -75,7 +75,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
     if (!address) {
       setConnectAttemptAt(Date.now());
       setShowReloadHint(false);
-      openConnectModal?.();
+      connect({ connector: injected() });
       return;
     }
     setLoading(true);
