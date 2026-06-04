@@ -2,6 +2,10 @@ import { redirect } from "@remix-run/cloudflare";
 import type { ActionFunctionArgs } from "@remix-run/cloudflare";
 import { createAuth } from "~/lib/auth.server";
 
+export async function loader() {
+  return null;
+}
+
 export async function action({ request, context }: ActionFunctionArgs) {
   const { authenticator } = createAuth(context.cloudflare.env, request);
 

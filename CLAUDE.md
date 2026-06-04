@@ -67,7 +67,7 @@ app/
   entry.server.tsx              # SSR con renderToReadableStream (Cloudflare)
   routes/
     _index.tsx                  # Landing pública: Hero + "Cómo funciona" + login
-    auth.google.tsx             # action POST → inicia OAuth Google
+    auth.google.tsx             # action POST → inicia OAuth Google; loader → null (evita 405 en GET *.data); el <Form> en _index usa reloadDocument para no ser interceptado por el SPA
     auth.google.callback.tsx    # loader → callback OAuth, redirige a /home
     auth.logout.tsx             # action → logout + clear session cookie
     home.tsx                    # Dashboard protegido (requiere sesión)
@@ -130,7 +130,7 @@ wrangler.toml                   # Config Cloudflare Pages + D1 + R2 bindings
 .dev.vars                       # Variables de entorno locales (no commitear)
 worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
 scripts/
-  build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js
+  build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js; stubPlugin reemplaza paquetes browser-only (wagmi, WalletConnect…) con exports vacíos en el Worker SSR
   deploy.mjs                    # deploy helper: renombra functions/ temporalmente para evitar errores de Pages Functions en Advanced Mode
 ```
 

@@ -95,7 +95,7 @@ export default function Index() {
           otros coleccionistas y descubre el valor real de tus piezas.
         </p>
 
-        <Form method="post" action="/auth/google">
+        <Form method="post" action="/auth/google" reloadDocument>
           <Button
             type="submit"
             className="mt-10 h-12 cursor-pointer px-8 text-base bg-[#C9A46A] text-[#0A0806] hover:bg-[#D4B07A]"

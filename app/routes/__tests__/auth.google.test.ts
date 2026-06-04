@@ -2,7 +2,7 @@ import * as authModule from "~/lib/auth.server";
 
 vi.mock("~/lib/auth.server");
 
-const { action } = await import("~/routes/auth.google");
+const { action, loader } = await import("~/routes/auth.google");
 
 const mockEnv = {
   GOOGLE_CLIENT_ID: "test-id",
@@ -18,6 +18,13 @@ const mockContext = {
     caches: {} as CacheStorage,
   },
 };
+
+describe("auth.google loader", () => {
+  it("returns null", async () => {
+    const result = await loader();
+    expect(result).toBeNull();
+  });
+});
 
 describe("auth.google action", () => {
   beforeEach(() => vi.resetAllMocks());

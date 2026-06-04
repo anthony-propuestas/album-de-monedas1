@@ -166,12 +166,13 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/auth.google.test.ts`
-**Qué prueba:** el `action` de `app/routes/auth.google.tsx`, que inicia el flujo OAuth de Google.
+**Qué prueba:** el `loader` y el `action` de `app/routes/auth.google.tsx`, que inicia el flujo OAuth de Google.
 
 > `~/lib/auth.server` se mockea para interceptar la llamada a `authenticate` sin realizar llamadas reales a Google.
 
 | Test | Descripción |
 |---|---|
+| (loader) returns null | El loader retorna `null` para que Remix pueda responder a GET `/auth/google.data` con turbo-stream válido |
 | calls authenticator.authenticate with 'google' strategy | El action delega en `authenticate("google", request, opts)` |
 | passes successRedirect='/home' and failureRedirect='/' | Los redirects configurados son exactamente `/home` y `/` |
 | calls createAuth with env + request so callbackURL is dynamic | El request se pasa a `createAuth` para que el callbackURL use el origin correcto |
