@@ -824,19 +824,21 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/components/__tests__/ClaimButton.test.tsx`
 **Qué prueba:** el componente `ClaimButton` de `app/components/ClaimButton.tsx`, que gestiona el ciclo de vida del claim de recompensa onchain por moneda.
 
-> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
+> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `@rainbow-me/rainbowkit` (`useConnectModal`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
 
 | Test | Descripción |
 |---|---|
 | returns null when registryMatch is 0 | Sin `registry_match`, el componente no renderiza nada |
 | returns null when registryMatch is undefined | Campo ausente también devuelve null |
-| shows Reclamar Token button when status=eligible | Estado eligible muestra botón activo |
+| shows Reclamar Token button when status=eligible | Estado eligible con wallet conectada muestra "Reclamar Token" |
 | shows disabled En revisión when status=pending | Estado pending desactiva el botón |
 | shows disabled rejected button with reason when status=rejected | Estado rejected muestra el motivo y está deshabilitado |
 | shows Reclamado text when status=claimed | Estado claimed muestra texto fijo sin botón |
 | shows countdown Confirmar button when status=approved and not expired | `expiresAt` futuro → botón "🎁 Confirmar — Xd Xh" |
 | shows Reclamar Token when approved but expired | `expiresAt` pasado → trata el claim como eligible |
 | click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
+| shows Conectar Wallet button when status=eligible and no wallet | Sin wallet conectada el botón muestra "Conectar Wallet" |
+| click sin wallet llama openConnectModal y no hace fetch | Click sin wallet abre el modal de RainbowKit y no llama a fetch |
 
 ---
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 
@@ -31,6 +32,7 @@ export function ClaimButton({
   initialRejectReason,
 }: Props) {
   const { address } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [expiresAt, setExpiresAt] = useState<number | null>(initialExpiresAt ?? null);
   const [coinIdHash, setCoinIdHash] = useState<string | null>(initialCoinIdHash ?? null);
@@ -60,7 +62,7 @@ export function ClaimButton({
 
   async function handleRequest() {
     if (!address) {
-      alert("Conectá tu wallet primero.");
+      openConnectModal?.();
       return;
     }
     setLoading(true);
@@ -154,7 +156,7 @@ export function ClaimButton({
       disabled={loading}
       className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
     >
-      {loading ? "..." : "Reclamar Token"}
+      {loading ? "..." : address ? "Reclamar Token" : "Conectar Wallet"}
     </button>
   );
 }

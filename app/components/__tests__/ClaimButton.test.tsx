@@ -4,6 +4,7 @@ import {
   useWaitForTransactionReceipt,
   useAccount,
 } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ClaimButton } from "~/components/ClaimButton";
 
 vi.mock("wagmi", () => ({
@@ -11,10 +12,15 @@ vi.mock("wagmi", () => ({
   useWaitForTransactionReceipt: vi.fn(),
   useAccount: vi.fn(),
 }));
+vi.mock("@rainbow-me/rainbowkit", () => ({
+  useConnectModal: vi.fn(),
+}));
 vi.mock("~/lib/contracts/abi", () => ({ REWARD_CLAIMER_ABI: [] }));
 vi.mock("~/lib/contracts/addresses", () => ({ REWARD_CLAIMER_ADDRESS: "0xaddr" }));
 
 const NOW = Math.floor(Date.now() / 1000);
+
+let mockOpenConnectModal: ReturnType<typeof vi.fn>;
 
 function defaultProps(overrides = {}) {
   return {
@@ -27,6 +33,8 @@ function defaultProps(overrides = {}) {
 
 describe("ClaimButton", () => {
   beforeEach(() => {
+    mockOpenConnectModal = vi.fn();
+    vi.mocked(useConnectModal).mockReturnValue({ openConnectModal: mockOpenConnectModal } as any);
     vi.mocked(useAccount).mockReturnValue({ address: "0xwallet" } as any);
     vi.mocked(useWriteContract).mockReturnValue({
       writeContract: vi.fn(),
@@ -117,5 +125,19 @@ describe("ClaimButton", () => {
     const body = JSON.parse(init.body);
     expect(body.coinId).toBe("coin-1");
     expect(body.walletAddress).toBe("0xwallet");
+  });
+
+  it("shows Conectar Wallet button when status=eligible and no wallet", () => {
+    vi.mocked(useAccount).mockReturnValue({ address: undefined } as any);
+    render(<ClaimButton {...defaultProps()} />);
+    expect(screen.getByRole("button", { name: /conectar wallet/i })).toBeInTheDocument();
+  });
+
+  it("click sin wallet llama openConnectModal y no hace fetch", async () => {
+    vi.mocked(useAccount).mockReturnValue({ address: undefined } as any);
+    render(<ClaimButton {...defaultProps()} />);
+    fireEvent.click(screen.getByRole("button", { name: /conectar wallet/i }));
+    await waitFor(() => expect(mockOpenConnectModal).toHaveBeenCalled());
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

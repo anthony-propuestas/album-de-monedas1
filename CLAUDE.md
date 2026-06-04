@@ -104,7 +104,7 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
-    ClaimButton.tsx             # Botón de claim onchain (conecta wallet + ejecuta tx)
+    ClaimButton.tsx             # Botón de claim onchain; sin wallet muestra "Conectar Wallet" y abre modal RainbowKit; con wallet envía solicitud al admin o ejecuta la TX
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
