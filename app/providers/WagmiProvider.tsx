@@ -12,7 +12,6 @@ const config = getDefaultConfig({
   projectId: WALLETCONNECT_PROJECT_ID,
   chains: [baseSepolia],
   transports: { [baseSepolia.id]: http() },
-  ssr: true,
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
