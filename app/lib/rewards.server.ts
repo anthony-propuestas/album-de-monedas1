@@ -1,5 +1,5 @@
 import { keccak256, toHex, createPublicClient, http } from "viem";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Env } from "~/types/env";
 
@@ -53,7 +53,7 @@ export async function isCoinClaimedOnchain(
   coinIdHash: `0x${string}`
 ): Promise<boolean> {
   const client = createPublicClient({
-    chain: base,
+    chain: baseSepolia,
     transport: http(),
   });
   return client.readContract({
