@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnectors } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
@@ -33,6 +33,8 @@ export function ClaimButton({
 }: Props) {
   const { address } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const connectors = useConnectors();
+  console.log("[wallet debug]", connectors.map(c => ({ id: c.id, name: c.name, ready: (c as any).ready })));
   const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [expiresAt, setExpiresAt] = useState<number | null>(initialExpiresAt ?? null);
   const [coinIdHash, setCoinIdHash] = useState<string | null>(initialCoinIdHash ?? null);
