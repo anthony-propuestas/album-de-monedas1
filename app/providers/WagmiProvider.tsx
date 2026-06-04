@@ -7,15 +7,16 @@ import "@rainbow-me/rainbowkit/styles.css";
 
 const WALLETCONNECT_PROJECT_ID = "14787ba0b7b7e79c3ca503e0c4ab6175";
 
-const config = getDefaultConfig({
-  appName: "Album de Monedas",
-  projectId: WALLETCONNECT_PROJECT_ID,
-  chains: [baseSepolia],
-  transports: { [baseSepolia.id]: http() },
-  ssr: true,
-});
-
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [config] = useState(() =>
+    getDefaultConfig({
+      appName: "Album de Monedas",
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [baseSepolia],
+      transports: { [baseSepolia.id]: http() },
+      ssr: true,
+    })
+  );
   const [queryClient] = useState(() => new QueryClient());
   return (
     <WagmiProvider config={config}>
