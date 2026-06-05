@@ -1,7 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
-import { Form, Link, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { createAuth } from "~/lib/auth.server";
+import { COINS_BY_COUNTRY } from "~/lib/coins";
 
 export const meta: MetaFunction = () => [
   { title: "Admin — Album de Monedas" },
@@ -62,6 +63,38 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return redirect("/admin");
   }
 
+  if (intent === "fix_registry_match") {
+    const db = context.cloudflare.env.DB;
+    const { results: allCoins } = await db
+      .prepare("SELECT id, country, denomination, name, year FROM coins")
+      .all<{ id: string; country: string | null; denomination: string | null; name: string | null; year: number | null }>();
+
+    const updates = allCoins.map((coin) => {
+      const catalog = coin.country ? COINS_BY_COUNTRY[coin.country] : null;
+      const match =
+        catalog != null &&
+        coin.year != null &&
+        coin.denomination != null &&
+        catalog.some(
+          (e) => e.denominacion === coin.denomination && e.nombre === coin.name && e.anio === coin.year
+        );
+      return { id: coin.id, value: match ? 1 : 0 };
+    });
+
+    const CHUNK = 100;
+    for (let i = 0; i < updates.length; i += CHUNK) {
+      const chunk = updates.slice(i, i + CHUNK);
+      await db.batch(
+        chunk.map(({ id, value }) =>
+          db.prepare("UPDATE coins SET registry_match = ? WHERE id = ?").bind(value, id)
+        )
+      );
+    }
+
+    const fixed = updates.filter((u) => u.value === 1).length;
+    return json({ fixed, total: updates.length });
+  }
+
   return json({ error: "Acción no reconocida." }, { status: 400 });
 }
 
@@ -75,6 +108,7 @@ function formatDate(unixSec: number) {
 
 export default function AdminPage() {
   const { posts } = useLoaderData<typeof loader>();
+  const actionData = useActionData<{ fixed?: number; total?: number; error?: string }>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
@@ -106,6 +140,29 @@ export default function AdminPage() {
             Recompensas
           </Link>
         </div>
+
+        {/* Mantenimiento de datos */}
+        <section className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(201,164,106,0.05)] p-6 mb-8">
+          <h2 className="text-base font-semibold text-[#C9A46A] mb-1">Mantenimiento</h2>
+          <p className="text-xs text-[rgba(242,236,224,0.4)] mb-4">
+            Recalcula <code>registry_match</code> para todas las monedas comparando contra el catálogo.
+          </p>
+          <Form method="post" className="flex items-center gap-4">
+            <input type="hidden" name="intent" value="fix_registry_match" />
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 text-sm font-medium rounded-xl bg-[rgba(201,164,106,0.15)] text-[#C9A46A] border border-[rgba(210,180,130,0.35)] hover:bg-[rgba(201,164,106,0.25)] hover:border-[rgba(210,180,130,0.55)] transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? "Procesando..." : "Reprocessar registry_match"}
+            </button>
+            {actionData?.fixed != null && (
+              <p className="text-xs text-emerald-400/70">
+                ✓ {actionData.fixed} de {actionData.total} monedas con match
+              </p>
+            )}
+          </Form>
+        </section>
 
         {/* Formulario nueva publicación */}
         <section className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(201,164,106,0.05)] p-6 mb-8">

@@ -856,6 +856,46 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/routes/__tests__/admin.loader.test.ts`
+**Qué prueba:** el `loader` de `app/routes/admin.tsx`, que protege la ruta `/admin` y devuelve los posts para el usuario admin.
+
+> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con `prepare → all` en cadena.
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | `isAuthenticated` retorna `null` → `Response` 302 |
+| throws redirect when user is not admin | Email no coincide con `ADMIN_EMAIL` → `Response` 302 |
+| returns user and posts for admin | Admin recibe `{ user, posts }` con los datos de la DB |
+| returns empty posts array when DB has no posts | DB devuelve `[]` → `data.posts` es `[]` |
+| throws 500 Response when DB fails | `db.prepare().all()` rechaza → `Response` 500 |
+
+---
+
+### `app/routes/__tests__/admin.action.test.ts`
+**Qué prueba:** el `action` de `app/routes/admin.tsx` — intents `create_post`, `delete_post` y `fix_registry_match`.
+
+> `~/lib/auth.server` se mockea para controlar la sesión. `~/lib/coins` se mockea para inyectar un catálogo controlado de Argentina (1 entrada). La DB se simula con `prepare → { bind → run, all }` y `db.batch` como `vi.fn()`.
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | Sin sesión activa → `Response` 302 |
+| throws redirect when user is not admin | Email no coincide con `ADMIN_EMAIL` → `Response` 302 |
+| returns 400 when title is missing | `create_post` con título vacío → `{ error: "...obligatorios." }` status 400 |
+| returns 400 when body is missing | `create_post` con cuerpo vacío → mismo error |
+| returns 400 when title exceeds 200 chars | Título de 201 caracteres → `{ error: "...200 caracteres." }` status 400 |
+| inserts post and redirects to /admin on create_post | DB INSERT + redirect 302 a `/admin` |
+| calls DB INSERT with correct title and body | `prepare` recibe `INSERT INTO posts` y `bind` recibe `(title, body)` |
+| deletes post and redirects to /admin | `delete_post` con id válido → DB DELETE + redirect 302 |
+| redirects without calling DB DELETE for invalid id | `id=0` → redirect 302 sin llamar a `run()` |
+| queries all coins from DB for fix_registry_match | `prepare` llamado con `SELECT id, country, denomination, name, year FROM coins` |
+| returns { fixed, total } for fix_registry_match | 2 monedas (1 match, 1 no match) → `{ fixed: 1, total: 2 }` |
+| fixed=0 when no coin matches the catalog | Moneda con datos inexistentes → `fixed: 0` |
+| fixed=1 when one coin matches the catalog | Moneda con datos exactos del mock → `fixed: 1` |
+| calls db.batch with UPDATE statements for fix_registry_match | `db.batch` se invoca con el array de UPDATE statements |
+| returns 400 for unknown intent | `intent="unknown_intent"` → `{ error: "Acción no reconocida." }` status 400 |
+
+---
+
 ## Estrategia de mocking
 
 Los tests de rutas no llaman a APIs reales ni crean cookies. Se mockean tres cosas:
