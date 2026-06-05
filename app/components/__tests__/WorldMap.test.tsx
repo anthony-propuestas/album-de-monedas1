@@ -1,17 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { WorldMap } from "~/components/WorldMap";
 
-// fetch is not available in jsdom; stub it so useEffect doesn't error
-global.fetch = vi.fn().mockResolvedValue({
-  json: () => Promise.resolve({
-    type: "Topology",
-    objects: { countries: { type: "GeometryCollection", geometries: [] } },
-    arcs: [],
-    transform: { scale: [1, 1], translate: [0, 0] },
-    bbox: [-180, -90, 180, 90],
-  }),
-});
-
 describe("WorldMap", () => {
   it("renders a container div", () => {
     const { container } = render(<WorldMap coinsByCountry={{}} />);
@@ -36,12 +25,5 @@ describe("WorldMap", () => {
   it("does not render legend when coinsByCountry is empty", () => {
     const { container } = render(<WorldMap coinsByCountry={{}} />);
     expect(container.querySelector("p.text-right")).toBeNull();
-  });
-
-  it("shows loading skeleton while paths are not yet loaded", () => {
-    const { container } = render(<WorldMap coinsByCountry={{ AR: 3 }} />);
-    // fetch is async; before it resolves, skeleton div must be present
-    const skeleton = container.querySelector(".animate-pulse");
-    expect(skeleton).toBeInTheDocument();
   });
 });

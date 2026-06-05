@@ -4,6 +4,7 @@ import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import { NUMERIC_TO_ALPHA2 } from "~/lib/country-numeric-map";
 import { countries } from "~/lib/countries";
+import worldDataRaw from "../../public/world-110m.json";
 
 const COUNTRY_NAME: Record<string, string> = Object.fromEntries(
   countries.map(({ value, label }) => [value, label])
@@ -54,28 +55,21 @@ export function WorldMap({ coinsByCountry, colorScheme = "blue", title }: WorldM
     setDims({ w, h });
     setMounted(true);
 
-    fetch("/world-110m.json")
-      .then((r) => r.json())
-      .then((raw) => {
-        const topo = raw as Topology;
-        const proj = geoNaturalEarth1()
-          .scale((w / 960) * 153)
-          .translate([w / 2, h / 2]);
-        const gen = geoPath(proj);
-        const geo = feature(
-          topo,
-          topo.objects["countries"] as GeometryCollection
-        ) as GeoJSON.FeatureCollection;
+    const topo = worldDataRaw as unknown as Topology;
+    const proj = geoNaturalEarth1()
+      .scale((w / 960) * 153)
+      .translate([w / 2, h / 2]);
+    const gen = geoPath(proj);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const geo = feature(topo, topo.objects["countries"] as GeometryCollection) as any;
+    const paths: CountryPath[] = (geo.features as any[])
+      .map((f: any) => ({
+        d: gen(f) ?? "",
+        iso2: NUMERIC_TO_ALPHA2[String(+(f.id ?? 0))] ?? "",
+      }))
+      .filter((p: any): p is CountryPath => !!p.d);
 
-        const paths: CountryPath[] = geo.features
-          .map((f) => ({
-            d: gen(f) ?? "",
-            iso2: NUMERIC_TO_ALPHA2[String(+(f as GeoJSON.Feature & { id?: string | number }).id!)] ?? "",
-          }))
-          .filter((p) => p.d);
-
-        setCountryPaths(paths);
-      });
+    setCountryPaths(paths);
   }, []);
 
   const maxCount = Math.max(1, ...Object.values(coinsByCountry));

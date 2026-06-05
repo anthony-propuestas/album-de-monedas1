@@ -930,7 +930,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/components/__tests__/WorldMap.test.tsx`
 **Qué prueba:** el componente `WorldMap` de `app/components/WorldMap.tsx`, que muestra un mapa coropleta SVG del mundo.
 
-> `global.fetch` se mockea para devolver un TopoJSON mínimo válido (`GeometryCollection` con `geometries: []`) evitando llamadas de red. `topojson-client` procesa el mock sin error y produce un `FeatureCollection` vacío.
+> El TopoJSON se importa directamente desde `public/world-110m.json` (sin fetch en runtime), por lo que no se requiere mock de red. `topojson-client` procesa los datos del import y produce un `FeatureCollection`.
 
 | Test | Descripción |
 |---|---|
@@ -939,7 +939,6 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | renders legend with total pieces when data is provided | Con `coinsByCountry={{ AR: 3, US: 5 }}`, la leyenda muestra "8 piezas" |
 | renders legend with singular 'pieza' for count of 1 | Con un único coin, la leyenda usa el singular "1 pieza" |
 | does not render legend when coinsByCountry is empty | Sin monedas, la leyenda `<p>` de totales no aparece en el DOM |
-| shows loading skeleton while paths are not yet loaded | Antes de que el fetch resuelva, el div `.animate-pulse` está en el DOM |
 
 ---
 

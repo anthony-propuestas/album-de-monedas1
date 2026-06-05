@@ -132,7 +132,7 @@ app/
       CollectorRow.test.tsx       # 15 tests: medallas, link con/sin ?from=, avatar, stat
       ImageCropEditor.test.tsx    # 11 tests: zoom, crop vía canvas, cancelar/confirmar
       ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
-      WorldMap.test.tsx           # 6 tests: render, title, leyenda piezas (singular/plural), sin monedas, loading skeleton
+      WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
   providers/
     WagmiProvider.tsx         # wagmi (Base Sepolia) + TanStack Query
   lib/
