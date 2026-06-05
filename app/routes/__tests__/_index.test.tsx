@@ -25,14 +25,14 @@ describe("Index (landing) page", () => {
   it("renders the Google login button", () => {
     render(<Index />);
     expect(
-      screen.getByRole("button", { name: /iniciar sesión con google/i })
+      screen.getByRole("button", { name: /iniciar sesión/i })
     ).toBeInTheDocument();
   });
 
   it("login form POSTs to /auth/google", () => {
     render(<Index />);
     const form = screen
-      .getByRole("button", { name: /iniciar sesión con google/i })
+      .getByRole("button", { name: /iniciar sesión/i })
       .closest("form");
     expect(form).toHaveAttribute("action", "/auth/google");
     expect(form).toHaveAttribute("method", "post");
@@ -52,14 +52,14 @@ describe("Index (landing) page", () => {
 
   it("renders step numbers 01, 02, 03", () => {
     render(<Index />);
-    expect(screen.getByText("01")).toBeInTheDocument();
-    expect(screen.getByText("02")).toBeInTheDocument();
-    expect(screen.getByText("03")).toBeInTheDocument();
+    expect(screen.getAllByText("01").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("02").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("03").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the app description text", () => {
     render(<Index />);
-    expect(screen.getByText(/colección numismática/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/recompensas onchain/i).length).toBeGreaterThanOrEqual(1);
   });
 
   // Stats section
@@ -98,7 +98,7 @@ describe("Index (landing) page", () => {
     render(<Index />);
     expect(screen.getByText("Compite en rankings")).toBeInTheDocument();
     expect(screen.getByText("Monedas de todo el mundo")).toBeInTheDocument();
-    expect(screen.getByText("Comunidad activa")).toBeInTheDocument();
+    expect(screen.getByText("Recompensas por descubrir")).toBeInTheDocument();
   });
 
   it("renders reason card descriptions", () => {
@@ -106,5 +106,16 @@ describe("Index (landing) page", () => {
     expect(screen.getByText(/leaderboards/i)).toBeInTheDocument();
     expect(screen.getByText(/denominación/i)).toBeInTheDocument();
     expect(screen.getByText(/numismáticos/i)).toBeInTheDocument();
+  });
+
+  // Onchain rewards section
+  it("renders 'Álbum Colaborativo · Recompensas Onchain' section label", () => {
+    render(<Index />);
+    expect(screen.getAllByText(/álbum colaborativo/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders 'Sé el primero' heading in onchain section", () => {
+    render(<Index />);
+    expect(screen.getByRole("heading", { name: /sé el primero/i })).toBeInTheDocument();
   });
 });

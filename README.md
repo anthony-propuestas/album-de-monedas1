@@ -43,7 +43,7 @@ npm run test:coverage # tests con reporte de cobertura
 
 | Ruta | Descripción |
 |------|-------------|
-| `/` | Landing pública: Hero · stats de comunidad (usuarios y piezas) · "¿Por qué?" · "Cómo funciona" · login |
+| `/` | Landing pública: navbar fija con login · Hero · Álbum Colaborativo + Recompensas Onchain · stats · "¿Por qué?" · "Cómo funciona" |
 | `/auth/google` | Inicia flujo OAuth con Google (action POST) |
 | `/auth/google/callback` | Callback de Google OAuth (loader) |
 | `/auth/logout` | Cierra sesión y limpia la cookie (action POST) |

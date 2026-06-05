@@ -66,7 +66,7 @@ app/
   entry.client.tsx              # Hydration React en browser
   entry.server.tsx              # SSR con renderToReadableStream (Cloudflare)
   routes/
-    _index.tsx                  # Landing pública: Hero + "Cómo funciona" + login
+    _index.tsx                  # Landing pública: navbar fija · Hero · Álbum Colaborativo (recompensas onchain) · stats · "¿Por qué?" · "Cómo funciona"
     auth.google.tsx             # action POST → inicia OAuth Google; loader → null (evita 405 en GET *.data); el <Form> en _index usa reloadDocument para no ser interceptado por el SPA
     auth.google.callback.tsx    # loader → callback OAuth, redirige a /home
     auth.logout.tsx             # action → logout + clear session cookie

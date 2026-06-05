@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/cloudflare";
 import { Form, useLoaderData } from "@remix-run/react";
-import { BookOpen, Globe, Trophy, Upload, Users } from "lucide-react";
+import { BookOpen, Globe, Trophy, Upload, Users, Zap } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
 export async function loader({ context }: LoaderFunctionArgs) {
@@ -37,10 +37,10 @@ const reasons = [
       "Registra fecha, ceca, denominación, condición y valor de cada pieza. Filtra por país, año o estado para encontrar lo que buscas en segundos.",
   },
   {
-    icon: Users,
-    title: "Comunidad activa",
+    icon: Zap,
+    title: "Recompensas por descubrir",
     description:
-      "Descubre las colecciones de otros numismáticos, inspírate con sus piezas más raras y conecta con personas que comparten tu pasión.",
+      "El primero en registrar una pieza en el álbum colaborativo gana un token onchain en Base. Tu descubrimiento queda sellado en la blockchain.",
   },
 ];
 
@@ -70,8 +70,29 @@ export default function Index() {
   const { totalUsers, totalCoins } = useLoaderData<typeof loader>();
   return (
     <main className="min-h-screen text-[#F2ECE0]">
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-8 py-4 bg-[rgba(10,8,6,0.85)] backdrop-blur-md border-b border-[rgba(210,180,130,0.12)]">
+        <div className="flex items-center gap-2 text-[#C9A46A]">
+          <span className="text-2xl leading-none">🪙</span>
+          <span
+            className="text-xs font-medium uppercase tracking-[0.25em] hidden sm:inline"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            Album de Monedas
+          </span>
+        </div>
+        <Form method="post" action="/auth/google" reloadDocument>
+          <Button
+            type="submit"
+            className="h-9 cursor-pointer px-5 text-sm bg-[#C9A46A] text-[#0A0806] hover:bg-[#D4B07A]"
+          >
+            Iniciar sesión
+          </Button>
+        </Form>
+      </nav>
+
       {/* Hero */}
-      <section className="flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 text-center">
+      <section className="flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 text-center pt-16">
         <div className="mb-6 flex items-center gap-3 text-[#C9A46A]">
           <span className="text-5xl leading-none">🪙</span>
           <span
@@ -91,18 +112,72 @@ export default function Index() {
         </h1>
 
         <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-[rgba(242,236,224,0.55)]">
-          Organiza, valora y comparte tu colección numismática. Conecta con
-          otros coleccionistas y descubre el valor real de tus piezas.
+          Registra, cataloga y rankea tus piezas. Compite por los primeros
+          puestos, descubre colecciones de otros numismáticos y sé el primero
+          en registrar nuevas monedas para ganar recompensas onchain.
         </p>
+      </section>
 
-        <Form method="post" action="/auth/google" reloadDocument>
-          <Button
-            type="submit"
-            className="mt-10 h-12 cursor-pointer px-8 text-base bg-[#C9A46A] text-[#0A0806] hover:bg-[#D4B07A]"
-          >
-            Iniciar sesión con Google
-          </Button>
-        </Form>
+      {/* Álbum Colaborativo · Recompensas Onchain */}
+      <section className="border-t border-[rgba(210,180,130,0.18)] px-4 py-14 sm:px-6 sm:py-20">
+        <div className="mx-auto max-w-5xl rounded-2xl border border-[#C9A46A]/40 bg-[rgba(20,17,16,0.92)] p-6 sm:p-12 shadow-[0_0_40px_rgba(201,164,106,0.08)]">
+          <div className="mb-8 flex items-center gap-3">
+            <Zap className="size-6 text-[#C9A46A]" />
+            <span
+              className="text-xs font-medium uppercase tracking-[0.25em] text-[#C9A46A]"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              Álbum Colaborativo · Recompensas Onchain
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-12">
+            {/* Explicación */}
+            <div>
+              <h2
+                className="text-3xl font-semibold sm:text-4xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Sé el primero.{" "}
+                <span className="italic text-[#C9A46A]">
+                  Gana la recompensa.
+                </span>
+              </h2>
+              <p className="mt-4 text-sm sm:text-base leading-relaxed text-[rgba(242,236,224,0.6)]">
+                El álbum es colaborativo — cualquier coleccionista puede agregar
+                nuevas piezas. El <strong className="text-[#F2ECE0]">primero en registrar</strong> una
+                moneda en el catálogo recibe un token onchain en la red Base que
+                prueba su descubrimiento. Tu contribución queda sellada en la
+                blockchain para siempre.
+              </p>
+            </div>
+
+            {/* Mini-pasos */}
+            <div className="flex flex-col gap-4">
+              {[
+                { icon: "🔍", step: "01", label: "Registra una pieza nueva", desc: "Agrega monedas que aún no existen en el catálogo colaborativo." },
+                { icon: "✅", step: "02", label: "El sistema verifica que eres el primero", desc: "Se comprueba onchain que nadie reclamó esa pieza antes que tú." },
+                { icon: "🏆", step: "03", label: "Reclama tu recompensa", desc: "Conecta tu wallet y recibe el token que acredita tu descubrimiento." },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="flex items-start gap-4 rounded-xl border border-[rgba(210,180,130,0.15)] bg-[rgba(10,8,6,0.5)] p-4"
+                >
+                  <span
+                    className="text-xs font-medium uppercase tracking-[0.2em] text-[#C9A46A] pt-0.5 w-6 shrink-0"
+                    style={{ fontFamily: "var(--font-mono)" }}
+                  >
+                    {item.step}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-[#F2ECE0]">{item.label}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-[rgba(242,236,224,0.5)]">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Stats */}

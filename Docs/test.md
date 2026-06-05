@@ -249,12 +249,12 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 |---|---|
 | renders the main hero heading | El `<h1>` principal existe en el DOM |
 | hero heading mentions the value proposition | El heading menciona "colección" |
-| renders the Google login button | El botón "Iniciar sesión con Google" está en el DOM |
+| renders the Google login button | El botón "Iniciar sesión" (navbar) está en el DOM |
 | login form POSTs to /auth/google | El formulario tiene `method="post"` y `action="/auth/google"` |
 | renders 'Cómo funciona' section | La sección explicativa está renderizada |
 | renders all three onboarding steps | Los tres pasos (Crea tu cuenta, Sube tus monedas, Conecta y comparte) |
-| renders step numbers 01, 02, 03 | Los números de paso se muestran en orden |
-| renders the app description text | El texto descriptivo menciona "colección numismática" |
+| renders step numbers 01, 02, 03 | Los números de paso aparecen al menos una vez (ahora existen en "¿Cómo funciona?" y en la sección onchain) |
+| renders the app description text | El texto del hero menciona "recompensas onchain" |
 
 #### Sección de estadísticas
 
@@ -271,8 +271,15 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | Test | Descripción |
 |---|---|
 | renders '¿Por qué Album de Monedas?' section | El encabezado de la sección marketing está en el DOM |
-| renders all three reason cards | Las tres tarjetas (Compite en rankings, Monedas de todo el mundo, Comunidad activa) están presentes |
+| renders all three reason cards | Las tres tarjetas (Compite en rankings, Monedas de todo el mundo, Recompensas por descubrir) están presentes |
 | renders reason card descriptions | Los textos de las tarjetas mencionan "leaderboards", "denominación" y "numismáticos" |
+
+#### Sección Álbum Colaborativo · Recompensas Onchain
+
+| Test | Descripción |
+|---|---|
+| renders 'Álbum Colaborativo · Recompensas Onchain' section label | El label de la nueva sección onchain aparece en el DOM |
+| renders 'Sé el primero' heading in onchain section | El `<h2>` con el CTA de recompensas está renderizado |
 
 ---
 
