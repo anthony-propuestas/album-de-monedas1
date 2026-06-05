@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { Form } from "@remix-run/react";
 
+const CONDITION_LABELS: Record<string, string> = {
+  MS: "MS — Mint State",
+  AU: "AU — Almost Uncirculated",
+  XF: "XF — Extremely Fine",
+  VF: "VF — Very Fine",
+  F: "F — Fine",
+  VG: "VG — Very Good",
+  G: "G — Good",
+  P: "P — Poor",
+};
+
 type Claim = {
   id: string;
   user_id: string;
@@ -13,6 +24,12 @@ type Claim = {
   name: string;
   year: number;
   photo_obverse: string | null;
+  photo_reverse: string | null;
+  condition: string | null;
+  mint: string | null;
+  catalog_ref: string | null;
+  estimated_value: number | null;
+  notes: string | null;
 };
 
 export function AdminRewardsPanel({ claims }: { claims: Claim[] }) {
@@ -34,31 +51,86 @@ export function AdminRewardsPanel({ claims }: { claims: Claim[] }) {
         {claims.map((claim) => (
           <div
             key={claim.id}
-            className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(201,164,106,0.05)] p-5 flex gap-5"
+            className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(201,164,106,0.05)] p-5 flex flex-col gap-4"
           >
-            {claim.photo_obverse ? (
-              <img
-                src={`/images/${claim.photo_obverse}`}
-                alt="Moneda"
-                className="w-20 h-20 rounded-xl object-cover flex-shrink-0 border border-[rgba(210,180,130,0.15)]"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-xl bg-[rgba(201,164,106,0.08)] flex-shrink-0 flex items-center justify-center text-[rgba(242,236,224,0.2)] text-xs">
-                Sin foto
+            {/* Encabezado: fotos + datos principales */}
+            <div className="flex gap-5">
+              {/* Fotos */}
+              <div className="flex gap-2 flex-shrink-0">
+                {claim.photo_obverse ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <img
+                      src={`/images/${claim.photo_obverse}`}
+                      alt="Anverso"
+                      className="w-16 h-16 rounded-xl object-cover border border-[rgba(210,180,130,0.15)]"
+                    />
+                    <span className="text-[10px] text-[rgba(242,236,224,0.3)]">Anverso</span>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-[rgba(201,164,106,0.08)] flex items-center justify-center text-[rgba(242,236,224,0.2)] text-[10px]">
+                    Sin foto
+                  </div>
+                )}
+                {claim.photo_reverse && (
+                  <div className="flex flex-col items-center gap-1">
+                    <img
+                      src={`/images/${claim.photo_reverse}`}
+                      alt="Reverso"
+                      className="w-16 h-16 rounded-xl object-cover border border-[rgba(210,180,130,0.15)]"
+                    />
+                    <span className="text-[10px] text-[rgba(242,236,224,0.3)]">Reverso</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Info principal */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[rgba(242,236,224,0.9)]">
+                  {claim.name}
+                </p>
+                <p className="text-xs text-[rgba(201,164,106,0.7)] mt-0.5">
+                  {claim.country} · {claim.year}
+                </p>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3">
+                  <DataField label="Denominación" value={claim.denomination} />
+                  {claim.condition && (
+                    <DataField label="Condición" value={CONDITION_LABELS[claim.condition] ?? claim.condition} />
+                  )}
+                  {claim.mint && <DataField label="Casa de acuñación" value={claim.mint} />}
+                  {claim.catalog_ref && <DataField label="Ref. catálogo" value={claim.catalog_ref} />}
+                  {claim.estimated_value != null && (
+                    <DataField label="Valor estimado" value={`$${claim.estimated_value.toFixed(2)} USD`} />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Registry key */}
+            <div className="rounded-lg bg-[rgba(201,164,106,0.08)] border border-[rgba(210,180,130,0.15)] px-3 py-2">
+              <p className="text-[10px] font-medium text-[rgba(201,164,106,0.5)] uppercase tracking-wider mb-0.5">Registry Key</p>
+              <p className="text-xs font-mono text-[rgba(242,236,224,0.75)] break-all">{claim.coin_registry_key}</p>
+            </div>
+
+            {/* Notas */}
+            {claim.notes && (
+              <div>
+                <p className="text-[10px] font-medium text-[rgba(201,164,106,0.5)] uppercase tracking-wider mb-1">Notas</p>
+                <p className="text-xs text-[rgba(242,236,224,0.65)] leading-relaxed whitespace-pre-wrap">{claim.notes}</p>
               </div>
             )}
 
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[rgba(242,236,224,0.9)]">
-                {claim.name} — {claim.denomination} ({claim.year})
-              </p>
-              <p className="text-xs text-[rgba(242,236,224,0.4)] mt-0.5">{claim.country}</p>
-              <p className="text-xs text-[rgba(242,236,224,0.35)] mt-1 font-mono break-all">{claim.wallet_address}</p>
-              <p className="text-xs text-[rgba(242,236,224,0.25)] mt-1">
-                {new Date(claim.created_at * 1000).toLocaleString("es-AR")}
-              </p>
+            {/* Wallet + fecha + acciones */}
+            <div className="flex items-end justify-between gap-4 pt-1 border-t border-[rgba(210,180,130,0.1)]">
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium text-[rgba(201,164,106,0.5)] uppercase tracking-wider mb-0.5">Wallet</p>
+                <p className="text-xs font-mono text-[rgba(242,236,224,0.5)] break-all">{claim.wallet_address}</p>
+                <p className="text-xs text-[rgba(242,236,224,0.25)] mt-1">
+                  {new Date(claim.created_at * 1000).toLocaleString("es-AR")}
+                </p>
+              </div>
 
-              <div className="flex gap-3 mt-3">
+              <div className="flex gap-3 flex-shrink-0">
                 <Form method="post" action={`/admin/rewards/${claim.id}/approve`}>
                   <button
                     type="submit"
@@ -121,5 +193,16 @@ export function AdminRewardsPanel({ claims }: { claims: Claim[] }) {
         </div>
       )}
     </>
+  );
+}
+
+function DataField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-medium text-[rgba(201,164,106,0.5)] uppercase tracking-wider mb-0.5">
+        {label}
+      </p>
+      <p className="text-xs text-[rgba(242,236,224,0.85)]">{value}</p>
+    </div>
   );
 }

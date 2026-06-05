@@ -20,6 +20,12 @@ type ClaimWithCoin = {
   name: string;
   year: number;
   photo_obverse: string | null;
+  photo_reverse: string | null;
+  condition: string | null;
+  mint: string | null;
+  catalog_ref: string | null;
+  estimated_value: number | null;
+  notes: string | null;
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -31,7 +37,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const { results: claims } = await db
     .prepare(
       `SELECT cr.id, cr.user_id, cr.coin_id, cr.coin_registry_key, cr.wallet_address, cr.created_at,
-              c.country, c.denomination, c.name, c.year, c.photo_obverse
+              c.country, c.denomination, c.name, c.year,
+              c.photo_obverse, c.photo_reverse,
+              c.condition, c.mint, c.catalog_ref, c.estimated_value, c.notes
        FROM claim_requests cr
        JOIN coins c ON c.id = cr.coin_id
        WHERE cr.status = 'pending'

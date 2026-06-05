@@ -819,16 +819,25 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | Test | Descripción |
 |---|---|
 | shows placeholder when claims is empty | Lista vacía muestra "No hay solicitudes pendientes" |
-| renders claim card with name, denomination and year | Muestra `{name} — {denomination} ({year})` |
+| renders claim name | El nombre de la moneda se muestra solo en su `<p>` |
+| renders denomination in DataField | La denominación se muestra en el campo de datos |
+| renders country and year together | País y año se muestran como `"Argentina · 1960"` |
 | renders wallet address | La dirección de wallet se muestra en la tarjeta |
-| renders country | El país se muestra en la tarjeta |
+| renders registry key | El `coin_registry_key` se muestra en la tarjeta |
 | renders Aprobar button with correct form action | El form apunta a `/admin/rewards/{id}/approve` |
 | renders Rechazar button | El botón Rechazar está presente |
 | opens reject modal when Rechazar is clicked | Click en Rechazar abre el modal con textarea |
 | reject modal form points to correct action | El form del modal apunta a `/admin/rewards/{id}/reject` |
 | closes modal when Cancelar is clicked | Click en Cancelar cierra el modal |
 | renders placeholder image when photo_obverse is null | Sin foto muestra "Sin foto" |
-| renders img when photo_obverse is set | Con foto renderiza `<img src="/images/{key}">` |
+| renders obverse img when photo_obverse is set | Con foto anverso renderiza `<img alt="Anverso">` |
+| renders reverse img when photo_reverse is set | Con foto reverso renderiza `<img alt="Reverso">` |
+| does not render reverse img when photo_reverse is null | Sin foto reverso no hay `<img alt="Reverso">` |
+| renders condition label using CONDITION_LABELS mapping | `condition: "MS"` → muestra `"MS — Mint State"` |
+| renders mint | Casa de acuñación se muestra en la tarjeta |
+| renders catalog_ref | Referencia de catálogo se muestra en la tarjeta |
+| renders estimated_value formatted | `estimated_value: 12.5` → muestra `"$12.50 USD"` |
+| renders notes | Notas se muestran en la tarjeta si existen |
 | shows count of pending claims | Muestra el conteo de solicitudes pendientes |
 
 ---

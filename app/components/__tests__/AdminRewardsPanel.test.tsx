@@ -22,6 +22,12 @@ const makeClaim = (overrides = {}) => ({
   name: "Peso Nacional",
   year: 1960,
   photo_obverse: null,
+  photo_reverse: null,
+  condition: null,
+  mint: null,
+  catalog_ref: null,
+  estimated_value: null,
+  notes: null,
   ...overrides,
 });
 
@@ -31,9 +37,19 @@ describe("AdminRewardsPanel", () => {
     expect(screen.getByText(/no hay solicitudes pendientes/i)).toBeInTheDocument();
   });
 
-  it("renders claim card with name, denomination and year", () => {
+  it("renders claim name", () => {
     render(<AdminRewardsPanel claims={[makeClaim()]} />);
-    expect(screen.getByText(/Peso Nacional — 1 Peso \(1960\)/i)).toBeInTheDocument();
+    expect(screen.getByText("Peso Nacional")).toBeInTheDocument();
+  });
+
+  it("renders denomination in DataField", () => {
+    render(<AdminRewardsPanel claims={[makeClaim()]} />);
+    expect(screen.getByText("1 Peso")).toBeInTheDocument();
+  });
+
+  it("renders country and year together", () => {
+    render(<AdminRewardsPanel claims={[makeClaim()]} />);
+    expect(screen.getByText(/Argentina.*1960/)).toBeInTheDocument();
   });
 
   it("renders wallet address", () => {
@@ -41,9 +57,9 @@ describe("AdminRewardsPanel", () => {
     expect(screen.getByText("0xdeadbeef")).toBeInTheDocument();
   });
 
-  it("renders country", () => {
+  it("renders registry key", () => {
     render(<AdminRewardsPanel claims={[makeClaim()]} />);
-    expect(screen.getByText("Argentina")).toBeInTheDocument();
+    expect(screen.getByText("AR|1 Peso|Peso Nacional|1960")).toBeInTheDocument();
   });
 
   it("renders Aprobar button with correct form action", () => {
@@ -86,10 +102,46 @@ describe("AdminRewardsPanel", () => {
     expect(screen.getByText(/sin foto/i)).toBeInTheDocument();
   });
 
-  it("renders img when photo_obverse is set", () => {
+  it("renders obverse img when photo_obverse is set", () => {
     render(<AdminRewardsPanel claims={[makeClaim({ photo_obverse: "abc.jpg" })]} />);
-    const img = screen.getByRole("img", { name: /moneda/i });
+    const img = screen.getByRole("img", { name: /anverso/i });
     expect(img).toHaveAttribute("src", "/images/abc.jpg");
+  });
+
+  it("renders reverse img when photo_reverse is set", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ photo_reverse: "rev.jpg" })]} />);
+    const img = screen.getByRole("img", { name: /reverso/i });
+    expect(img).toHaveAttribute("src", "/images/rev.jpg");
+  });
+
+  it("does not render reverse img when photo_reverse is null", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ photo_reverse: null })]} />);
+    expect(screen.queryByRole("img", { name: /reverso/i })).not.toBeInTheDocument();
+  });
+
+  it("renders condition label using CONDITION_LABELS mapping", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ condition: "MS" })]} />);
+    expect(screen.getByText("MS — Mint State")).toBeInTheDocument();
+  });
+
+  it("renders mint", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ mint: "Casa de Moneda" })]} />);
+    expect(screen.getByText("Casa de Moneda")).toBeInTheDocument();
+  });
+
+  it("renders catalog_ref", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ catalog_ref: "KM#55" })]} />);
+    expect(screen.getByText("KM#55")).toBeInTheDocument();
+  });
+
+  it("renders estimated_value formatted", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ estimated_value: 12.5 })]} />);
+    expect(screen.getByText("$12.50 USD")).toBeInTheDocument();
+  });
+
+  it("renders notes", () => {
+    render(<AdminRewardsPanel claims={[makeClaim({ notes: "Comprada en feria" })]} />);
+    expect(screen.getByText("Comprada en feria")).toBeInTheDocument();
   });
 
   it("shows count of pending claims", () => {
