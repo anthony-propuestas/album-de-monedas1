@@ -329,23 +329,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
   return redirect("/mycollection");
 }
 
-function SellCoinControl({ coin }: { coin: Coin }) {
+function SellCoinControl({ coin, onShowForm }: { coin: Coin; onShowForm: () => void }) {
   const fetcher = useFetcher<{ success?: boolean; error?: string }>();
-  const [showInput, setShowInput] = useState(false);
   const submitting = fetcher.state === "submitting";
 
   if (coin.for_sale) {
     return (
-      <div className="flex flex-col items-center gap-0.5 mt-1 px-1">
-        <span className="text-[9px] uppercase tracking-widest text-emerald-400/60">en venta</span>
-        <span className="text-xs text-[#C9A46A]">${(coin.asking_price ?? 0).toFixed(2)}</span>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <span className="text-[9px] uppercase tracking-widest text-emerald-400/60 shrink-0">en venta</span>
+        <span className="text-[10px] text-[#C9A46A] shrink-0">${(coin.asking_price ?? 0).toFixed(2)}</span>
         <fetcher.Form method="post">
           <input type="hidden" name="intent" value="unlist_coin" />
           <input type="hidden" name="coin_id" value={coin.id} />
           <button
             type="submit"
             disabled={submitting}
-            className="text-[9px] text-[rgba(242,236,224,0.3)] hover:text-red-400/70 transition-colors mt-0.5"
+            className="text-[9px] text-[rgba(242,236,224,0.3)] hover:text-red-400/70 transition-colors"
           >
             quitar
           </button>
@@ -354,51 +353,50 @@ function SellCoinControl({ coin }: { coin: Coin }) {
     );
   }
 
-  if (showInput) {
-    return (
-      <fetcher.Form
-        method="post"
-        className="flex flex-col gap-1.5 mt-1.5 px-1"
-        onSubmit={() => setShowInput(false)}
-      >
-        <input type="hidden" name="intent" value="list_coin" />
-        <input type="hidden" name="coin_id" value={coin.id} />
-        <input
-          type="number"
-          name="asking_price"
-          step="0.01"
-          min="0"
-          placeholder="Precio USD"
-          autoFocus
-          className="w-full text-[11px] text-center bg-transparent border border-[rgba(210,180,130,0.35)] rounded-md px-2 py-1 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.6)]"
-        />
-        <div className="flex gap-1">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex-1 text-[10px] py-1 rounded-md bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.25)] hover:bg-[rgba(201,164,106,0.22)] transition-colors"
-          >
-            Publicar
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowInput(false)}
-            className="px-2 text-[10px] rounded-md text-[rgba(242,236,224,0.35)] hover:text-[rgba(242,236,224,0.6)] transition-colors border border-[rgba(210,180,130,0.1)]"
-          >
-            ✕
-          </button>
-        </div>
-      </fetcher.Form>
-    );
-  }
-
   return (
     <button
-      onClick={() => setShowInput(true)}
-      className="mt-1.5 w-full text-[10px] uppercase tracking-widest font-medium py-1.5 rounded-lg border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)] transition-all"
+      onClick={onShowForm}
+      className="flex-1 text-[10px] uppercase tracking-widest font-medium py-1 rounded-lg border border-[rgba(210,180,130,0.2)] text-[rgba(201,164,106,0.6)] hover:border-[rgba(210,180,130,0.45)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)] transition-all"
     >
       Vender
     </button>
+  );
+}
+
+function SellCoinForm({ coin, onClose }: { coin: Coin; onClose: () => void }) {
+  const fetcher = useFetcher<{ success?: boolean; error?: string }>();
+  const submitting = fetcher.state === "submitting";
+
+  return (
+    <fetcher.Form method="post" className="flex flex-col gap-1.5" onSubmit={onClose}>
+      <input type="hidden" name="intent" value="list_coin" />
+      <input type="hidden" name="coin_id" value={coin.id} />
+      <input
+        type="number"
+        name="asking_price"
+        step="0.01"
+        min="0"
+        placeholder="Precio USD"
+        autoFocus
+        className="w-full text-[11px] text-center bg-transparent border border-[rgba(210,180,130,0.35)] rounded-md px-2 py-1 text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.6)]"
+      />
+      <div className="flex gap-1">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex-1 text-[10px] py-1 rounded-md bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.25)] hover:bg-[rgba(201,164,106,0.22)] transition-colors"
+        >
+          Publicar
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-2 text-[10px] rounded-md text-[rgba(242,236,224,0.35)] hover:text-[rgba(242,236,224,0.6)] transition-colors border border-[rgba(210,180,130,0.1)]"
+        >
+          ✕
+        </button>
+      </div>
+    </fetcher.Form>
   );
 }
 
@@ -412,9 +410,15 @@ function DeleteCoinButton({ coinId, coinName }: { coinId: string; coinName: stri
         type="button"
         disabled={fetcher.state !== "idle"}
         onClick={() => setConfirmOpen(true)}
-        className="mt-1 w-full text-[10px] uppercase tracking-widest font-medium py-1.5 rounded-lg border border-[rgba(239,68,68,0.2)] text-[rgba(239,68,68,0.5)] hover:border-[rgba(239,68,68,0.45)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.08)] transition-all"
+        title="Eliminar moneda"
+        className="p-1.5 rounded-lg text-[rgba(239,68,68,0.4)] hover:text-red-400 hover:bg-[rgba(239,68,68,0.08)] transition-all shrink-0"
       >
-        Eliminar
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+          <path d="M10 11v6M14 11v6" />
+          <path d="M9 6V4h6v2" />
+        </svg>
       </button>
       <DeleteConfirmModal
         isOpen={confirmOpen}
@@ -426,6 +430,44 @@ function DeleteCoinButton({ coinId, coinName }: { coinId: string; coinName: stri
         onCancel={() => setConfirmOpen(false)}
       />
     </>
+  );
+}
+
+function CoinCardItem({
+  coin,
+  claimStatus,
+  onSelect,
+}: {
+  coin: Coin;
+  claimStatus: { status: string; expires_at?: number | null; coin_id_hash?: string | null; reject_reason?: string | null } | undefined;
+  onSelect: () => void;
+}) {
+  const [showSellForm, setShowSellForm] = useState(false);
+
+  return (
+    <div className="flex flex-col rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(14,11,10,0.4)] overflow-hidden">
+      <div className="p-3 cursor-pointer" onClick={onSelect}>
+        <CoinCard coin={coin} />
+      </div>
+      <div className="border-t border-[rgba(210,180,130,0.12)] px-2 py-1.5">
+        {showSellForm ? (
+          <SellCoinForm coin={coin} onClose={() => setShowSellForm(false)} />
+        ) : (
+          <div className="flex items-center gap-1">
+            <SellCoinControl coin={coin} onShowForm={() => setShowSellForm(true)} />
+            <DeleteCoinButton coinId={coin.id} coinName={coin.name} />
+            <ClaimButton
+              coinId={coin.id}
+              registryMatch={coin.registry_match}
+              initialStatus={(claimStatus?.status ?? "eligible") as "eligible" | "pending" | "approved" | "rejected" | "claimed"}
+              initialExpiresAt={claimStatus?.expires_at}
+              initialCoinIdHash={claimStatus?.coin_id_hash}
+              initialRejectReason={claimStatus?.reject_reason}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -530,19 +572,12 @@ export default function MyCollection() {
         ) : (
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {coins.map((coin) => (
-              <div key={coin.id} className="flex flex-col">
-                <CoinCard coin={coin} onClick={() => setSelectedCoin(coin)} />
-                <SellCoinControl coin={coin} />
-                <DeleteCoinButton coinId={coin.id} coinName={coin.name} />
-                <ClaimButton
-                  coinId={coin.id}
-                  registryMatch={coin.registry_match}
-                  initialStatus={(claimStatuses[coin.id]?.status ?? "eligible") as "eligible" | "pending" | "approved" | "rejected" | "claimed"}
-                  initialExpiresAt={claimStatuses[coin.id]?.expires_at}
-                  initialCoinIdHash={claimStatuses[coin.id]?.coin_id_hash}
-                  initialRejectReason={claimStatuses[coin.id]?.reject_reason}
-                />
-              </div>
+              <CoinCardItem
+                key={coin.id}
+                coin={coin}
+                claimStatus={claimStatuses[coin.id]}
+                onSelect={() => setSelectedCoin(coin)}
+              />
             ))}
           </div>
         )}
