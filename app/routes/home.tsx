@@ -6,6 +6,7 @@ import { createAuth } from "~/lib/auth.server";
 import { checkRateLimit } from "~/lib/rateLimit.server";
 import { ProfileSetupModal } from "~/components/ProfileSetupModal";
 import { BadgesGrid } from "~/components/BadgesGrid";
+import { WorldMap } from "~/components/WorldMap";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import { computeEarnedBadgeIds, BADGE_MAP } from "~/lib/badges";
 import type { Coin } from "~/components/CoinCard";
@@ -101,7 +102,21 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       .first<{ unread: number }>();
     const unreadMessages = unreadRow?.unread ?? 0;
 
-    return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages });
+    const { results: claimedRows } = await db
+      .prepare(
+        `SELECT c.country, COUNT(*) as count
+         FROM claim_requests cr
+         JOIN coins c ON cr.coin_id = c.id
+         WHERE cr.status = 'claimed' AND c.country IS NOT NULL
+         GROUP BY c.country`
+      )
+      .all<{ country: string; count: number }>();
+    const claimedByCountry: Record<string, number> = {};
+    for (const row of claimedRows) {
+      claimedByCountry[row.country] = row.count;
+    }
+
+    return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry });
   } catch (e) {
     throw new Response("Error al cargar el dashboard", { status: 500 });
   }
@@ -244,7 +259,7 @@ const drawerItems = [
 ];
 
 export default function Home() {
-  const { user, profileCompleted, stats, coinOfDay, badges, unreadMessages } = useLoaderData<typeof loader>();
+  const { user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -400,6 +415,13 @@ export default function Home() {
         </div>
       )}
       <BadgesGrid badges={badges} />
+      <div className="w-full max-w-3xl mb-10">
+        <WorldMap
+          coinsByCountry={claimedByCountry}
+          colorScheme="blue"
+          title="Colección colaborativa onchain"
+        />
+      </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 w-full max-w-3xl">
         {navItems.map((item) => (
           <a

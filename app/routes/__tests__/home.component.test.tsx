@@ -16,6 +16,7 @@ const defaultLoaderData = {
   coinOfDay: null,
   badges: [],
   unreadMessages: 0,
+  claimedByCountry: {},
 };
 
 vi.mock("@remix-run/react", () => ({

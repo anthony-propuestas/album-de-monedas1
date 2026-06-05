@@ -12,7 +12,10 @@ function makeMockDb(firstResult: { profile_completed: number } | null = null) {
     run: vi.fn().mockResolvedValue({}),
     all: vi.fn().mockResolvedValue({ results: [] }),
   };
-  const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
+  const prepareObj = {
+    bind: vi.fn().mockReturnValue(bindObj),
+    all: vi.fn().mockResolvedValue({ results: [] }),
+  };
   return { prepare: vi.fn().mockReturnValue(prepareObj) };
 }
 
@@ -40,7 +43,10 @@ function makeMockDbWithStats({
   const runFn = vi.fn().mockResolvedValue({});
   const allFn = vi.fn().mockResolvedValue({ results: [] });
   const bindObj = { first: firstFn, run: runFn, all: allFn };
-  const prepareObj = { bind: vi.fn().mockReturnValue(bindObj) };
+  const prepareObj = {
+    bind: vi.fn().mockReturnValue(bindObj),
+    all: vi.fn().mockResolvedValue({ results: [] }),
+  };
   const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
   return { db, firstFn, runFn, prepareObj };
 }
@@ -251,5 +257,14 @@ describe("home loader", () => {
     const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     const data = await result.json();
     expect(data.stats).toEqual({ total: 7, estimatedValue: 300, topCondition: "AU" });
+  });
+
+  it("returns claimedByCountry as an object", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats();
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.claimedByCountry).toBeDefined();
+    expect(typeof data.claimedByCountry).toBe("object");
   });
 });

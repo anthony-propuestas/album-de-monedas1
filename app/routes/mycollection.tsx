@@ -14,6 +14,7 @@ import { CoinFilters } from "~/components/CoinFilters";
 import { ClaimButton } from "~/components/ClaimButton";
 import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
+import { WorldMap } from "~/components/WorldMap";
 import { createAuth } from "~/lib/auth.server";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import { checkRateLimit } from "~/lib/rateLimit.server";
@@ -433,6 +434,11 @@ export default function MyCollection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
 
+  const coinsByCountry = allCoins.reduce<Record<string, number>>((acc, coin) => {
+    if (coin.country) acc[coin.country] = (acc[coin.country] ?? 0) + 1;
+    return acc;
+  }, {});
+
   const isEmpty = coins.length === 0;
   const hasFilters = filters.q || filters.country || filters.year || filters.condition;
 
@@ -480,6 +486,15 @@ export default function MyCollection() {
         {/* Progreso por serie + Timeline de años */}
         <SeriesProgress seriesProgressByCountry={seriesProgressByCountry} />
         <YearTimeline coins={allCoins} />
+
+        {/* Mapa personal */}
+        <div className="mb-6">
+          <WorldMap
+            coinsByCountry={coinsByCountry}
+            colorScheme="amber"
+            title="Mi colección por país"
+          />
+        </div>
 
         {/* Filtros */}
         <div className="mb-6">

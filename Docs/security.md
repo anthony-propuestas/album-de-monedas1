@@ -68,6 +68,7 @@ El dashboard muestra `stats.total`, `stats.estimatedValue` y `stats.topCondition
 | `stats.total` | `COUNT(*)` filtrado por `user_id` de sesión | Conteo de monedas propias | Ninguno |
 | `stats.estimatedValue` | `SUM(estimated_value)` filtrado por `user_id` de sesión | Valor estimado total de monedas propias | Ninguno |
 | `stats.topCondition` | `GROUP BY condition` filtrado por `user_id` de sesión | Condición más frecuente en colección propia | Ninguno |
+| `claimedByCountry` | JOIN `claim_requests`+`coins` GROUP BY `c.country` — todos los usuarios, sin filtro por `user_id` | Conteo de claims onchain por código ISO-2 (agregado global) | Ninguno — sin PII; requiere auth; análogo a `totalUsers`/`totalCoins` de la landing |
 
 Puntos clave:
 - El `user.id` usado en `.bind()` proviene de la cookie de sesión firmada (HMAC), no de input del cliente — sin riesgo de privilege escalation entre usuarios.
@@ -301,6 +302,22 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 
 - **`worker.ts` asset check**: cambiado de `assetResponse.status !== 404` a `assetResponse.ok`. La versión anterior reenviaba respuestas 5xx y 3xx del asset server al cliente. La versión nueva solo reenvía 2xx, evitando filtrar errores internos de Cloudflare Pages Assets.
 - **`worker.ts` routing explícito por pathname**: los paths `/assets/*` y `/favicon*` se cortocircuitan antes del handler de Remix mediante un check de `url.pathname`. Se usa `new Request(request.url)` (sin `request.clone()`) para que las cookies de sesión no se reenvíen al servidor de assets. Si el binding `ASSETS` no está disponible para esas rutas, devuelve 503 en lugar de lanzar excepción.
+
+---
+
+## Componente WorldMap
+
+### Propiedades de seguridad
+
+- **Client-only**: usa `useEffect` para montar; no se ejecuta en SSR, sin exposición server-side.
+- **Fetch local**: `fetch("/world-110m.json")` apunta a un asset estático del bundle de Cloudflare Pages — sin URLs externas ni input del usuario en la URL.
+- **Sin SVG injection**: los `d` attributes de los `<path>` son generados por `d3-geo`/`topojson-client` a partir del TopoJSON local, no de datos del usuario.
+- **Tooltip sin XSS**: `tooltip.name` proviene de `COUNTRY_NAME[iso2]`, un lookup de `app/lib/countries.ts` (constante estática del bundle). `tooltip.count` es un `number`. Ambos se renderizan como texto en JSX (escape automático de React). No se usa `dangerouslySetInnerHTML`.
+- **Props de entrada**: `coinsByCountry` es `Record<string, number>` — solo claves ISO-2 y conteos enteros; sin strings arbitrarios del usuario que lleguen al DOM.
+
+### Dependencias nuevas
+
+`d3-geo`, `d3-scale`, `topojson-client` son librerías de visualización de datos ampliamente auditadas, sin dependencias de red en runtime.
 
 ---
 

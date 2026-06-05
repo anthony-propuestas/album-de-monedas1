@@ -8,7 +8,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Sepolia vía EIP-712)
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Sepolia vía EIP-712) · Mapas coropletas D3 (colección personal + colección colaborativa onchain)
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
 
 ## Variables de entorno
@@ -118,6 +118,7 @@ app/
     AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes, botones aprobar/rechazar
     ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
     DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
+    WorldMap.tsx              # Mapa coropleta SVG (D3 + TopoJSON) — client-only, color blue/amber según uso
     ui/__tests__/
       button.test.tsx         # 26 tests: variantes (6), tamaños (4), onClick, disabled + buttonVariants
     __tests__/
@@ -131,6 +132,7 @@ app/
       CollectorRow.test.tsx       # 15 tests: medallas, link con/sin ?from=, avatar, stat
       ImageCropEditor.test.tsx    # 11 tests: zoom, crop vía canvas, cancelar/confirmar
       ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
+      WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
   providers/
     WagmiProvider.tsx         # wagmi (Base Sepolia) + TanStack Query
   lib/
@@ -141,6 +143,7 @@ app/
     badges.ts                 # Sistema de logros/badges
     rewards.server.ts         # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Sepolia)
     rateLimit.server.ts       # checkRateLimit — rate limiting por usuario+acción en D1
+    country-numeric-map.ts    # NUMERIC_TO_ALPHA2: ISO numeric → alpha-2 para conectar world-atlas con los códigos de la DB
     coins/
       index.ts                # CoinEntry interface + COINS_BY_COUNTRY: Record<string, CoinEntry[]>
       argentina.ts            # MONEDAS_ARGENTINA — Serie 1, Serie 2 (Árboles) y conmemorativas
@@ -192,7 +195,7 @@ npm run test:coverage  # reporte de cobertura en /coverage
 
 Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
-38 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
+42 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
 
 ## Seguridad
 

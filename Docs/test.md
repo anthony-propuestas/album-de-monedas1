@@ -107,13 +107,14 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | makes at least 7 DB prepare calls | El loader invoca `db.prepare` ≥ 7 veces: INSERT OR IGNORE users + profile + 3 stats + coins + user_badges + messages |
 | runs INSERT OR IGNORE for both new and existing users | La query `INSERT OR IGNORE INTO users` siempre se ejecuta, independiente de si el usuario existe |
 | response includes all three stats fields | La respuesta contiene `{ total, estimatedValue, topCondition }` con los valores correctos de la DB |
+| returns claimedByCountry in response | `data.claimedByCountry` está definido y es un objeto (mapa ISO-2 → count de claimed coins) |
 
 ---
 
 ### `app/routes/__tests__/home.component.test.tsx`
 **Qué prueba:** el componente React `Home` de `app/routes/home.tsx`.
 
-> `useLoaderData` y `useFetcher` se mockean para inyectar estado sin necesitar el contexto de Remix.
+> `useLoaderData` y `useFetcher` se mockean para inyectar estado sin necesitar el contexto de Remix. El mock de `defaultLoaderData` incluye `claimedByCountry: {}` para que `WorldMap` no lance TypeError al llamar `Object.values(undefined)`.
 
 #### Contenido principal
 
@@ -923,6 +924,21 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | inserts post and redirects to /admin on success | DB INSERT + redirect 302 a `/admin` |
 | calls DB INSERT with correct title and body | `prepare` recibe `INSERT INTO posts` y `bind` recibe `(title, body)` |
 | returns 500 when DB throws | `run()` rechaza → `{ error: "Error..." }` status 500 |
+
+---
+
+### `app/components/__tests__/WorldMap.test.tsx`
+**Qué prueba:** el componente `WorldMap` de `app/components/WorldMap.tsx`, que muestra un mapa coropleta SVG del mundo.
+
+> `global.fetch` se mockea para devolver un TopoJSON mínimo válido (`GeometryCollection` con `geometries: []`) evitando llamadas de red. `topojson-client` procesa el mock sin error y produce un `FeatureCollection` vacío.
+
+| Test | Descripción |
+|---|---|
+| renders a container div | El componente monta y produce al menos un elemento DOM |
+| renders title when prop is provided | La prop `title` aparece en el DOM como texto |
+| renders legend with total pieces when data is provided | Con `coinsByCountry={{ AR: 3, US: 5 }}`, la leyenda muestra "8 piezas" |
+| renders legend with singular 'pieza' for count of 1 | Con un único coin, la leyenda usa el singular "1 pieza" |
+| does not render legend when coinsByCountry is empty | Sin monedas, la leyenda `<p>` de totales no aparece en el DOM |
 
 ---
 

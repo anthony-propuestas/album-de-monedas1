@@ -23,6 +23,7 @@ npm run deploy       # build + deploy a Cloudflare Pages
 - **DB**: D1 (SQLite) · raw SQL vía `db.prepare().bind()` (sin Drizzle)
 - **Storage**: R2 (imágenes de monedas)
 - **Onchain/Wallet**: viem · wagmi · TanStack Query (Base Sepolia)
+- **Visualización**: d3-geo · topojson-client · world-atlas (`public/world-110m.json`)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
 > **Pendiente de implementar:** Drizzle ORM · Durable Objects (chat) · KV · WAF
@@ -107,6 +108,7 @@ app/
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
     ClaimButton.tsx             # Botón de claim onchain; sin wallet conecta MetaMask directamente vía `injected()`; con wallet envía solicitud al admin o ejecuta la TX
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
+    WorldMap.tsx                # Mapa coropleta SVG (D3 + TopoJSON) — client-only; props: coinsByCountry (ISO-2 → count), colorScheme ("blue"|"amber"), title
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     badges.ts                   # Sistema de logros/badges
@@ -117,6 +119,7 @@ app/
     utils.ts                    # cn() — merge de clases Tailwind
     rewards.server.ts           # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Sepolia)
     rateLimit.server.ts         # checkRateLimit — rate limiting por usuario+acción en D1
+    country-numeric-map.ts      # NUMERIC_TO_ALPHA2: mapeo ISO 3166-1 numérico → alpha-2 (~160 países) para conectar world-atlas con los códigos ISO de la DB
     contracts/abi.ts            # ABI del contrato RewardClaimer (claimReward, coinClaimed, lastClaimTime)
     contracts/addresses.ts      # Addresses de AlbumCoin y RewardClaimer en Base Sepolia
   providers/
@@ -125,7 +128,8 @@ app/
     env.d.ts                    # Env interface + AppLoadContext (GOOGLE_*, SESSION_SECRET, TURNSTILE_*, BACKEND_SIGNER_KEY)
 functions/
   [[path]].ts                   # Entry point Cloudflare Pages Functions
-public/                         # Assets estáticos
+public/
+  world-110m.json               # TopoJSON Natural Earth 110m (~100KB) — usado por WorldMap para generar paths SVG de países
 vite.config.ts                  # Remix plugin + Tailwind v4 plugin + tsconfigPaths
 wrangler.toml                   # Config Cloudflare Pages + D1 + R2 bindings
 .dev.vars                       # Variables de entorno locales (no commitear)
