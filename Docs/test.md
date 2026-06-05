@@ -729,6 +729,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns true when contract reports claimed | `isCoinClaimedOnchain` retorna `true` si el contrato lo indica |
 | returns false when contract reports not claimed | `isCoinClaimedOnchain` retorna `false` si el contrato lo indica |
 | calls readContract with correct functionName | Llama a `coinClaimed` con el hash correcto |
+| returns false when readContract throws | `isCoinClaimedOnchain` atrapa el error de red/contrato y devuelve `false` |
 
 ---
 
@@ -744,6 +745,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 409 when already claimed onchain | Reclamado onchain → 409 |
 | returns 200 with claimRequestId on happy path | Inserta registro y retorna `{ claimRequestId, status: "pending" }` |
 | returns 400 when missing coinId | Sin `coinId` en el body → 400 |
+| returns 500 on unexpected error | Error inesperado en el action → 500 con `{ error: string }` |
 
 ---
 

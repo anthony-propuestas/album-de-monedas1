@@ -53,14 +53,18 @@ export async function signClaim(
 export async function isCoinClaimedOnchain(
   coinIdHash: `0x${string}`
 ): Promise<boolean> {
-  const client = createPublicClient({
-    chain: base,
-    transport: http(),
-  });
-  return client.readContract({
-    address: REWARD_CLAIMER_ADDRESS,
-    abi: COIN_CLAIMED_ABI,
-    functionName: "coinClaimed",
-    args: [coinIdHash],
-  });
+  try {
+    const client = createPublicClient({
+      chain: base,
+      transport: http(),
+    });
+    return await client.readContract({
+      address: REWARD_CLAIMER_ADDRESS,
+      abi: COIN_CLAIMED_ABI,
+      functionName: "coinClaimed",
+      args: [coinIdHash],
+    });
+  } catch {
+    return false;
+  }
 }

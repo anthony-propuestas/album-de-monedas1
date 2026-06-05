@@ -210,7 +210,7 @@ BASESCAN_API_KEY=...           # del paso 0.4
 ```bash
 cd contracts
 forge script script/Deploy.s.sol \
-  --rpc-url https://sepolia.base.org \
+  --rpc-url https://mainnet.base.org \
   --broadcast \
   --verify \
   --etherscan-api-key $BASESCAN_API_KEY
@@ -219,7 +219,7 @@ forge script script/Deploy.s.sol \
 ### ✅ Verificar paso 2
 
 - El output muestra `AlbumCoin: 0xABC...` y `RewardClaimer: 0xDEF...`
-- Ambas addresses aparecen verificadas en [sepolia.basescan.org](https://sepolia.basescan.org)
+- Ambas addresses aparecen verificadas en [basescan.org](https://basescan.org)
 - Anotar las addresses; se necesitan en pasos 5 y 6
 
 ---
@@ -318,7 +318,7 @@ Validaciones antes de crear el registro:
 1. La moneda pertenece al usuario autenticado (D1)
 2. `registry_match = TRUE` en esa moneda
 3. No existe un `claim_request` con `status IN ('pending', 'approved')` para esa moneda
-4. `coinClaimed[coinIdHash]` es `false` en el contrato (llamada a Base Sepolia/Mainnet)
+4. `coinClaimed[coinIdHash]` es `false` en el contrato (llamada a Base Mainnet)
 
 Si pasa: crear registro en `claim_requests` con `status = 'pending'`.
 
@@ -347,8 +347,8 @@ async function signClaim(
     domain: {
       name: "RewardClaimer",
       version: "1",
-      chainId: 84532, // Base Sepolia; cambiar a 8453 al migrar a mainnet
-      verifyingContract: "0x50c78a44FA70c765695E2B836474d83d1776F718"
+      chainId: 8453, // Base Mainnet
+      verifyingContract: "0x0E6d7d06F4C7F06585A0Bc4b66973FaE6dcd4CDe"
     },
     types: {
       Claim: [
@@ -401,15 +401,15 @@ npm install wagmi @rainbow-me/rainbowkit viem --legacy-peer-deps
 
 ```typescript
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 
 const config = getDefaultConfig({
   appName: "Album de Monedas",
   projectId: "TU_WALLETCONNECT_PROJECT_ID", // del paso 0.3
-  chains: [baseSepolia],
-  transports: { [baseSepolia.id]: http() }
+  chains: [base],
+  transports: { [base.id]: http() }
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {

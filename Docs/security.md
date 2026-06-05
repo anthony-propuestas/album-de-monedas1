@@ -271,6 +271,8 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
 - **Admin protegido por email**: los endpoints `/admin/rewards/*` verifican `user.email === ADMIN_EMAIL`.
 - **SQL parametrizado**: todas las queries usan `.prepare().bind()`.
+- **Error handling en `isCoinClaimedOnchain`** (`rewards.server.ts`): envuelto en try/catch; devuelve `false` si el RPC falla, evitando que la excepción bloquee la acción completa.
+- **Error handling global en `api.rewards.request`**: todo el action está envuelto en try/catch; errores inesperados devuelven 500 en lugar de propagarse como excepción no capturada al worker.
 
 ### Nuevas superficies de ataque
 
@@ -289,8 +291,11 @@ El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez 
 #### [LOW] `api.rewards.sign` no verifica propiedad de la moneda por `user_id`
 La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
 
-#### [LOW] RPC público sin fallback ni timeout
-`isCoinClaimedOnchain` usa `http()` sin URL explícita (RPC público por defecto de viem). Un fallo del RPC lanza excepción y bloquea `api.rewards.request`. No hay manejo de error ni timeout configurado.
+#### [MEDIUM] `isCoinClaimedOnchain` falla silenciosamente ante error RPC
+El try/catch en `isCoinClaimedOnchain` devuelve `false` si el RPC falla. Esto evita que la acción crashee, pero permite insertar un `claim_request` para una moneda que *podría* ya estar reclamada onchain (si el RPC estaba caído al momento de la verificación). El contrato rechazará la tx en el momento de ejecutar, por lo que el impacto real es operativo (inconsistencia de estado en DB, no pérdida de fondos). Se elimina el riesgo anterior de crash total por RPC no disponible.
+
+#### [LOW] `catch (e)` en `api.rewards.request` expone `String(e)` al cliente
+El handler global devuelve `{ error: String(e) }` en respuestas 500. En producción puede filtrar stack traces, mensajes de D1, o información interna de viem si la excepción proviene de esas capas.
 
 #### [LOW] `api.rewards.claimed` — `txHash` no se valida
 `api.rewards.claimed.tsx` recibe `txHash` del body JSON y lo almacena directamente en `claim_requests.tx_hash` sin validar que sea un hash de transacción Ethereum válido (`/^0x[0-9a-f]{64}$/i`). No tiene loader que retorne 405 para GET. Impacto bajo: el campo es solo informativo y el UPDATE filtra por `user_id` y `status = 'approved'`.
@@ -369,6 +374,8 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Hash EIP-712 vulnerable a colisión por `\|` | **Pendiente** | Usar ABI encoding (`encodeAbiParameters`) en lugar de concatenación con separador |
 | Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
+| RPC público puede fallar silenciosamente en verificación onchain | **Pendiente** | Error handling añadido (no crashea), pero el fallback `false` puede generar claims inconsistentes; considerar RPC privado con retry o verificación admin explícita |
+| `String(e)` expuesto en errores 500 de `api.rewards.request` | **Pendiente** | Sanitizar: devolver mensaje genérico en producción, loguear el error real solo en server logs |
 
 ---
 
@@ -388,3 +395,5 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (usar `checkRateLimit` ya existente).
 - [ ] Validar `walletAddress` con regex `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests`.
 - [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
+- [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
+- [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.

@@ -144,4 +144,13 @@ describe("api.rewards.request action", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("returns 500 on unexpected error", async () => {
+    vi.mocked(authModule.createAuth).mockImplementation(() => {
+      throw new Error("unexpected");
+    });
+    const { db } = makeDb();
+    const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    expect(res.status).toBe(500);
+  });
 });

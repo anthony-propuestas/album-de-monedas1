@@ -89,4 +89,10 @@ describe("isCoinClaimedOnchain", () => {
       expect.objectContaining({ functionName: "coinClaimed", args: ["0xabc"] })
     );
   });
+
+  it("returns false when readContract throws", async () => {
+    mockReadContract.mockRejectedValue(new Error("network error"));
+    const result = await isCoinClaimedOnchain("0xhash" as `0x${string}`);
+    expect(result).toBe(false);
+  });
 });
