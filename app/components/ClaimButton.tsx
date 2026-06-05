@@ -70,6 +70,21 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coinId, txHash: hash }),
       }).catch(() => {});
+      // Sugerir añadir el token a MetaMask con imagen personalizada
+      (window as Window & { ethereum?: { request: (args: unknown) => Promise<unknown> } }).ethereum
+        ?.request({
+          method: "wallet_watchAsset",
+          params: {
+            type: "ERC20",
+            options: {
+              address: "0xf078c79b0F52ABE81394DD455cBc0a63f76bC059",
+              symbol: "AC",
+              decimals: 18,
+              image: `${window.location.origin}/album-coin-logo.png`,
+            },
+          },
+        })
+        .catch(() => {});
     }
   }, [txSuccess, hash, coinId, txDone]);
 
