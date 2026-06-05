@@ -939,6 +939,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | renders legend with total pieces when data is provided | Con `coinsByCountry={{ AR: 3, US: 5 }}`, la leyenda muestra "8 piezas" |
 | renders legend with singular 'pieza' for count of 1 | Con un único coin, la leyenda usa el singular "1 pieza" |
 | does not render legend when coinsByCountry is empty | Sin monedas, la leyenda `<p>` de totales no aparece en el DOM |
+| shows loading skeleton while paths are not yet loaded | Antes de que el fetch resuelva, el div `.animate-pulse` está en el DOM |
 
 ---
 

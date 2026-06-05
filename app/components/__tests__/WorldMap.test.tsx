@@ -37,4 +37,11 @@ describe("WorldMap", () => {
     const { container } = render(<WorldMap coinsByCountry={{}} />);
     expect(container.querySelector("p.text-right")).toBeNull();
   });
+
+  it("shows loading skeleton while paths are not yet loaded", () => {
+    const { container } = render(<WorldMap coinsByCountry={{ AR: 3 }} />);
+    // fetch is async; before it resolves, skeleton div must be present
+    const skeleton = container.querySelector(".animate-pulse");
+    expect(skeleton).toBeInTheDocument();
+  });
 });

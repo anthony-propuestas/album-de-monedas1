@@ -94,7 +94,7 @@ export function WorldMap({ coinsByCountry, colorScheme = "blue", title }: WorldM
         </p>
       )}
 
-      {!mounted ? (
+      {!mounted || countryPaths.length === 0 ? (
         <div className="h-[240px] sm:h-[360px] animate-pulse bg-[rgba(201,164,106,0.04)]" />
       ) : (
         <div className="relative w-full">
