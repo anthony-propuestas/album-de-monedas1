@@ -96,13 +96,15 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   }
 
   async function handleClaim() {
+    const currentAddress = address;
+    if (!currentAddress) return;
     setLoading(true);
     setClaimError(null);
     try {
       const res = await fetch("/api/rewards/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coinId, walletAddress: address }),
+        body: JSON.stringify({ coinId, walletAddress: currentAddress }),
       });
       if (!res.ok) {
         const data = await res.json<{ error?: string }>();
@@ -116,6 +118,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
         abi: REWARD_CLAIMER_ABI,
         functionName: "claimReward",
         args: [hash, signature],
+        account: currentAddress,
       });
     } finally {
       setLoading(false);
@@ -158,7 +161,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   }
 
   if (effectiveStatus === "approved" && expiresAt) {
-    const errMsg = claimError ?? (writeError ? (writeError as Error).shortMessage ?? writeError.message : null);
+    const errMsg = claimError ?? (writeError ? ((writeError as unknown as { shortMessage?: string }).shortMessage ?? writeError.message) : null);
     return (
       <div className="flex flex-col gap-0.5">
         <button
