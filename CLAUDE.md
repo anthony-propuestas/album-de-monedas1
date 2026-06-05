@@ -23,7 +23,7 @@ npm run deploy       # build + deploy a Cloudflare Pages
 - **DB**: D1 (SQLite) · raw SQL vía `db.prepare().bind()` (sin Drizzle)
 - **Storage**: R2 (imágenes de monedas)
 - **Onchain/Wallet**: viem · wagmi · TanStack Query (Base Sepolia)
-- **Visualización**: d3-geo · topojson-client · world-atlas (`public/world-110m.json`)
+- **Visualización**: d3-geo · topojson-client · TopoJSON estático (`public/world-110m.json`, no es paquete npm)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
 > **Pendiente de implementar:** Drizzle ORM · Durable Objects (chat) · KV · WAF
@@ -42,7 +42,7 @@ binding = "IMAGES"    # bucket: album-monedas-images
 
 - `users`: id, email, name, picture, country, collecting_since, goals, profile_completed, created_at
 - `coins`: id, user_id, name, country, year, denomination, condition, mint, catalog_ref, estimated_value, notes, photo_obverse, photo_reverse, photo_edge, photo_detail, for_sale, asking_price, registry_match, created_at
-- `claim_requests`: id, user_id, coin_id, coin_registry_key, coin_id_hash, wallet_address, status (pending|approved|rejected|claimed), reviewed_at, approved_at, expires_at, reject_reason, tx_hash, claimed_at, created_at
+- `claim_requests`: id, user_id, coin_id, coin_registry_key, coin_id_hash, wallet_address, status (pending|approved|rejected|claimed|expired), reviewed_at, approved_at, expires_at, reject_reason, tx_hash, claimed_at, created_at
 - `user_badges`: user_id, badge_id, unlocked_at
 - `posts`: id, title, body, created_at
 - `messages`: id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message, created_at, read_at

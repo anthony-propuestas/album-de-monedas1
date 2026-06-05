@@ -7,11 +7,6 @@ vi.mock("wagmi", () => ({
   http: vi.fn(),
 }));
 vi.mock("wagmi/chains", () => ({ baseSepolia: { id: 84532 }, base: { id: 8453 } }));
-vi.mock("@rainbow-me/rainbowkit", () => ({
-  RainbowKitProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  getDefaultConfig: vi.fn(() => ({})),
-}));
-vi.mock("@rainbow-me/rainbowkit/styles.css", () => ({}));
 vi.mock("@tanstack/react-query", () => ({
   QueryClient: vi.fn(function () { return {}; }),
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,

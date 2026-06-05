@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
-    "@rainbow-me/rainbowkit": "^2.2.11",
     "@remix-run/cloudflare": "^2.16.7",
     "@remix-run/cloudflare-pages": "^2.16.7",
     "@remix-run/react": "^2.16.7",

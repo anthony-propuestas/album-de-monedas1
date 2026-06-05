@@ -70,7 +70,7 @@ export function WorldMap({ coinsByCountry, colorScheme = "blue", title }: WorldM
         const paths: CountryPath[] = geo.features
           .map((f) => ({
             d: gen(f) ?? "",
-            iso2: NUMERIC_TO_ALPHA2[String((f as GeoJSON.Feature & { id?: string | number }).id)] ?? "",
+            iso2: NUMERIC_TO_ALPHA2[String(+(f as GeoJSON.Feature & { id?: string | number }).id!)] ?? "",
           }))
           .filter((p) => p.d);
 
