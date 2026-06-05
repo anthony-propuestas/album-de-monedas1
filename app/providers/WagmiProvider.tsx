@@ -9,7 +9,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     createConfig({
       chains: [baseSepolia],
       connectors: [injected()],
-      transports: { [baseSepolia.id]: http() },
+      transports: { [baseSepolia.id]: http("https://sepolia.base.org") },
     })
   );
   const [queryClient] = useState(() => new QueryClient());
