@@ -288,6 +288,9 @@ El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez 
 #### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
 `rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
 
+#### [MEDIUM] `api.rewards.sign` no re-verifica `walletAddress` del body contra `claim_requests`
+El cliente envía `walletAddress` en el body JSON. El servidor no consulta `claim_requests.wallet_address` para verificar que coincidan antes de firmar. La firma EIP-712 incluye el `recipient` enviado por el cliente, por lo que el contrato rechazará la tx si usa la address original del claim para validar — la mitigación real está onchain, no en el servidor. **Corrección pendiente**: `SELECT wallet_address FROM claim_requests WHERE coin_id = ? AND status = 'approved'` y rechazar si el valor del body difiere.
+
 #### [LOW] `api.rewards.sign` no verifica propiedad de la moneda por `user_id`
 La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
 
@@ -324,6 +327,22 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 ### Dependencias nuevas
 
 `d3-geo`, `d3-scale`, `topojson-client` son librerías de visualización de datos ampliamente auditadas, sin dependencias de red en runtime.
+
+---
+
+## Componentes cliente: WalletConnectButton y ClaimButton
+
+### WalletConnectButton
+
+- **Client-only**: `useAccount`/`useConnect`/`useDisconnect` de wagmi — sin comunicación server-side.
+- **Display de address seguro**: `truncateAddress()` recorta a 6+4 chars y se renderiza como texto en JSX; React escapa por defecto — sin riesgo de XSS.
+- **Sin surface de ataque servidor**: disconnect es un state local; no se emite ningún request al backend.
+
+### ClaimButton
+
+- **Retorna `null` si `!address`**: la responsabilidad de conectar la wallet recae en `WalletConnectButton`; `ClaimButton` no intenta conectar por su cuenta.
+- **`wallet_watchAsset` (EIP-747)**: llamada puramente client-side que sugiere importar el token AlbumCoin a la wallet tras un claim exitoso. La address del token (`0xf078c79b0F52ABE81394DD455cBc0a63f76bC059`) está hardcodeada — si AlbumCoin se redespliega esta address debe actualizarse manualmente en el componente.
+- **`walletAddress` del cliente no re-verificado en `/api/rewards/sign`**: al ejecutar el claim, `ClaimButton` envía `walletAddress: currentAddress` en el body de `/api/rewards/sign`. El servidor firma sin consultar el `wallet_address` almacenado en `claim_requests`. Vector: un usuario con un claim aprobado puede solicitar la firma para una wallet distinta a la registrada. **Mitigación actual**: la firma EIP-712 incluye el `recipient` enviado por el cliente; si el contrato usa el `wallet_address` original del claim para validar, la firma será inválida onchain. **Mitigación pendiente**: ver tabla de riesgos.
 
 ---
 
@@ -376,6 +395,8 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
 | RPC público puede fallar silenciosamente en verificación onchain | **Pendiente** | Error handling añadido (no crashea), pero el fallback `false` puede generar claims inconsistentes; considerar RPC privado con retry o verificación admin explícita |
 | `String(e)` expuesto en errores 500 de `api.rewards.request` | **Pendiente** | Sanitizar: devolver mensaje genérico en producción, loguear el error real solo en server logs |
+| `walletAddress` del body no re-verificado en `/api/rewards/sign` | **Pendiente** | Consultar `claim_requests.wallet_address` antes de firmar y rechazar si difiere del body; mitigación actual está onchain (EIP-712 incluye `recipient`) |
+| Address de AlbumCoin hardcodeada en `ClaimButton` (EIP-747) | Aceptado (MVP) | Si el contrato se redespliega, actualizar `0xf078c79b0F52ABE81394DD455cBc0a63f76bC059` en `ClaimButton.tsx` manualmente |
 
 ---
 
@@ -397,3 +418,5 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
 - [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.
+- [ ] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.
+- [ ] Si AlbumCoin se redespliega, actualizar la address hardcodeada en `ClaimButton.tsx` (EIP-747).

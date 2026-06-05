@@ -113,7 +113,9 @@ Tabla mínima; usada por `/news` y `/news/:id`.
 
 > `migrations/0007_fix_messages_fks.sql` — fix posterior que agrega las FK constraints que faltaban en `0006`: `coin_id → coins(id)`, `seller_id → users(id)`, `buyer_id → users(id)`, todos `ON DELETE CASCADE`.
 
-#### `claim_requests` — `migrations/0009_create_claim_requests.sql`
+#### `claim_requests` — `migrations/0009b_only_claim_requests.sql`
+
+> Existe también `migrations/0009_create_claim_requests.sql` (versión anterior sin `IF NOT EXISTS` en los índices). La canónica es `0009b`; `0009` quedó como referencia histórica.
 
 Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita → admin aprueba → el usuario obtiene firma EIP-712 → reclama en el contrato `RewardClaimer` en Base Mainnet.
 
@@ -135,6 +137,19 @@ Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita →
 | `tx_hash` | TEXT | Hash de la TX onchain de claim (nullable) |
 
 Constraint UNIQUE: `(coin_id, status)` para `pending` y `approved` — evita solicitudes duplicadas activas.
+
+#### `rate_limits` — `migrations/0008_rate_limits.sql`
+
+Ventanas de rate limiting por usuario y acción. Usada por `checkRateLimit()` en `app/lib/rateLimit.server.ts`.
+
+| Columna | Tipo | Notas |
+|---------|------|-------|
+| `user_id` | TEXT NOT NULL | FK implícita → `users.id` |
+| `action` | TEXT NOT NULL | Tipo de acción (`add_coin`, `delete_coin`, `list_coin`, `unlist_coin`, `contact_seller`) |
+| `window_start` | INTEGER NOT NULL | Inicio de la ventana temporal (Unix timestamp) |
+| `count` | INTEGER DEFAULT 1 | Contador de acciones en esa ventana |
+
+PK compuesta: `(user_id, action, window_start)`.
 
 ### Relaciones
 
@@ -337,7 +352,7 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 | `ADMIN_EMAIL` | string | Email con acceso a `/admin` |
 | `TURNSTILE_SECRET_KEY` | string? | Clave server de Cloudflare Turnstile (opcional) |
 | `TURNSTILE_SITE_KEY` | string? | Clave client de Cloudflare Turnstile (opcional) |
-| `BACKEND_SIGNER_KEY` | string? | Clave privada EVM (0x…) del firmante backend — genera firmas EIP-712 para claims onchain (secret en Cloudflare) |
+| `BACKEND_SIGNER_KEY` | string? | Clave privada EVM (64 hex chars, 0x…) del firmante backend — genera firmas EIP-712 para claims onchain (secret en Cloudflare). **Pendiente**: `.dev.vars` tiene actualmente la address pública del signer como placeholder; hay que reemplazarla por la clave privada real antes de que los rewards funcionen en local. |
 
 > Los bindings de Cloudflare (`DB: D1Database`, `IMAGES: R2Bucket`) no son variables de `.dev.vars` — se configuran en `wrangler.toml` y están documentados en la sección **Bindings Cloudflare** de `CLAUDE.md`.
 

@@ -3,7 +3,6 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
-  useConnect,
 } from "wagmi";
 import { ClaimButton } from "~/components/ClaimButton";
 
@@ -11,15 +10,11 @@ vi.mock("wagmi", () => ({
   useWriteContract: vi.fn(),
   useWaitForTransactionReceipt: vi.fn(),
   useAccount: vi.fn(),
-  useConnect: vi.fn(),
 }));
-vi.mock("wagmi/connectors", () => ({ injected: vi.fn().mockReturnValue({}) }));
 vi.mock("~/lib/contracts/abi", () => ({ REWARD_CLAIMER_ABI: [] }));
 vi.mock("~/lib/contracts/addresses", () => ({ REWARD_CLAIMER_ADDRESS: "0xaddr" }));
 
 const NOW = Math.floor(Date.now() / 1000);
-
-let mockConnect: ReturnType<typeof vi.fn>;
 
 function defaultProps(overrides = {}) {
   return {
@@ -32,8 +27,6 @@ function defaultProps(overrides = {}) {
 
 describe("ClaimButton", () => {
   beforeEach(() => {
-    mockConnect = vi.fn();
-    vi.mocked(useConnect).mockReturnValue({ connect: mockConnect } as any);
     vi.mocked(useAccount).mockReturnValue({ address: "0xwallet" } as any);
     vi.mocked(useWriteContract).mockReturnValue({
       writeContract: vi.fn(),
@@ -126,18 +119,10 @@ describe("ClaimButton", () => {
     expect(body.walletAddress).toBe("0xwallet");
   });
 
-  it("shows Conectar Wallet button when status=eligible and no wallet", () => {
+  it("returns null when address is undefined", () => {
     vi.mocked(useAccount).mockReturnValue({ address: undefined } as any);
-    render(<ClaimButton {...defaultProps()} />);
-    expect(screen.getByRole("button", { name: /conectar wallet/i })).toBeInTheDocument();
-  });
-
-  it("click sin wallet llama connect y no hace fetch", async () => {
-    vi.mocked(useAccount).mockReturnValue({ address: undefined } as any);
-    render(<ClaimButton {...defaultProps()} />);
-    fireEvent.click(screen.getByRole("button", { name: /conectar wallet/i }));
-    await waitFor(() => expect(mockConnect).toHaveBeenCalled());
-    expect(global.fetch).not.toHaveBeenCalled();
+    const { container } = render(<ClaimButton {...defaultProps()} />);
+    expect(container.firstChild).toBeNull();
   });
 
   it("handleClaim muestra error de API cuando /api/rewards/sign falla", async () => {

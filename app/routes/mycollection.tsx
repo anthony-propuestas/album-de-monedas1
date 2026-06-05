@@ -12,6 +12,7 @@ import { CoinDetailModal } from "~/components/CoinDetailModal";
 import { DeleteConfirmModal } from "~/components/DeleteConfirmModal";
 import { CoinFilters } from "~/components/CoinFilters";
 import { ClaimButton } from "~/components/ClaimButton";
+import { WalletConnectButton } from "~/components/WalletConnectButton";
 import { SeriesProgress } from "~/components/SeriesProgress";
 import { YearTimeline } from "~/components/YearTimeline";
 import { WorldMap } from "~/components/WorldMap";
@@ -471,16 +472,19 @@ export default function MyCollection() {
             </div>
           </div>
 
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] hover:border-[rgba(210,180,130,0.5)] transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Agregar pieza
-          </button>
+          <div className="flex items-center gap-3">
+            <WalletConnectButton />
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-[rgba(201,164,106,0.12)] text-[#C9A46A] border border-[rgba(210,180,130,0.3)] hover:bg-[rgba(201,164,106,0.22)] hover:border-[rgba(210,180,130,0.5)] transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Agregar pieza
+            </button>
+          </div>
         </div>
 
         {/* Progreso por serie + Timeline de años */}

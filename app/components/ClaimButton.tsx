@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useConnect } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 
@@ -32,28 +31,13 @@ export function ClaimButton({
   initialRejectReason,
 }: Props) {
   const { address } = useAccount();
-  const { connect } = useConnect();
-const [status, setStatus] = useState<ClaimStatus>(initialStatus);
+  const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [expiresAt, setExpiresAt] = useState<number | null>(initialExpiresAt ?? null);
   const [coinIdHash, setCoinIdHash] = useState<string | null>(initialCoinIdHash ?? null);
   const [rejectReason, setRejectReason] = useState<string | null>(initialRejectReason ?? null);
   const [loading, setLoading] = useState(false);
   const [txDone, setTxDone] = useState(false);
-  const [connectAttemptAt, setConnectAttemptAt] = useState<number | null>(null);
-  const [showReloadHint, setShowReloadHint] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
-
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    if (!connectAttemptAt || address) {
-      setShowReloadHint(false);
-      return;
-    }
-    const t = setTimeout(() => setShowReloadHint(true), 9000);
-    return () => clearTimeout(t);
-  }, [connectAttemptAt, address]);
 
   const { writeContract, data: hash, isPending: isWritePending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: txSuccess } = useWaitForTransactionReceipt({ hash });
@@ -88,15 +72,10 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
     }
   }, [txSuccess, hash, coinId, txDone]);
 
-  if (!registryMatch) return null;
+  if (!registryMatch || !address) return null;
 
   async function handleRequest() {
-    if (!address) {
-      setConnectAttemptAt(Date.now());
-      setShowReloadHint(false);
-      connect({ connector: injected() });
-      return;
-    }
+    if (!address) return;
     setLoading(true);
     try {
       const res = await fetch("/api/rewards/request", {
@@ -197,19 +176,12 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
 
   // eligible or expired
   return (
-    <>
-      <button
-        onClick={handleRequest}
-        disabled={loading}
-        className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
-      >
-        {loading ? "..." : (mounted && address) ? "Reclamar Token" : "Conectar Wallet"}
-      </button>
-      {showReloadHint && (
-        <p className="text-[9px] text-amber-400/50 text-center mt-0.5 leading-tight">
-          MetaMask no responde — recargá la página e intentá de nuevo
-        </p>
-      )}
-    </>
+    <button
+      onClick={handleRequest}
+      disabled={loading}
+      className={`${base} border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:border-[rgba(210,180,130,0.55)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)]`}
+    >
+      {loading ? "..." : "Reclamar Token"}
+    </button>
   );
 }

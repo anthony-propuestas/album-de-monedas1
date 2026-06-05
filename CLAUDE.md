@@ -74,7 +74,7 @@ app/
     home.tsx                    # Dashboard protegido (requiere sesión)
     admin.tsx                   # Panel de administración (lista posts, delete, fix_registry_match)
     admin_.new-news.tsx         # Formulario para crear nueva noticia → /admin/new-news
-    mycollection.tsx            # Colección propia del usuario autenticado
+    mycollection.tsx            # Colección propia del usuario autenticado; incluye WalletConnectButton en controles del header junto a "Agregar pieza"
     collection.$userId.tsx      # Colección pública de un usuario
     collections._index.tsx      # Ranking de coleccionistas por categorías (D1)
     collections.$category.tsx   # Detalle de categoría/ranking
@@ -106,7 +106,8 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes, botones aprobar/rechazar
-    ClaimButton.tsx             # Botón de claim onchain; sin wallet conecta MetaMask directamente vía `injected()`; con wallet envía solicitud al admin o ejecuta la TX
+    ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
+    WalletConnectButton.tsx     # Conexión/desconexión de wallet en el header; sin props (usa wagmi hooks); muestra prompt de conexión o dirección truncada + botón de desconectar
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
     WorldMap.tsx                # Mapa coropleta SVG (D3 + TopoJSON) — client-only; props: coinsByCountry (ISO-2 → count), colorScheme ("blue"|"amber"), title
   lib/

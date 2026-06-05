@@ -848,12 +848,13 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/components/__tests__/ClaimButton.test.tsx`
 **Qué prueba:** el componente `ClaimButton` de `app/components/ClaimButton.tsx`, que gestiona el ciclo de vida del claim de recompensa onchain por moneda.
 
-> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`, `useConnect`) y `wagmi/connectors` (`injected`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`.
+> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`. La lógica de conexión de wallet fue migrada a `WalletConnectButton`; `ClaimButton` retorna `null` directamente cuando no hay address.
 
 | Test | Descripción |
 |---|---|
 | returns null when registryMatch is 0 | Sin `registry_match`, el componente no renderiza nada |
 | returns null when registryMatch is undefined | Campo ausente también devuelve null |
+| returns null when address is undefined | Sin wallet conectada el componente no renderiza nada |
 | shows Reclamar Token button when status=eligible | Estado eligible con wallet conectada muestra "Reclamar Token" |
 | shows disabled En revisión when status=pending | Estado pending desactiva el botón |
 | shows disabled rejected button with reason when status=rejected | Estado rejected muestra el motivo y está deshabilitado |
@@ -861,10 +862,23 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | shows countdown Confirmar button when status=approved and not expired | `expiresAt` futuro → botón "🎁 Confirmar — Xd Xh" |
 | shows Reclamar Token when approved but expired | `expiresAt` pasado → trata el claim como eligible |
 | click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
-| shows Conectar Wallet button when status=eligible and no wallet | Sin wallet conectada el botón muestra "Conectar Wallet" |
-| click sin wallet llama connect y no hace fetch | Click sin wallet llama a `connect({ connector: injected() })` y no llama a fetch |
 | handleClaim muestra error de API cuando /api/rewards/sign falla | Fetch retorna !ok → el mensaje de error del servidor aparece debajo del botón |
 | approved muestra writeError cuando el contrato falla | Error de wagmi en useWriteContract → se muestra el mensaje debajo del botón |
+
+---
+
+### `app/components/__tests__/WalletConnectButton.test.tsx`
+**Qué prueba:** el componente `WalletConnectButton` de `app/components/WalletConnectButton.tsx`, que gestiona la conexión/desconexión de wallet y aparece en el header de `/mycollection`.
+
+> `wagmi` (`useAccount`, `useConnect`, `useDisconnect`) y `wagmi/connectors` (`injected`) se mockean completamente.
+
+| Test | Descripción |
+|---|---|
+| shows connect message when not connected | Con `isConnected: false`, muestra "Conecta tu wallet para participar de las recompensas onchain" |
+| clicking connect message calls connect with injected connector | Click llama a `connect({ connector: injected() })` |
+| shows truncated address when connected | Con address larga, muestra los primeros 6 + `…` + últimos 4 chars (ej. `0xABCD…CDEF`) |
+| shows disconnect button when connected | Con wallet conectada, el botón con `aria-label="Desconectar wallet"` está en el DOM |
+| clicking ✕ calls disconnect | Click en el botón de desconexión llama a `disconnect()` |
 
 ---
 
