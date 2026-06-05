@@ -115,7 +115,7 @@ Tabla mínima; usada por `/news` y `/news/:id`.
 
 #### `claim_requests` — `migrations/0009_create_claim_requests.sql`
 
-Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita → admin aprueba → el usuario obtiene firma EIP-712 → reclama en el contrato `RewardClaimer` en Base Sepolia.
+Solicitudes de claim de recompensa onchain. El flujo es: el usuario solicita → admin aprueba → el usuario obtiene firma EIP-712 → reclama en el contrato `RewardClaimer` en Base Mainnet.
 
 | Columna | Tipo | Notas |
 |---------|------|-------|

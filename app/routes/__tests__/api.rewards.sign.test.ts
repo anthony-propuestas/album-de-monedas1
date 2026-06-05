@@ -33,6 +33,8 @@ const mockEnv: Env = {
   GOOGLE_CLIENT_ID: "x",
   GOOGLE_CLIENT_SECRET: "x",
   SESSION_SECRET: "x",
+  BACKEND_SIGNER_KEY: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  ADMIN_EMAIL: "admin@example.com",
   DB: {} as unknown as D1Database,
 };
 
@@ -107,7 +109,7 @@ describe("api.rewards.sign action", () => {
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
       sessionStorage: {} as any,
     });
-    vi.mocked(rewardsModule.signClaim).mockResolvedValue("0xsignature" as `0x${string}`);
+    vi.mocked(rewardsModule.signClaim).mockResolvedValue({ signature: "0xsignature" as `0x${string}`, signerAddress: "0xsigner", signedWallet: WALLET });
     const { db } = makeDb(mockClaim);
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(res.status).toBe(200);

@@ -52,7 +52,7 @@ describe("signClaim", () => {
       "0xhash456" as `0x${string}`,
       mockEnv
     );
-    expect(sig).toBe("0xmocksignature");
+    expect(sig.signature).toBe("0xmocksignature");
     expect(mockSignTypedData).toHaveBeenCalledOnce();
   });
 
@@ -60,7 +60,7 @@ describe("signClaim", () => {
     await signClaim("0xwallet" as `0x${string}`, "0xcoinId" as `0x${string}`, mockEnv);
     const callArg = mockSignTypedData.mock.calls[0][0];
     expect(callArg.domain.name).toBe("RewardClaimer");
-    expect(callArg.domain.chainId).toBe(84532);
+    expect(callArg.domain.chainId).toBe(8453);
     expect(callArg.primaryType).toBe("Claim");
     expect(callArg.message.wallet).toBe("0xwallet");
     expect(callArg.message.coinId).toBe("0xcoinId");

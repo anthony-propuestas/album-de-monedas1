@@ -8,7 +8,7 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Sepolia vía EIP-712) · Mapas coropletas D3 (colección personal + colección colaborativa onchain)
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Mainnet vía EIP-712) · Mapas coropletas D3 (colección personal + colección colaborativa onchain)
 > **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
 
 ## Variables de entorno
@@ -134,14 +134,14 @@ app/
       ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
       WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
   providers/
-    WagmiProvider.tsx         # wagmi (Base Sepolia) + TanStack Query
+    WagmiProvider.tsx         # wagmi (Base Mainnet) + TanStack Query
   lib/
     auth.server.ts            # createAuth(): Authenticator + GoogleStrategy + cookieStorage
     countries.ts              # Lista de países para formularios
     utils.ts                  # cn() — merge de clases Tailwind
     collections.ts            # CATEGORIES (8 categorías con SQL + statLabel) + getCategoryBySlug
     badges.ts                 # Sistema de logros/badges
-    rewards.server.ts         # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Sepolia)
+    rewards.server.ts         # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Mainnet)
     rateLimit.server.ts       # checkRateLimit — rate limiting por usuario+acción en D1
     country-numeric-map.ts    # NUMERIC_TO_ALPHA2: ISO numeric → alpha-2 para conectar world-atlas con los códigos de la DB
     coins/
@@ -149,7 +149,7 @@ app/
       argentina.ts            # MONEDAS_ARGENTINA — Serie 1, Serie 2 (Árboles) y conmemorativas
     contracts/
       abi.ts                  # ABI del contrato RewardClaimer (claimReward, coinClaimed, lastClaimTime)
-      addresses.ts            # Addresses de AlbumCoin y RewardClaimer en Base Sepolia
+      addresses.ts            # Addresses de AlbumCoin y RewardClaimer en Base Mainnet
     __tests__/
       coins.test.ts           # 14 tests: integridad del registro y datos de MONEDAS_ARGENTINA
       collections.test.ts     # 24 tests: CATEGORIES, getCategoryBySlug, statLabel × 8 categorías

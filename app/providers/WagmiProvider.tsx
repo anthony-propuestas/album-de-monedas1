@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { createConfig, http, WagmiProvider } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [config] = useState(() =>
     createConfig({
-      chains: [baseSepolia],
+      chains: [base],
       connectors: [injected()],
-      transports: { [baseSepolia.id]: http("https://sepolia.base.org") },
+      transports: { [base.id]: http() },
     })
   );
   const [queryClient] = useState(() => new QueryClient());

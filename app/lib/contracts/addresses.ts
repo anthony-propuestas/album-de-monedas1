@@ -1,3 +1,2 @@
-// Base Sepolia (testnet) — actualizar a mainnet en paso 9
-export const REWARD_CLAIMER_ADDRESS = "0x50c78a44FA70c765695E2B836474d83d1776F718" as const;
-export const ALBUM_COIN_ADDRESS     = "0xe80E34fa9bddaaeA563f67BE2590E329817b1E84" as const;
+export const REWARD_CLAIMER_ADDRESS = "0x0E6d7d06F4C7F06585A0Bc4b66973FaE6dcd4CDe" as const;
+export const ALBUM_COIN_ADDRESS     = "0xf078c79b0F52ABE81394DD455cBc0a63f76bC059" as const;

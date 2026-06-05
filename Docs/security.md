@@ -265,7 +265,8 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Aislamiento por usuario**: `api.rewards.request` verifica `WHERE id = ? AND user_id = ?` — la moneda debe pertenecer al usuario que solicita.
 - **Verificación de registro**: solo monedas verificadas pueden iniciar un claim. Tanto el loader de `/mycollection` como `api.rewards.request` verifican en memoria contra `COINS_BY_COUNTRY` — ninguno confía en el valor almacenado en `registry_match` para tomar la decisión de autorización.
 - **Double-spend onchain**: antes de crear una solicitud, se consulta `coinClaimed()` en el contrato para evitar duplicados.
-- **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 84532` (Base Sepolia) y la dirección del contrato para evitar replay cross-chain.
+- **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 8453` (Base Mainnet) y la dirección del contrato para evitar replay cross-chain. Las firmas emitidas en testnet (chainId 84532) son inválidas en mainnet por diseño.
+- **BACKEND_SIGNER_KEY en producción**: al operar en Base Mainnet, esta clave firma operaciones con valor real (tokens ERC-20). Debe estar en los env vars de Cloudflare Pages (nunca en el repo) y rotarse si se compromete.
 - **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
 - **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
 - **Admin protegido por email**: los endpoints `/admin/rewards/*` verifican `user.email === ADMIN_EMAIL`.

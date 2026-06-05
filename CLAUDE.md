@@ -22,7 +22,7 @@ npm run deploy       # build + deploy a Cloudflare Pages
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **DB**: D1 (SQLite) · raw SQL vía `db.prepare().bind()` (sin Drizzle)
 - **Storage**: R2 (imágenes de monedas)
-- **Onchain/Wallet**: viem · wagmi · TanStack Query (Base Sepolia)
+- **Onchain/Wallet**: viem · wagmi · TanStack Query (Base Mainnet)
 - **Visualización**: d3-geo · topojson-client · TopoJSON estático (`public/world-110m.json`, no es paquete npm)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
@@ -117,13 +117,13 @@ app/
     collections.ts              # Queries D1 para rankings y colecciones
     countries.ts                # Datos de países
     utils.ts                    # cn() — merge de clases Tailwind
-    rewards.server.ts           # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Sepolia)
+    rewards.server.ts           # getCoinIdHash, signClaim, isCoinClaimedOnchain (viem / Base Mainnet)
     rateLimit.server.ts         # checkRateLimit — rate limiting por usuario+acción en D1
     country-numeric-map.ts      # NUMERIC_TO_ALPHA2: mapeo ISO 3166-1 numérico → alpha-2 (~160 países) para conectar world-atlas con los códigos ISO de la DB
     contracts/abi.ts            # ABI del contrato RewardClaimer (claimReward, coinClaimed, lastClaimTime)
-    contracts/addresses.ts      # Addresses de AlbumCoin y RewardClaimer en Base Sepolia
+    contracts/addresses.ts      # Addresses de AlbumCoin y RewardClaimer en Base Mainnet
   providers/
-    WagmiProvider.tsx           # Providers: wagmi (Base Sepolia) + TanStack Query
+    WagmiProvider.tsx           # Providers: wagmi (Base Mainnet) + TanStack Query
   types/
     env.d.ts                    # Env interface + AppLoadContext (GOOGLE_*, SESSION_SECRET, TURNSTILE_*, BACKEND_SIGNER_KEY)
 functions/

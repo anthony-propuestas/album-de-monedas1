@@ -701,6 +701,21 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ---
 
+### `app/lib/__tests__/rateLimit.server.test.ts`
+**Qué prueba:** `checkRateLimit` de `app/lib/rateLimit.server.ts` — lógica de rate limiting por usuario+acción en D1.
+
+| Test | Descripción |
+|---|---|
+| allows when count is below limit | `allowed: true`, `remaining` correcto, `retryAfterSeconds: 0` |
+| allows when count equals limit exactly | En el límite exacto sigue siendo `allowed: true` |
+| blocks when count exceeds limit | `allowed: false`, `remaining: 0` |
+| returns correct retryAfterSeconds when blocked | `retryAfterSeconds` es el tiempo hasta el fin de la ventana actual |
+| clamps remaining to 0 when count exceeds limit by more than 1 | `remaining` nunca es negativo |
+| calls prepare with bind params (no string interpolation) | Los parámetros van vía `.bind()`, no interpolados en el SQL |
+| falls back to count 1 when db returns null | Si la DB devuelve `null`, asume count 1 (primer request) |
+
+---
+
 ### `app/lib/__tests__/rewards.server.test.ts`
 **Qué prueba:** las tres funciones exportadas de `app/lib/rewards.server.ts` — `getCoinIdHash`, `signClaim`, `isCoinClaimedOnchain`.
 
@@ -710,7 +725,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | is deterministic for the same inputs | Mismos inputs → mismo hash siempre |
 | produces different hashes for different inputs | Inputs distintos → hashes distintos |
 | returns the signature from signTypedData | `signClaim` retorna la firma del mock de viem |
-| calls signTypedData with correct EIP-712 domain | El dominio EIP-712 incluye `name: "RewardClaimer"`, `chainId: 84532` (Base Sepolia) y `primaryType: "Claim"` |
+| calls signTypedData with correct EIP-712 domain | El dominio EIP-712 incluye `name: "RewardClaimer"`, `chainId: 8453` (Base Mainnet) y `primaryType: "Claim"` |
 | returns true when contract reports claimed | `isCoinClaimedOnchain` retorna `true` si el contrato lo indica |
 | returns false when contract reports not claimed | `isCoinClaimedOnchain` retorna `false` si el contrato lo indica |
 | calls readContract with correct functionName | Llama a `coinClaimed` con el hash correcto |

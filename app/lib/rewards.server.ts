@@ -1,9 +1,9 @@
 import { keccak256, toHex, createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Env } from "~/types/env";
 
-const REWARD_CLAIMER_ADDRESS = "0x50c78a44FA70c765695E2B836474d83d1776F718" as const;
+const REWARD_CLAIMER_ADDRESS = "0x0E6d7d06F4C7F06585A0Bc4b66973FaE6dcd4CDe" as const;
 
 const COIN_CLAIMED_ABI = [
   {
@@ -35,7 +35,7 @@ export async function signClaim(
     domain: {
       name: "RewardClaimer",
       version: "1",
-      chainId: 84532,
+      chainId: 8453,
       verifyingContract: REWARD_CLAIMER_ADDRESS,
     },
     types: {
@@ -54,7 +54,7 @@ export async function isCoinClaimedOnchain(
   coinIdHash: `0x${string}`
 ): Promise<boolean> {
   const client = createPublicClient({
-    chain: baseSepolia,
+    chain: base,
     transport: http(),
   });
   return client.readContract({
