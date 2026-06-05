@@ -838,6 +838,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
 | shows Conectar Wallet button when status=eligible and no wallet | Sin wallet conectada el botón muestra "Conectar Wallet" |
 | click sin wallet llama connect y no hace fetch | Click sin wallet llama a `connect({ connector: injected() })` y no llama a fetch |
+| handleClaim muestra error de API cuando /api/rewards/sign falla | Fetch retorna !ok → el mensaje de error del servidor aparece debajo del botón |
+| approved muestra writeError cuando el contrato falla | Error de wagmi en useWriteContract → se muestra el mensaje debajo del botón |
 
 ---
 

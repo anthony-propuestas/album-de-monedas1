@@ -139,4 +139,41 @@ describe("ClaimButton", () => {
     await waitFor(() => expect(mockConnect).toHaveBeenCalled());
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  it("handleClaim muestra error de API cuando /api/rewards/sign falla", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Wallet no coincide" }),
+    });
+    render(
+      <ClaimButton
+        {...defaultProps({
+          initialStatus: "approved",
+          initialExpiresAt: NOW + 86400,
+          initialCoinIdHash: "0xhash",
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
+    await waitFor(() => expect(screen.getByText(/wallet no coincide/i)).toBeInTheDocument());
+  });
+
+  it("approved muestra writeError cuando el contrato falla", () => {
+    vi.mocked(useWriteContract).mockReturnValue({
+      writeContract: vi.fn(),
+      data: undefined,
+      isPending: false,
+      error: new Error("User rejected the request."),
+    } as any);
+    render(
+      <ClaimButton
+        {...defaultProps({
+          initialStatus: "approved",
+          initialExpiresAt: NOW + 86400,
+          initialCoinIdHash: "0xhash",
+        })}
+      />
+    );
+    expect(screen.getByText(/user rejected/i)).toBeInTheDocument();
+  });
 });

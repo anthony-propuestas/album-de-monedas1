@@ -42,6 +42,7 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [connectAttemptAt, setConnectAttemptAt] = useState<number | null>(null);
   const [showReloadHint, setShowReloadHint] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -96,13 +97,18 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
 
   async function handleClaim() {
     setLoading(true);
+    setClaimError(null);
     try {
       const res = await fetch("/api/rewards/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coinId, walletAddress: address }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json<{ error?: string }>();
+        setClaimError(data.error ?? `Error del servidor (${res.status})`);
+        return;
+      }
       const { signature, coinIdHash: hash } = await res.json<{ signature: `0x${string}`; coinIdHash: `0x${string}` }>();
       setCoinIdHash(hash);
       writeContract({
@@ -152,16 +158,22 @@ const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   }
 
   if (effectiveStatus === "approved" && expiresAt) {
+    const errMsg = claimError ?? (writeError ? (writeError as Error).shortMessage ?? writeError.message : null);
     return (
-      <button
-        onClick={handleClaim}
-        disabled={isWritePending || loading}
-        className={`${base} border-amber-400/30 text-amber-300 hover:bg-amber-400/10 hover:border-amber-400/50`}
-      >
-        {isWritePending || loading
-          ? "Esperando wallet..."
-          : `🎁 Confirmar — ${formatCountdown(expiresAt)}`}
-      </button>
+      <div className="flex flex-col gap-0.5">
+        <button
+          onClick={handleClaim}
+          disabled={isWritePending || loading}
+          className={`${base} border-amber-400/30 text-amber-300 hover:bg-amber-400/10 hover:border-amber-400/50`}
+        >
+          {isWritePending || loading
+            ? "Esperando wallet..."
+            : `🎁 Confirmar — ${formatCountdown(expiresAt)}`}
+        </button>
+        {errMsg && (
+          <p className="text-[9px] text-red-400/80 text-center leading-tight break-all">{errMsg}</p>
+        )}
+      </div>
     );
   }
 
