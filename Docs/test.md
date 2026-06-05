@@ -872,7 +872,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/admin.action.test.ts`
-**Qué prueba:** el `action` de `app/routes/admin.tsx` — intents `create_post`, `delete_post` y `fix_registry_match`.
+**Qué prueba:** el `action` de `app/routes/admin.tsx` — intents `delete_post` y `fix_registry_match`.
 
 > `~/lib/auth.server` se mockea para controlar la sesión. `~/lib/coins` se mockea para inyectar un catálogo controlado de Argentina (1 entrada). La DB se simula con `prepare → { bind → run, all }` y `db.batch` como `vi.fn()`.
 
@@ -880,11 +880,6 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 |---|---|
 | throws redirect when unauthenticated | Sin sesión activa → `Response` 302 |
 | throws redirect when user is not admin | Email no coincide con `ADMIN_EMAIL` → `Response` 302 |
-| returns 400 when title is missing | `create_post` con título vacío → `{ error: "...obligatorios." }` status 400 |
-| returns 400 when body is missing | `create_post` con cuerpo vacío → mismo error |
-| returns 400 when title exceeds 200 chars | Título de 201 caracteres → `{ error: "...200 caracteres." }` status 400 |
-| inserts post and redirects to /admin on create_post | DB INSERT + redirect 302 a `/admin` |
-| calls DB INSERT with correct title and body | `prepare` recibe `INSERT INTO posts` y `bind` recibe `(title, body)` |
 | deletes post and redirects to /admin | `delete_post` con id válido → DB DELETE + redirect 302 |
 | redirects without calling DB DELETE for invalid id | `id=0` → redirect 302 sin llamar a `run()` |
 | queries all coins from DB for fix_registry_match | `prepare` llamado con `SELECT id, country, denomination, name, year FROM coins` |
@@ -893,6 +888,34 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | fixed=1 when one coin matches the catalog | Moneda con datos exactos del mock → `fixed: 1` |
 | calls db.batch with UPDATE statements for fix_registry_match | `db.batch` se invoca con el array de UPDATE statements |
 | returns 400 for unknown intent | `intent="unknown_intent"` → `{ error: "Acción no reconocida." }` status 400 |
+
+---
+
+### `app/routes/__tests__/admin_.new-news.test.ts`
+**Qué prueba:** el `loader` y el `action` de `app/routes/admin_.new-news.tsx`, que gestiona el formulario de creación de noticias bajo `/admin/new-news`.
+
+> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con `prepare → bind → run` en cadena.
+
+#### loader
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | `isAuthenticated` retorna `null` → `Response` 302 |
+| throws redirect when user is not admin | Email no coincide con `ADMIN_EMAIL` → `Response` 302 |
+| returns 200 json for admin | Admin recibe respuesta 200 |
+
+#### action
+
+| Test | Descripción |
+|---|---|
+| throws redirect when unauthenticated | Sin sesión activa → `Response` 302 |
+| throws redirect when user is not admin | Email no coincide con `ADMIN_EMAIL` → `Response` 302 |
+| returns 400 when title is missing | Título vacío → `{ error: "...obligatorios." }` status 400 |
+| returns 400 when body is missing | Cuerpo vacío → mismo error |
+| returns 400 when title exceeds 200 chars | Título de 201 caracteres → `{ error: "...200 caracteres." }` status 400 |
+| inserts post and redirects to /admin on success | DB INSERT + redirect 302 a `/admin` |
+| calls DB INSERT with correct title and body | `prepare` recibe `INSERT INTO posts` y `bind` recibe `(title, body)` |
+| returns 500 when DB throws | `run()` rechaza → `{ error: "Error..." }` status 500 |
 
 ---
 

@@ -35,21 +35,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = form.get("intent")?.toString();
 
-  if (intent === "create_post") {
-    const title = form.get("title")?.toString().trim() ?? "";
-    const body = form.get("body")?.toString().trim() ?? "";
-    if (!title || !body) return json({ error: "Título y cuerpo son obligatorios." }, { status: 400 });
-    if (title.length > 200) return json({ error: "Título demasiado largo (máx. 200 caracteres)." }, { status: 400 });
-
-    const db = context.cloudflare.env.DB;
-    try {
-      await db.prepare("INSERT INTO posts (title, body) VALUES (?, ?)").bind(title, body).run();
-    } catch (e) {
-      return json({ error: "Error al crear el post." }, { status: 500 });
-    }
-    return redirect("/admin");
-  }
-
   if (intent === "delete_post") {
     const id = Number(form.get("id"));
     if (Number.isInteger(id) && id > 0) {
@@ -132,13 +117,21 @@ export default function AdminPage() {
           >
             Panel de administración
           </h1>
-          <Link
-            to="/admin/rewards"
-            reloadDocument
-            className="ml-auto text-xs px-4 py-2 rounded-xl border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:text-[#C9A46A] hover:border-[rgba(210,180,130,0.45)] transition-colors"
-          >
-            Recompensas
-          </Link>
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              to="/admin/new-news"
+              className="text-xs px-4 py-2 rounded-xl border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:text-[#C9A46A] hover:border-[rgba(210,180,130,0.45)] transition-colors"
+            >
+              + Nueva noticia
+            </Link>
+            <Link
+              to="/admin/rewards"
+              reloadDocument
+              className="text-xs px-4 py-2 rounded-xl border border-[rgba(210,180,130,0.25)] text-[rgba(201,164,106,0.7)] hover:text-[#C9A46A] hover:border-[rgba(210,180,130,0.45)] transition-colors"
+            >
+              Recompensas
+            </Link>
+          </div>
         </div>
 
         {/* Mantenimiento de datos */}
@@ -161,48 +154,6 @@ export default function AdminPage() {
                 ✓ {actionData.fixed} de {actionData.total} monedas con match
               </p>
             )}
-          </Form>
-        </section>
-
-        {/* Formulario nueva publicación */}
-        <section className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(201,164,106,0.05)] p-6 mb-8">
-          <h2 className="text-base font-semibold text-[#C9A46A] mb-4">Nueva publicación</h2>
-          <Form method="post" className="flex flex-col gap-4">
-            <input type="hidden" name="intent" value="create_post" />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-[rgba(242,236,224,0.5)]" htmlFor="title">
-                Título
-              </label>
-              <input
-                id="title"
-                name="title"
-                type="text"
-                required
-                maxLength={200}
-                placeholder="Ej: Nuevas monedas del Bicentenario"
-                className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(0,0,0,0.3)] px-4 py-2.5 text-sm text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.5)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-[rgba(242,236,224,0.5)]" htmlFor="body">
-                Cuerpo
-              </label>
-              <textarea
-                id="body"
-                name="body"
-                required
-                rows={8}
-                placeholder="Escribí el contenido de la publicación..."
-                className="rounded-xl border border-[rgba(210,180,130,0.2)] bg-[rgba(0,0,0,0.3)] px-4 py-2.5 text-sm text-[#F2ECE0] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.5)] resize-none"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="self-end px-5 py-2.5 text-sm font-medium rounded-xl bg-[rgba(201,164,106,0.15)] text-[#C9A46A] border border-[rgba(210,180,130,0.35)] hover:bg-[rgba(201,164,106,0.25)] hover:border-[rgba(210,180,130,0.55)] transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? "Publicando..." : "Publicar"}
-            </button>
           </Form>
         </section>
 

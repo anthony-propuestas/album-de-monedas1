@@ -77,7 +77,7 @@ describe("admin action", () => {
     const { db } = makeDb();
     let thrown: unknown;
     try {
-      await action({ request: makeFormRequest({ intent: "create_post", title: "t", body: "b" }), context: makeContext(db) as any, params: {} });
+      await action({ request: makeFormRequest({ intent: "delete_post", id: "5" }), context: makeContext(db) as any, params: {} });
     } catch (e) {
       thrown = e;
     }
@@ -93,57 +93,12 @@ describe("admin action", () => {
     const { db } = makeDb();
     let thrown: unknown;
     try {
-      await action({ request: makeFormRequest({ intent: "create_post", title: "t", body: "b" }), context: makeContext(db) as any, params: {} });
+      await action({ request: makeFormRequest({ intent: "delete_post", id: "5" }), context: makeContext(db) as any, params: {} });
     } catch (e) {
       thrown = e;
     }
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(302);
-  });
-
-  // --- create_post ---
-
-  it("returns 400 when title is missing", async () => {
-    setupAdmin();
-    const { db } = makeDb();
-    const res = await action({ request: makeFormRequest({ intent: "create_post", title: "", body: "body text" }), context: makeContext(db) as any, params: {} });
-    expect(res.status).toBe(400);
-    const data = await res.json() as { error: string };
-    expect(data.error).toMatch(/obligatorios/);
-  });
-
-  it("returns 400 when body is missing", async () => {
-    setupAdmin();
-    const { db } = makeDb();
-    const res = await action({ request: makeFormRequest({ intent: "create_post", title: "Title", body: "" }), context: makeContext(db) as any, params: {} });
-    expect(res.status).toBe(400);
-    const data = await res.json() as { error: string };
-    expect(data.error).toMatch(/obligatorios/);
-  });
-
-  it("returns 400 when title exceeds 200 chars", async () => {
-    setupAdmin();
-    const { db } = makeDb();
-    const res = await action({ request: makeFormRequest({ intent: "create_post", title: "x".repeat(201), body: "body" }), context: makeContext(db) as any, params: {} });
-    expect(res.status).toBe(400);
-    const data = await res.json() as { error: string };
-    expect(data.error).toMatch(/200/);
-  });
-
-  it("inserts post and redirects to /admin on create_post", async () => {
-    setupAdmin();
-    const { db } = makeDb();
-    const res = await action({ request: makeFormRequest({ intent: "create_post", title: "My Post", body: "Post body" }), context: makeContext(db) as any, params: {} });
-    expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toBe("/admin");
-  });
-
-  it("calls DB INSERT with correct title and body", async () => {
-    setupAdmin();
-    const { db, prepare, bind } = makeDb();
-    await action({ request: makeFormRequest({ intent: "create_post", title: "My Post", body: "Post body" }), context: makeContext(db) as any, params: {} });
-    expect(prepare).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO posts"));
-    expect(bind).toHaveBeenCalledWith("My Post", "Post body");
   });
 
   // --- delete_post ---

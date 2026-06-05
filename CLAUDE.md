@@ -71,7 +71,8 @@ app/
     auth.google.callback.tsx    # loader → callback OAuth, redirige a /home
     auth.logout.tsx             # action → logout + clear session cookie
     home.tsx                    # Dashboard protegido (requiere sesión)
-    admin.tsx                   # Panel de administración
+    admin.tsx                   # Panel de administración (lista posts, delete, fix_registry_match)
+    admin_.new-news.tsx         # Formulario para crear nueva noticia → /admin/new-news
     mycollection.tsx            # Colección propia del usuario autenticado
     collection.$userId.tsx      # Colección pública de un usuario
     collections._index.tsx      # Ranking de coleccionistas por categorías (D1)

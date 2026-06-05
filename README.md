@@ -58,7 +58,8 @@ npm run test:coverage # tests con reporte de cobertura
 | `/news/:id` | Artículo de noticias individual |
 | `/markets` | Marketplace de monedas en venta |
 | `/inbox` | Mensajería / notificaciones |
-| `/admin` | Panel de administración (requiere ADMIN_EMAIL) |
+| `/admin` | Panel de administración: lista de noticias (con delete), mantenimiento de registry_match (requiere ADMIN_EMAIL) |
+| `/admin/new-news` | Formulario para crear nueva noticia (requiere ADMIN_EMAIL) |
 | `/admin/rewards` | Panel admin: lista de claims pendientes para aprobar o rechazar (loader) |
 | `/admin/rewards/:id/approve` | Aprobar un claim — genera ventana de 7 días para reclamar (action POST) |
 | `/admin/rewards/:id/reject` | Rechazar un claim con motivo (action POST) |
@@ -81,7 +82,8 @@ app/
     auth.google.callback.tsx  # loader → callback OAuth, redirige a /home
     auth.logout.tsx           # action → logout + clear session cookie
     home.tsx                  # Dashboard protegido: loader con 3 queries en paralelo + grid de stats + nav cards
-    admin.tsx                 # Panel de administración (news + link a /admin/rewards)
+    admin.tsx                 # Panel de administración: lista de noticias (delete) + fix_registry_match + links a /admin/new-news y /admin/rewards
+    admin_.new-news.tsx       # Formulario para crear nueva noticia (loader + action) → /admin/new-news
     mycollection.tsx          # loader (galería filtrable) + action (add_coin: sube fotos a R2, inserta en D1)
     collections._index.tsx    # loader → 8 queries en paralelo, shuffle Fisher-Yates, grid de tiles
     collections.$category.tsx # loader → valida slug, top 10 de la categoría con stat formateada

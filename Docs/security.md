@@ -29,7 +29,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 - `home.tsx` y `mycollection.tsx` llaman a `authenticator.isAuthenticated(request)` tanto en el `loader` como en el `action`, y lanzan `redirect("/")` si no hay sesión.
 - Las rutas `/auth/google` y `/auth/google/callback` no requieren sesión.
 - `/images/*` (implementado en `app/routes/images.$.tsx`) no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
-- `/admin` (implementado en `app/routes/admin.tsx`) requiere sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirige a `/`.
+- `/admin` (implementado en `app/routes/admin.tsx`) y `/admin/new-news` (implementado en `app/routes/admin_.new-news.tsx`) requieren sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirigen a `/`. `/admin/new-news` valida título (no vacío, máx. 200 chars) y cuerpo (no vacío) antes de insertar en D1 con `.bind()`.
 - `/auth/logout` (implementado en `app/routes/auth.logout.tsx`) solo acepta POST; destruye la sesión con `sessionStorage.destroySession()` y redirige a `/`. El botón de cierre de sesión en el drawer de `/home` usa `<Form method="post" action="/auth/logout">`.
 - `collections._index.tsx` (`/collections`), `collections.$category.tsx` (`/collections/:category`) y `collection.$userId.tsx` (`/collection/:userId`) requieren sesión activa; sin ella, redirigen a `/`. Las tres rutas son de **solo lectura** (sin `action`) — no aceptan mutaciones.
 
