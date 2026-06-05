@@ -17,6 +17,7 @@ const defaultLoaderData = {
   badges: [],
   unreadMessages: 0,
   claimedByCountry: {},
+  chatMessages: [],
 };
 
 vi.mock("@remix-run/react", () => ({
@@ -27,6 +28,7 @@ vi.mock("@remix-run/react", () => ({
     data: undefined,
     Form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
   })),
+  useRevalidator: vi.fn(() => ({ revalidate: vi.fn(), state: "idle" })),
 }));
 
 const { default: Home } = await import("~/routes/home");

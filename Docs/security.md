@@ -29,7 +29,7 @@ Estado actual: MVP con autenticación Google OAuth funcional, base de datos D1 (
 - `home.tsx` y `mycollection.tsx` llaman a `authenticator.isAuthenticated(request)` tanto en el `loader` como en el `action`, y lanzan `redirect("/")` si no hay sesión.
 - Las rutas `/auth/google` y `/auth/google/callback` no requieren sesión.
 - `/images/*` (implementado en `app/routes/images.$.tsx`) no requiere sesión: las claves R2 tienen el formato `{userId}/{coinId}/{slot}` donde `coinId` es un UUID v4, haciendo las URLs no adivinables por fuerza bruta.
-- `/admin` (implementado en `app/routes/admin.tsx`) y `/admin/new-news` (implementado en `app/routes/admin_.new-news.tsx`) requieren sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirigen a `/`. `/admin/new-news` valida título (no vacío, máx. 200 chars) y cuerpo (no vacío) antes de insertar en D1 con `.bind()`.
+- `/admin` (implementado en `app/routes/admin.tsx`) y `/admin/new-news` (implementado en `app/routes/admin_.new-news.tsx`) requieren sesión activa **y** que `user.email` coincida con la variable de entorno `ADMIN_EMAIL`; si falla cualquiera de los dos, redirigen a `/`. `/admin/new-news` valida título (no vacío, máx. 200 chars) y cuerpo (no vacío) antes de insertar en D1 con `.bind()`. El `action` de `admin.tsx` también maneja `delete_chat_message`: DELETE parametrizado (`WHERE id = ?`) con validación `Number.isInteger(id) && id > 0` previa al bind, protegido por el mismo guard de email. El loader de `admin.tsx` consulta `chat_messages`; si la migración no se ha ejecutado, la ruta produce 500 (riesgo operativo, no de seguridad).
 - `/auth/logout` (implementado en `app/routes/auth.logout.tsx`) solo acepta POST; destruye la sesión con `sessionStorage.destroySession()` y redirige a `/`. El botón de cierre de sesión en el drawer de `/home` usa `<Form method="post" action="/auth/logout">`.
 - `collections._index.tsx` (`/collections`), `collections.$category.tsx` (`/collections/:category`) y `collection.$userId.tsx` (`/collection/:userId`) requieren sesión activa; sin ella, redirigen a `/`. Las tres rutas son de **solo lectura** (sin `action`) — no aceptan mutaciones.
 
@@ -270,6 +270,7 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
 - **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
 - **Admin protegido por email**: los endpoints `/admin/rewards/*` verifican `user.email === ADMIN_EMAIL`.
+- **Datos visibles al admin en revisión de claims**: `admin_.rewards.tsx` incluye en el SELECT `photo_reverse`, `condition`, `mint`, `catalog_ref`, `estimated_value` y `notes` de `coins`. El admin ve el detalle completo de la moneda (incluyendo notas privadas y valoración estimada del usuario) para informar su decisión de aprobación. Acceso exclusivo al email con rol `ADMIN_EMAIL`; no expuesto a otros usuarios.
 - **SQL parametrizado**: todas las queries usan `.prepare().bind()`.
 - **Error handling en `isCoinClaimedOnchain`** (`rewards.server.ts`): envuelto en try/catch; devuelve `false` si el RPC falla, evitando que la excepción bloquee la acción completa.
 - **Error handling global en `api.rewards.request`**: todo el action está envuelto en try/catch; errores inesperados devuelven 500 en lugar de propagarse como excepción no capturada al worker.
@@ -305,6 +306,9 @@ El handler global devuelve `{ error: String(e) }` en respuestas 500. En producci
 
 #### [LOW] Sin mecanismo de revocación de aprobación
 El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se detecta irregularidad entre la aprobación y la ejecución onchain, la única opción es esperar que expire el `expires_at`.
+
+#### [LOW] Admin ve notas privadas y valor estimado durante revisión de claims
+`admin_.rewards.tsx` expone `notes` y `estimated_value` de la moneda reclamada al administrador. Comportamiento intencional (mejora la calidad de la revisión); aceptado en MVP. Los usuarios no son informados explícitamente de que sus notas privadas son visibles al admin durante el proceso de aprobación.
 
 
 ### Hardening de infraestructura
@@ -420,3 +424,4 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.
 - [ ] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.
 - [ ] Si AlbumCoin se redespliega, actualizar la address hardcodeada en `ClaimButton.tsx` (EIP-747).
+- [ ] Ejecutar `scripts/create-chat-table.mjs` (o la migración equivalente en D1) antes de desplegar el feature de chat global en `admin.tsx`.

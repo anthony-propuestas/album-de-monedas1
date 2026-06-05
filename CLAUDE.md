@@ -138,6 +138,7 @@ worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) �
 scripts/
   build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js; stubPlugin reemplaza paquetes browser-only (wagmi, WalletConnect…) con exports vacíos en el Worker SSR
   deploy.mjs                    # deploy helper: renombra functions/ temporalmente para evitar errores de Pages Functions en Advanced Mode
+  create-chat-table.mjs         # crea la tabla chat_messages en D1 (ejecutar antes de desplegar el feature de chat global en admin.tsx)
 ```
 
 ## Routing en Remix

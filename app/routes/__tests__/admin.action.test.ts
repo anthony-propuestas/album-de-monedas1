@@ -175,6 +175,47 @@ describe("admin action", () => {
     expect(batch).toHaveBeenCalled();
   });
 
+  // --- delete_chat_message ---
+
+  it("delete_chat_message: redirects to /admin for valid id", async () => {
+    setupAdmin();
+    const { db } = makeDb();
+    const res = await action({ request: makeFormRequest({ intent: "delete_chat_message", id: "7" }), context: makeContext(db) as any, params: {} });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe("/admin");
+  });
+
+  it("delete_chat_message: calls DELETE FROM chat_messages with correct id", async () => {
+    setupAdmin();
+    const { db, prepare, bind, run } = makeDb();
+    await action({ request: makeFormRequest({ intent: "delete_chat_message", id: "7" }), context: makeContext(db) as any, params: {} });
+    expect(prepare).toHaveBeenCalledWith(expect.stringContaining("DELETE FROM chat_messages"));
+    expect(bind).toHaveBeenCalledWith(7);
+    expect(run).toHaveBeenCalled();
+  });
+
+  it("delete_chat_message: redirects without calling DELETE for id=0", async () => {
+    setupAdmin();
+    const { db, run } = makeDb();
+    const res = await action({ request: makeFormRequest({ intent: "delete_chat_message", id: "0" }), context: makeContext(db) as any, params: {} });
+    expect(res.status).toBe(302);
+    const deleteCalls = (db.prepare.mock.calls as string[][]).filter(([sql]) =>
+      sql.includes("DELETE FROM chat_messages")
+    );
+    expect(deleteCalls.length).toBe(0);
+  });
+
+  it("delete_chat_message: redirects without calling DELETE for negative id", async () => {
+    setupAdmin();
+    const { db } = makeDb();
+    const res = await action({ request: makeFormRequest({ intent: "delete_chat_message", id: "-1" }), context: makeContext(db) as any, params: {} });
+    expect(res.status).toBe(302);
+    const deleteCalls = (db.prepare.mock.calls as string[][]).filter(([sql]) =>
+      sql.includes("DELETE FROM chat_messages")
+    );
+    expect(deleteCalls.length).toBe(0);
+  });
+
   // --- unknown intent ---
 
   it("returns 400 for unknown intent", async () => {

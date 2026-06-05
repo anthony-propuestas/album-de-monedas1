@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, MetaFunction } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
-import { Form, useLoaderData } from "@remix-run/react";
-import { useState } from "react";
+import { Form, useLoaderData, useFetcher, useRevalidator } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import { createAuth } from "~/lib/auth.server";
 import { checkRateLimit } from "~/lib/rateLimit.server";
 import { ProfileSetupModal } from "~/components/ProfileSetupModal";
@@ -10,6 +10,15 @@ import { WorldMap } from "~/components/WorldMap";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import { computeEarnedBadgeIds, BADGE_MAP } from "~/lib/badges";
 import type { Coin } from "~/components/CoinCard";
+
+type ChatMessage = {
+  id: number;
+  user_id: string;
+  user_name: string;
+  user_picture: string | null;
+  message: string;
+  created_at: number;
+};
 
 export const meta: MetaFunction = () => [
   { title: "Inicio — Album de Monedas" },
@@ -116,7 +125,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       claimedByCountry[row.country] = row.count;
     }
 
-    return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry });
+    await db.prepare("DELETE FROM chat_messages WHERE created_at < unixepoch() - 1209600").run();
+    const { results: chatMessages } = await db
+      .prepare("SELECT id, user_id, user_name, user_picture, message, created_at FROM chat_messages ORDER BY created_at DESC LIMIT 20")
+      .all<ChatMessage>();
+
+    return json({ user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry, chatMessages });
   } catch (e) {
     throw new Response("Error al cargar el dashboard", { status: 500 });
   }
@@ -163,7 +177,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ success: true });
   }
 
+  if (intent === "send_chat") {
+    const message = String(form.get("message") ?? "").trim().slice(0, 500);
+    if (message.length < 1) return json({ error: "Mensaje vacío." }, { status: 400 });
+    const db = context.cloudflare.env.DB;
+    try {
+      await db
+        .prepare("INSERT INTO chat_messages (user_id, user_name, user_picture, message) VALUES (?, ?, ?, ?)")
+        .bind(user.id, user.name, user.picture ?? null, message)
+        .run();
+    } catch (e) {
+      return json({ error: "Error al enviar el mensaje." }, { status: 500 });
+    }
+    return json({ ok: true });
+  }
+
   return json({ error: "Acción no reconocida." });
+}
+
+function formatRelativeTime(unixSec: number): string {
+  const diff = Math.floor(Date.now() / 1000) - unixSec;
+  if (diff < 60) return "ahora";
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+  return `hace ${Math.floor(diff / 86400)} d`;
 }
 
 const navItems = [
@@ -259,8 +296,18 @@ const drawerItems = [
 ];
 
 export default function Home() {
-  const { user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry } = useLoaderData<typeof loader>();
+  const { user, profileCompleted, stats, coinOfDay, badges, unreadMessages, claimedByCountry, chatMessages } = useLoaderData<typeof loader>();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const revalidator = useRevalidator();
+  const chatFetcher = useFetcher<{ ok?: boolean; error?: string }>();
+  const [chatInput, setChatInput] = useState("");
+
+  useEffect(() => {
+    if (chatFetcher.data?.ok) {
+      setChatInput("");
+      revalidator.revalidate();
+    }
+  }, [chatFetcher.data]);
 
   return (
     <main className="min-h-screen text-[#F2ECE0] flex flex-col items-center justify-center px-4 sm:px-6">
@@ -422,6 +469,74 @@ export default function Home() {
           title="Colección colaborativa onchain"
         />
       </div>
+      {/* Global Chat */}
+      <div className="w-full max-w-3xl mb-10">
+        <div className="rounded-2xl border border-[rgba(210,180,130,0.2)] bg-[rgba(20,17,16,0.85)] overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[rgba(210,180,130,0.12)]">
+            <h2 className="text-sm font-semibold text-[#C9A46A]" style={{ fontFamily: "var(--font-display)" }}>
+              Chat global
+            </h2>
+            <button
+              onClick={() => revalidator.revalidate()}
+              disabled={revalidator.state !== "idle"}
+              className="text-xs text-[rgba(242,236,224,0.4)] hover:text-[#C9A46A] transition-colors disabled:opacity-50"
+            >
+              {revalidator.state !== "idle" ? "Actualizando..." : "↻ Actualizar"}
+            </button>
+          </div>
+          <div className="flex flex-col max-h-80 overflow-y-auto px-5 py-2">
+            {chatMessages.length === 0 ? (
+              <p className="text-xs text-[rgba(242,236,224,0.3)] text-center py-6">
+                Sé el primero en escribir algo.
+              </p>
+            ) : (
+              chatMessages.map((msg) => (
+                <div key={msg.id} className="flex gap-3 py-2.5 border-b border-[rgba(210,180,130,0.06)] last:border-0">
+                  <div className="w-7 h-7 rounded-full border border-[rgba(210,180,130,0.25)] bg-[rgba(201,164,106,0.1)] flex items-center justify-center text-[#C9A46A] text-xs font-semibold flex-shrink-0 overflow-hidden">
+                    {msg.user_picture ? (
+                      <img src={msg.user_picture} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      msg.user_name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium text-[rgba(242,236,224,0.75)]">{msg.user_name}</span>
+                      <span className="text-[10px] text-[rgba(242,236,224,0.25)]">{formatRelativeTime(msg.created_at)}</span>
+                    </div>
+                    <p className="text-xs text-[rgba(242,236,224,0.6)] mt-0.5 break-words">{msg.message}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="px-5 py-3 border-t border-[rgba(210,180,130,0.12)]">
+            <chatFetcher.Form method="post" className="flex gap-2">
+              <input type="hidden" name="intent" value="send_chat" />
+              <textarea
+                name="message"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Escribí un mensaje..."
+                maxLength={500}
+                rows={1}
+                className="flex-1 bg-[rgba(201,164,106,0.06)] border border-[rgba(210,180,130,0.15)] rounded-lg px-3 py-2 text-xs text-[rgba(242,236,224,0.8)] placeholder:text-[rgba(242,236,224,0.25)] focus:outline-none focus:border-[rgba(210,180,130,0.35)] resize-none"
+              />
+              <button
+                type="submit"
+                disabled={chatInput.trim().length === 0 || chatFetcher.state !== "idle"}
+                className="px-3 py-2 rounded-lg bg-[rgba(201,164,106,0.15)] text-[#C9A46A] border border-[rgba(210,180,130,0.25)] text-xs font-medium hover:bg-[rgba(201,164,106,0.25)] transition-colors disabled:opacity-40 flex-shrink-0"
+              >
+                Enviar
+              </button>
+            </chatFetcher.Form>
+            {chatFetcher.data?.error && (
+              <p className="text-xs text-red-400/70 mt-1">{chatFetcher.data.error}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 w-full max-w-3xl">
         {navItems.map((item) => (
           <a

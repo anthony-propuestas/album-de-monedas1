@@ -9,6 +9,7 @@ export const meta: MetaFunction = () => [
 ];
 
 type Post = { id: number; title: string; created_at: number };
+type ChatMsg = { id: number; user_name: string; message: string; created_at: number };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const { authenticator } = createAuth(context.cloudflare.env);
@@ -21,7 +22,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     const { results: posts } = await db
       .prepare("SELECT id, title, created_at FROM posts ORDER BY created_at DESC")
       .all<Post>();
-    return json({ user, posts });
+    const { results: chatMessages } = await db
+      .prepare("SELECT id, user_name, message, created_at FROM chat_messages ORDER BY created_at DESC LIMIT 100")
+      .all<ChatMsg>();
+    return json({ user, posts, chatMessages });
   } catch (e) {
     throw new Response("Error al cargar los posts", { status: 500 });
   }
@@ -43,6 +47,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
         await db.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
       } catch (e) {
         return json({ error: "Error al eliminar el post." }, { status: 500 });
+      }
+    }
+    return redirect("/admin");
+  }
+
+  if (intent === "delete_chat_message") {
+    const id = Number(form.get("id"));
+    if (Number.isInteger(id) && id > 0) {
+      const db = context.cloudflare.env.DB;
+      try {
+        await db.prepare("DELETE FROM chat_messages WHERE id = ?").bind(id).run();
+      } catch (e) {
+        return json({ error: "Error al eliminar el mensaje." }, { status: 500 });
       }
     }
     return redirect("/admin");
@@ -92,7 +109,7 @@ function formatDate(unixSec: number) {
 }
 
 export default function AdminPage() {
-  const { posts } = useLoaderData<typeof loader>();
+  const { posts, chatMessages } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ fixed?: number; total?: number; error?: string }>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -155,6 +172,46 @@ export default function AdminPage() {
               </p>
             )}
           </Form>
+        </section>
+
+        {/* Mensajes del chat global */}
+        <section className="mb-8">
+          <h2 className="text-base font-semibold text-[#C9A46A] mb-4">
+            Chat global ({chatMessages.length})
+          </h2>
+          {chatMessages.length === 0 ? (
+            <p className="text-sm text-[rgba(242,236,224,0.35)] py-8 text-center">
+              No hay mensajes en el chat.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {chatMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className="flex items-start justify-between rounded-xl border border-[rgba(210,180,130,0.12)] bg-[rgba(201,164,106,0.04)] px-5 py-3 gap-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium text-[rgba(201,164,106,0.8)]">{msg.user_name}</span>
+                    <span className="text-xs text-[rgba(242,236,224,0.3)] ml-2">{formatDate(msg.created_at)}</span>
+                    <p className="text-sm text-[rgba(242,236,224,0.75)] mt-0.5 break-words">{msg.message}</p>
+                  </div>
+                  <Form method="post" className="flex-shrink-0">
+                    <input type="hidden" name="intent" value="delete_chat_message" />
+                    <input type="hidden" name="id" value={msg.id} />
+                    <button
+                      type="submit"
+                      className="text-xs text-[rgba(242,100,100,0.5)] hover:text-[rgba(242,100,100,0.85)] transition-colors px-2 py-1"
+                      onClick={(e) => {
+                        if (!confirm("¿Eliminar este mensaje del chat?")) e.preventDefault();
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </Form>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Lista de publicaciones existentes */}

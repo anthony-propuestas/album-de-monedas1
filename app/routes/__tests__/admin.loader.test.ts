@@ -14,10 +14,12 @@ const mockPosts = [
   { id: 2, title: "Post 2", created_at: 1700001000 },
 ];
 
-function makeDb(results: object[] = mockPosts, shouldFail = false) {
+function makeDb(posts: object[] = mockPosts, chatMessages: object[] = [], shouldFail = false) {
   const all = shouldFail
     ? vi.fn().mockRejectedValue(new Error("DB error"))
-    : vi.fn().mockResolvedValue({ results });
+    : vi.fn()
+        .mockResolvedValueOnce({ results: posts })
+        .mockResolvedValueOnce({ results: chatMessages });
   const prepare = vi.fn().mockReturnValue({ all });
   return { prepare };
 }
@@ -101,6 +103,30 @@ describe("admin loader", () => {
     expect(data.posts).toEqual([]);
   });
 
+  it("returns chatMessages array in response", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockAdmin) } as any,
+      sessionStorage: {} as any,
+    });
+    const db = makeDb(mockPosts, []);
+    const res = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await res.json() as { chatMessages: unknown[] };
+    expect(Array.isArray(data.chatMessages)).toBe(true);
+    expect(data.chatMessages).toEqual([]);
+  });
+
+  it("returns chatMessages with data from DB", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockAdmin) } as any,
+      sessionStorage: {} as any,
+    });
+    const mockMsg = { id: 1, user_name: "Alice", message: "Hola", created_at: 1000000 };
+    const db = makeDb(mockPosts, [mockMsg]);
+    const res = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await res.json() as { chatMessages: typeof mockMsg[] };
+    expect(data.chatMessages).toEqual([mockMsg]);
+  });
+
   it("throws 500 Response when DB fails", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockAdmin) } as any,
@@ -108,7 +134,7 @@ describe("admin loader", () => {
     });
     let thrown: unknown;
     try {
-      await loader({ request: makeRequest(), context: makeContext(makeDb([], true)) as any, params: {} });
+      await loader({ request: makeRequest(), context: makeContext(makeDb([], [], true)) as any, params: {} });
     } catch (e) {
       thrown = e;
     }

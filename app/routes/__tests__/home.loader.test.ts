@@ -15,6 +15,7 @@ function makeMockDb(firstResult: { profile_completed: number } | null = null) {
   const prepareObj = {
     bind: vi.fn().mockReturnValue(bindObj),
     all: vi.fn().mockResolvedValue({ results: [] }),
+    run: vi.fn().mockResolvedValue({}),
   };
   return { prepare: vi.fn().mockReturnValue(prepareObj) };
 }
@@ -46,6 +47,7 @@ function makeMockDbWithStats({
   const prepareObj = {
     bind: vi.fn().mockReturnValue(bindObj),
     all: vi.fn().mockResolvedValue({ results: [] }),
+    run: vi.fn().mockResolvedValue({}),
   };
   const db = { prepare: vi.fn().mockReturnValue(prepareObj) };
   return { db, firstFn, runFn, prepareObj };
@@ -55,6 +57,7 @@ const mockEnv: Env = {
   GOOGLE_CLIENT_ID: "x",
   GOOGLE_CLIENT_SECRET: "x",
   SESSION_SECRET: "x",
+  ADMIN_EMAIL: "admin@example.com",
   DB: {} as unknown as D1Database,
 };
 
@@ -266,5 +269,45 @@ describe("home loader", () => {
     const data = await result.json();
     expect(data.claimedByCountry).toBeDefined();
     expect(typeof data.claimedByCountry).toBe("object");
+  });
+
+  // --- chat ---
+
+  it("runs the chat_messages cleanup DELETE query", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats();
+    await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const deleteCalls = (db.prepare.mock.calls as string[][]).filter(([sql]) =>
+      sql.includes("DELETE FROM chat_messages")
+    );
+    expect(deleteCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("queries chat_messages ordered by created_at DESC", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats();
+    await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const chatCalls = (db.prepare.mock.calls as string[][]).filter(([sql]) =>
+      sql.includes("FROM chat_messages") && sql.includes("ORDER BY")
+    );
+    expect(chatCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("returns chatMessages array in response", async () => {
+    mockAuthenticated();
+    const { db } = makeMockDbWithStats();
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(Array.isArray(data.chatMessages)).toBe(true);
+  });
+
+  it("returns chatMessages with data from DB", async () => {
+    mockAuthenticated();
+    const { db, prepareObj } = makeMockDbWithStats();
+    const mockMsg = { id: 1, user_id: "u1", user_name: "Alice", user_picture: null, message: "Hola", created_at: 1000000 };
+    prepareObj.all.mockResolvedValue({ results: [mockMsg] });
+    const result = await loader({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    const data = await result.json();
+    expect(data.chatMessages).toEqual([mockMsg]);
   });
 });

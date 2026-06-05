@@ -236,6 +236,73 @@ describe("home action", () => {
     expect(bindObj.run).not.toHaveBeenCalled();
   });
 
+  // --- send_chat ---
+
+  it("send_chat: returns { ok: true } for a valid message", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "send_chat", message: "Hola mundo" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    const data = await result.json();
+    expect(data.ok).toBe(true);
+  });
+
+  it("send_chat: calls INSERT INTO chat_messages with user data and message", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db, prepareObj, bindObj } = makeMockDb();
+    await action({
+      request: makeRequest({ intent: "send_chat", message: "Test message" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO chat_messages"));
+    expect(prepareObj.bind).toHaveBeenCalledWith(mockUser.id, mockUser.name, mockUser.picture, "Test message");
+    expect(bindObj.run).toHaveBeenCalled();
+  });
+
+  it("send_chat: returns 400 and no DB call for empty message", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "send_chat", message: "" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+    const data = await result.json();
+    expect(data.error).toBeDefined();
+    const insertCalls = (db.prepare.mock.calls as string[][]).filter(([sql]) =>
+      sql.includes("INSERT INTO chat_messages")
+    );
+    expect(insertCalls.length).toBe(0);
+  });
+
+  it("send_chat: returns 400 for whitespace-only message", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "send_chat", message: "   " }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+  });
+
   it("trims whitespace from fields", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,

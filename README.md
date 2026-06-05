@@ -115,24 +115,25 @@ app/
     BadgesGrid.tsx            # Grid de logros del usuario
     SeriesProgress.tsx        # Progreso de una serie numismática
     YearTimeline.tsx          # Timeline de monedas por año
-    AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes, botones aprobar/rechazar
+    AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes con detalle completo (fotos anverso/reverso, condición, ref. catálogo, valor estimado, notas, registry key); botones aprobar/rechazar
     ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
     DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
     WorldMap.tsx              # Mapa coropleta SVG (D3 + TopoJSON) — client-only, color blue/amber según uso
     ui/__tests__/
-      button.test.tsx             # 16 tests: variantes, tamaños, onClick, disabled, buttonVariants
+      button.test.tsx             # 18 tests: variantes, tamaños, onClick, disabled, buttonVariants
     __tests__/
-      AddCoinModal.test.tsx       # 29 tests: render/flujo de fotos + cascada (selects, opciones, reset)
-      AdminRewardsPanel.test.tsx  # 12 tests: empty state, claim cards, aprobar/rechazar, modal de rechazo
+      AddCoinModal.test.tsx       # 37 tests: render/flujo de fotos + cascada (selects, opciones, reset)
+      AdminRewardsPanel.test.tsx  # 21 tests: nombre, denominación, país/año, fotos obverso/reverso, condición, ceca, ref. catálogo, valor estimado, notas, empty state, aprobar/rechazar, modal de rechazo
       CategoryTile.test.tsx       # 11 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
       ClaimButton.test.tsx        # 13 tests: registry_match guard, estados del claim, fetch POST
-      CoinCard.test.tsx           # 10 tests: foto placeholder/img, rounded-full, estimated_value
-      CoinDetailModal.test.tsx    # 24 tests: render, datos opcionales, galería de fotos, cierre
-      CoinFilters.test.tsx        # 8 tests: inputs de búsqueda, selects de país/condición, prefill
+      CoinCard.test.tsx           # 12 tests: foto placeholder/img, rounded-full, estimated_value
+      CoinDetailModal.test.tsx    # 18 tests: render, datos opcionales, galería de fotos, cierre
+      CoinFilters.test.tsx        # 7 tests: inputs de búsqueda, selects de país/condición, prefill
       CollectorRow.test.tsx       # 16 tests: medallas, link con/sin ?from=, avatar, stat
-      ImageCropEditor.test.tsx    # 11 tests: zoom, crop vía canvas, cancelar/confirmar
-      ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
+      ImageCropEditor.test.tsx    # 9 tests: zoom, crop vía canvas, cancelar/confirmar
+      ProfileSetupModal.test.tsx  # 14 tests: goals, validación, submit state, inputs ocultos
       WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
+      WalletConnectButton.test.tsx # 5 tests: conectar/desconectar wallet, display de address truncada
   providers/
     WagmiProvider.tsx         # wagmi (Base Mainnet) + TanStack Query
     __tests__/
@@ -154,18 +155,18 @@ app/
       addresses.ts            # Addresses de AlbumCoin y RewardClaimer en Base Mainnet
     __tests__/
       auth.server.test.ts         # 7 tests: createAuth, authenticator, sessionStorage, callbackURL
-      coins.test.ts               # 14 tests: integridad del registro y datos de MONEDAS_ARGENTINA
-      collections.test.ts         # 24 tests: CATEGORIES, getCategoryBySlug, statLabel × 8 categorías
+      coins.test.ts               # 15 tests: integridad del registro y datos de MONEDAS_ARGENTINA
+      collections.test.ts         # 25 tests: CATEGORIES, getCategoryBySlug, statLabel × 8 categorías
       countries.test.ts           # 8 tests: lista ISO, unicidad de códigos/nombres, entradas específicas
       rateLimit.server.test.ts    # 7 tests: checkRateLimit — límite, bloqueo, retryAfter, params D1
-      rewards.server.test.ts      # 9 tests: getCoinIdHash, signClaim, isCoinClaimedOnchain
+      rewards.server.test.ts      # 8 tests: getCoinIdHash, signClaim, isCoinClaimedOnchain
       utils.test.ts               # 8 tests: cn() — clases vacías, concatenación, falsy, conflictos Tailwind
   routes/
     __tests__/
       _index.loader.test.ts             # 5 tests: loader landing — stats de DB, sin auth
       _index.test.tsx                   # 18 tests: render landing — hero, stats, secciones
-      admin.action.test.ts              # 10 tests: delete post, fix registry_match, auth guard
-      admin.loader.test.ts              # 5 tests: loader admin — lista posts, auth guard
+      admin.action.test.ts              # 14 tests: delete post, fix registry_match, auth guard
+      admin.loader.test.ts              # 7 tests: loader admin — lista posts, auth guard
       admin_.new-news.test.ts           # 11 tests: loader + action nueva noticia, validación, auth
       admin_.rewards.test.ts            # 4 tests: loader panel de claims pendientes
       admin.rewards.id.approve.test.ts  # 4 tests: action aprobar claim, ventana 7 días
@@ -179,9 +180,9 @@ app/
       collection.userId.loader.test.ts  # 11 tests: loader colección pública ajena
       collections.category.loader.test.ts # 7 tests: loader top 10 por categoría
       collections.loader.test.ts        # 9 tests: loader rankings — 8 queries en paralelo, shuffle
-      home.action.test.ts               # 9 tests: action dashboard — update perfil
+      home.action.test.ts               # 13 tests: action dashboard — update perfil
       home.component.test.tsx           # 14 tests: render dashboard, ProfileSetupModal visibility
-      home.loader.test.ts               # 15 tests: loader dashboard — stats, auth redirect
+      home.loader.test.ts               # 19 tests: loader dashboard — stats, auth redirect
       images.$.test.ts                  # 7 tests: loader proxy R2, Cache-Control, 404
       mycollection.action.test.ts       # 9 tests: action add_coin — upload R2, insert D1
       mycollection.loader.test.ts       # 16 tests: loader colección propia — galería, filtros
@@ -227,7 +228,7 @@ npm run test:coverage  # reporte de cobertura en /coverage
 
 Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
-43 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
+44 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
 
 ## Seguridad
 

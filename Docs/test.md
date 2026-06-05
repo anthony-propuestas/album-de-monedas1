@@ -87,9 +87,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/home.loader.test.ts`
-**Qué prueba:** el `loader` de `app/routes/home.tsx`, que protege la ruta `/home`, devuelve el usuario autenticado y ejecuta 3 queries de stats personales en paralelo.
+**Qué prueba:** el `loader` de `app/routes/home.tsx`, que protege la ruta `/home`, devuelve el usuario autenticado, ejecuta 3 queries de stats personales en paralelo y carga los mensajes del chat global.
 
-> El módulo `~/lib/auth.server` se mockea completamente para controlar el resultado de `isAuthenticated` sin necesidad de cookies reales. Para los tests de stats se usa `makeMockDbWithStats`, que encadena `mockResolvedValueOnce` para controlar el resultado de cada una de las 4 llamadas a `first()` por separado.
+> El módulo `~/lib/auth.server` se mockea completamente para controlar el resultado de `isAuthenticated` sin necesidad de cookies reales. Para los tests de stats se usa `makeMockDbWithStats`, que encadena `mockResolvedValueOnce` para controlar el resultado de cada una de las 4 llamadas a `first()` por separado. `prepareObj` incluye `run` directo (sin bind) para cubrir la query de limpieza del chat.
 
 | Test | Descripción |
 |---|---|
@@ -108,13 +108,17 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | runs INSERT OR IGNORE for both new and existing users | La query `INSERT OR IGNORE INTO users` siempre se ejecuta, independiente de si el usuario existe |
 | response includes all three stats fields | La respuesta contiene `{ total, estimatedValue, topCondition }` con los valores correctos de la DB |
 | returns claimedByCountry in response | `data.claimedByCountry` está definido y es un objeto (mapa ISO-2 → count de claimed coins) |
+| runs the chat_messages cleanup DELETE query | El loader ejecuta `DELETE FROM chat_messages WHERE created_at < unixepoch() - 1209600` en cada request (limpieza piggyback) |
+| queries chat_messages ordered by created_at DESC | El loader consulta los últimos 20 mensajes del chat ordenados por fecha descendente |
+| returns chatMessages array in response | `data.chatMessages` existe y es un array |
+| returns chatMessages with data from DB | Cuando `prepareObj.all` resuelve con mensajes, éstos aparecen en el response |
 
 ---
 
 ### `app/routes/__tests__/home.component.test.tsx`
 **Qué prueba:** el componente React `Home` de `app/routes/home.tsx`.
 
-> `useLoaderData` y `useFetcher` se mockean para inyectar estado sin necesitar el contexto de Remix. El mock de `defaultLoaderData` incluye `claimedByCountry: {}` para que `WorldMap` no lance TypeError al llamar `Object.values(undefined)`.
+> `useLoaderData`, `useFetcher` y `useRevalidator` se mockean para inyectar estado sin necesitar el contexto de Remix. El mock de `defaultLoaderData` incluye `claimedByCountry: {}` y `chatMessages: []` para que `WorldMap` y el chat no lancen errores.
 
 #### Contenido principal
 
@@ -155,7 +159,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | Test | Descripción |
 |---|---|
 | throws redirect to '/' when user is not authenticated | Sin sesión activa, el action lanza `Response` 302 → `/` |
-| returns error for unknown intent | Si `intent` no es `complete_profile`, retorna `{ error: "Acción no reconocida." }` |
+| returns error for unknown intent | Si `intent` no es reconocido, retorna `{ error: "Acción no reconocida." }` |
 | returns error when name is missing | Campo `name` vacío → `{ error: "Todos los campos son obligatorios." }` |
 | returns error when country is missing | Campo `country` vacío → mismo error de validación |
 | returns error when goals is missing | Campo `goals` vacío → mismo error de validación |
@@ -163,6 +167,10 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | calls DB UPDATE with correct field values | Verifica que `prepare` recibe la query UPDATE y `bind` los 5 valores en orden correcto |
 | does not call DB when validation fails | Si la validación falla, `run()` no se llama nunca |
 | trims whitespace from fields | Los espacios al inicio/fin se recortan antes de guardar en la DB |
+| send_chat: returns { ok: true } for a valid message | Con `intent=send_chat` y mensaje no vacío retorna `{ ok: true }` |
+| send_chat: calls INSERT INTO chat_messages with user data and message | Verifica que `prepare` recibe el INSERT y `bind` los 4 valores (user_id, user_name, user_picture, message) |
+| send_chat: returns 400 and no DB call for empty message | Mensaje vacío → status 400 sin llamar a `prepare` con INSERT |
+| send_chat: returns 400 for whitespace-only message | Mensaje de solo espacios → status 400 (el trim lo deja vacío) |
 
 ---
 
@@ -905,9 +913,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/admin.loader.test.ts`
-**Qué prueba:** el `loader` de `app/routes/admin.tsx`, que protege la ruta `/admin` y devuelve los posts para el usuario admin.
+**Qué prueba:** el `loader` de `app/routes/admin.tsx`, que protege la ruta `/admin`, devuelve los posts y los mensajes del chat global para el usuario admin.
 
-> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con `prepare → all` en cadena.
+> `~/lib/auth.server` se mockea para controlar la sesión. La DB se simula con `prepare → all` en cadena. `makeDb` usa `mockResolvedValueOnce` dos veces para la primera llamada (posts) y la segunda (chatMessages).
 
 | Test | Descripción |
 |---|---|
@@ -916,11 +924,13 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns user and posts for admin | Admin recibe `{ user, posts }` con los datos de la DB |
 | returns empty posts array when DB has no posts | DB devuelve `[]` → `data.posts` es `[]` |
 | throws 500 Response when DB fails | `db.prepare().all()` rechaza → `Response` 500 |
+| returns chatMessages array in response | `data.chatMessages` existe y es un array |
+| returns chatMessages with data from DB | Cuando la segunda llamada a `all()` resuelve con mensajes, éstos aparecen en `data.chatMessages` |
 
 ---
 
 ### `app/routes/__tests__/admin.action.test.ts`
-**Qué prueba:** el `action` de `app/routes/admin.tsx` — intents `delete_post` y `fix_registry_match`.
+**Qué prueba:** el `action` de `app/routes/admin.tsx` — intents `delete_post`, `fix_registry_match` y `delete_chat_message`.
 
 > `~/lib/auth.server` se mockea para controlar la sesión. `~/lib/coins` se mockea para inyectar un catálogo controlado de Argentina (1 entrada). La DB se simula con `prepare → { bind → run, all }` y `db.batch` como `vi.fn()`.
 
@@ -936,6 +946,10 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | fixed=1 when one coin matches the catalog | Moneda con datos exactos del mock → `fixed: 1` |
 | calls db.batch with UPDATE statements for fix_registry_match | `db.batch` se invoca con el array de UPDATE statements |
 | returns 400 for unknown intent | `intent="unknown_intent"` → `{ error: "Acción no reconocida." }` status 400 |
+| delete_chat_message: redirects to /admin for valid id | `intent=delete_chat_message` con id válido → redirect 302 a `/admin` |
+| delete_chat_message: calls DELETE FROM chat_messages with correct id | `prepare` llamado con `DELETE FROM chat_messages` y `bind(7)` + `run()` |
+| delete_chat_message: redirects without calling DELETE for id=0 | `id=0` → redirect 302 sin ejecutar el DELETE |
+| delete_chat_message: redirects without calling DELETE for negative id | `id=-1` → redirect 302 sin ejecutar el DELETE |
 
 ---
 
