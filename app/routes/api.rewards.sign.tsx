@@ -38,8 +38,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const coinIdHash = claim.coin_id_hash as `0x${string}`;
 
   try {
-    const { signature, signerAddress } = await signClaim(walletAddress as `0x${string}`, coinIdHash, context.cloudflare.env);
-    return json({ signature, coinIdHash, signerAddress });
+    const { signature, signerAddress, signedWallet } = await signClaim(walletAddress as `0x${string}`, coinIdHash, context.cloudflare.env);
+    return json({ signature, coinIdHash, signerAddress, signedWallet });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error al firmar";
     return json({ error: msg }, { status: 500 });

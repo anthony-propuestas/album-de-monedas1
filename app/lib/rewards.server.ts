@@ -29,7 +29,7 @@ export async function signClaim(
   wallet: `0x${string}`,
   coinIdHash: `0x${string}`,
   env: Env
-): Promise<{ signature: `0x${string}`; signerAddress: string }> {
+): Promise<{ signature: `0x${string}`; signerAddress: string; signedWallet: string }> {
   const account = privateKeyToAccount(env.BACKEND_SIGNER_KEY as `0x${string}`);
   const signature = await account.signTypedData({
     domain: {
@@ -47,7 +47,7 @@ export async function signClaim(
     primaryType: "Claim",
     message: { wallet, coinId: coinIdHash },
   });
-  return { signature, signerAddress: account.address };
+  return { signature, signerAddress: account.address, signedWallet: wallet };
 }
 
 export async function isCoinClaimedOnchain(
