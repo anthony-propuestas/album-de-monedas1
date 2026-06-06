@@ -334,9 +334,11 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/mycollection.action.test.ts`
-**Qué prueba:** el `action` de `app/routes/mycollection.tsx`, que recibe el formulario multipart, sube fotos a R2 e inserta la moneda en D1.
+**Qué prueba:** el `action` de `app/routes/mycollection.tsx` — intents `add_coin` y `edit_coin`.
 
-> `~/lib/auth.server` se mockea para la sesión. DB y R2 se simulan con `vi.fn()`. Los archivos se crean con la API nativa `File` disponible en happy-dom.
+> `~/lib/auth.server` se mockea para la sesión. DB y R2 se simulan con `vi.fn()`. Los archivos se crean con la API nativa `File` disponible en happy-dom. Para `edit_coin`, `bindObj.first` usa `mockResolvedValueOnce` para devolver el coin en la primera llamada (ownership check) y null/claim en la segunda (claim check).
+
+#### Intent `add_coin`
 
 | Test | Descripción |
 |---|---|
@@ -349,6 +351,19 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | parses year as integer and estimated_value as float | Los campos numéricos se convierten antes de guardar (`parseInt`, `parseFloat`) |
 | stores null for empty optional text fields | Los campos opcionales no enviados se guardan como `null`, no como string vacío |
 | does not upload to R2 when file is empty | Un `File` de 0 bytes no dispara `images.put` |
+
+#### Intent `edit_coin`
+
+| Test | Descripción |
+|---|---|
+| returns 400 when coin_id is missing | Sin `coin_id` en el form → status 400 con mensaje "ID requerido" |
+| returns 404 when coin is not found in DB | Si `first()` devuelve `null` en el ownership check → status 404 |
+| returns 403 when coin has an active pending claim | Si existe un claim con status `pending` → status 403 con mensaje "verificación" |
+| redirects to /mycollection after successful update | Con coin encontrado y sin claim activo → `Response` 302 → `/mycollection` |
+| calls DB UPDATE (not INSERT) with coin_id and user_id in bind args | `prepare` recibe `UPDATE coins SET` y `bind` contiene `coin_id` y `user.id` |
+| keeps existing photo key when no new file is submitted | Si no llega un file nuevo, el key existente de R2 se mantiene en los args de `bind` |
+| does not call images.delete or images.put when no new file is submitted | Sin nuevo archivo, el bucket R2 no se toca en ningún slot |
+| uploads new photo and deletes old one when a valid JPEG is provided | Con JPEG válido para `photo_obverse`, llama a `images.delete(oldKey)` e `images.put(newKey, buffer)` |
 
 ---
 
@@ -462,6 +477,37 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | mint is empty before completing the chain | Sin una selección completa, `mint` está vacío y no es read-only |
 | changing country resets denomination, name and year to free inputs | Cambiar el país limpia todos los campos inferiores y los devuelve a inputs libres |
 | changing denomination resets year value and name to free input | Cambiar la denominación resetea el valor de `year` (queda Select vacío) y `name` vuelve a ser `<input>` libre |
+
+---
+
+### `app/components/__tests__/EditCoinModal.test.tsx`
+**Qué prueba:** el componente `EditCoinModal` de `app/components/EditCoinModal.tsx` — modal para editar una moneda existente, incluyendo pre-relleno de campos, previsualización de fotos existentes y flujo de reemplazo con crop.
+
+> `@remix-run/react` se mockea (`useFetcher` con `Form` funcional). `ImageCropEditor` se reemplaza por un stub con botones `mock-confirm` y `mock-cancel`. `CustomSelect` se mockea como `<select>` nativo. `URL.createObjectURL/revokeObjectURL` y `DataTransfer` se mockean. El mockCoin usa `country: "MX"` (sin datos en catálogo) para que todos los campos del formulario sean inputs libres, simplificando las aserciones.
+
+| Test | Descripción |
+|---|---|
+| renders nothing when isOpen is false | Con `isOpen=false`, el modal no está en el DOM |
+| renders nothing when coin is null even if isOpen is true | Sin moneda, el modal no se renderiza aunque `isOpen=true` |
+| shows 'Editar pieza' title when open with a coin | Con `isOpen=true` y coin válida, aparece el título "Editar pieza" |
+| pre-fills name input with coin.name | El input `name` tiene `defaultValue` igual a `coin.name` |
+| pre-fills year input with coin.year | El input `year` tiene `defaultValue` igual a `coin.year` como string |
+| has hidden intent input with value 'edit_coin' | El input oculto `intent` tiene `value="edit_coin"` |
+| has hidden coin_id input with correct id | El input oculto `coin_id` tiene el id de la moneda |
+| shows existing photo preview for photo_obverse using /images/ URL | Si `coin.photo_obverse` existe, el `<img alt="Anverso">` tiene src `/images/{key}` |
+| shows 'Tocar para cambiar' overlay when photo exists | Con foto existente, aparece el texto "Tocar para cambiar" en el overlay |
+| renders all 4 photo slot labels | Los 4 labels (Anverso, Reverso, Canto, Detalle) están en el DOM |
+| does not show crop editor initially | Al montar, el editor de crop no está visible |
+| opens crop editor after selecting a file on a slot without existing photo | Seleccionar un archivo en un slot sin foto abre `data-testid="crop-editor"` |
+| crop editor shows correct slot label when triggered | El stub del editor muestra el label del slot triggereado |
+| closes crop editor after confirming crop | Tras `mock-confirm`, el editor desaparece |
+| closes crop editor after canceling | Tras `mock-cancel`, el editor desaparece |
+| shows 'Guardando...' while submitting | Con `fetcher.state="submitting"`, el botón muestra "Guardando..." |
+| submit button is disabled while submitting | El botón de submit está deshabilitado durante el envío |
+| submit button shows 'Guardar cambios' when idle | En estado idle el botón muestra "Guardar cambios" |
+| calls onClose when clicking Cancelar | El botón "Cancelar" llama a `onClose` |
+| calls onClose when clicking the X button | El botón X del header llama a `onClose` |
+| shows error message from fetcher.data.error | Si `fetcher.data.error` tiene valor, el mensaje aparece en el DOM |
 
 ---
 

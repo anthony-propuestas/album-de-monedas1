@@ -7,6 +7,7 @@ import { json, redirect } from "@remix-run/cloudflare";
 import { useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
 import { useState } from "react";
 import { AddCoinModal } from "~/components/AddCoinModal";
+import { EditCoinModal } from "~/components/EditCoinModal";
 import { CoinCard } from "~/components/CoinCard";
 import { CoinDetailModal } from "~/components/CoinDetailModal";
 import { DeleteConfirmModal } from "~/components/DeleteConfirmModal";
@@ -194,6 +195,107 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
     await db.prepare("DELETE FROM coins WHERE id = ? AND user_id = ?").bind(id, user.id).run();
     return json({ ok: true });
+  }
+
+  if (intent === "edit_coin") {
+    const id = form.get("coin_id")?.toString();
+    if (!id) return json({ error: "ID requerido." }, { status: 400 });
+
+    const coin = await db
+      .prepare("SELECT * FROM coins WHERE id = ? AND user_id = ?")
+      .bind(id, user.id)
+      .first<Coin>();
+    if (!coin) return json({ error: "Moneda no encontrada." }, { status: 404 });
+
+    const activeClaim = await db
+      .prepare(
+        "SELECT status FROM claim_requests WHERE coin_id = ? AND user_id = ? AND status IN ('pending','approved','claimed') LIMIT 1"
+      )
+      .bind(id, user.id)
+      .first<{ status: string }>();
+    if (activeClaim) {
+      return json(
+        { error: "Esta pieza está en proceso de verificación y no puede editarse." },
+        { status: 403 }
+      );
+    }
+
+    const rl = await checkRateLimit(db, user.id, "edit_coin", 30, 24);
+    if (!rl.allowed) {
+      return json({ error: `Límite de ediciones alcanzado. Reintentá en ${Math.ceil(rl.retryAfterSeconds / 60)} minutos.` }, { status: 429 });
+    }
+
+    const name = form.get("name")?.toString().trim() ?? "";
+    if (!name) return json({ error: "El nombre es obligatorio." }, { status: 400 });
+    const country = form.get("country")?.toString() || null;
+    const yearRaw = form.get("year")?.toString();
+    const year = yearRaw ? parseInt(yearRaw, 10) : null;
+    const denomination = form.get("denomination")?.toString() || null;
+    const condition = form.get("condition")?.toString() || null;
+    const mint = form.get("mint")?.toString() || null;
+    const catalogRef = form.get("catalog_ref")?.toString() || null;
+    const estimatedRaw = form.get("estimated_value")?.toString();
+    const estimatedValue = estimatedRaw ? parseFloat(estimatedRaw) : null;
+    const notes = form.get("notes")?.toString() || null;
+
+    if (name.length > 200 || (notes && notes.length > 1000)) {
+      return json({ error: "Texto demasiado largo." }, { status: 400 });
+    }
+
+    const VALID_CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"] as const;
+    if (condition && !(VALID_CONDITIONS as readonly string[]).includes(condition)) {
+      return json({ error: "Condición inválida." }, { status: 400 });
+    }
+
+    const coinsForCountry = country ? COINS_BY_COUNTRY[country] : null;
+    const registryMatch = coinsForCountry != null && year != null && coinsForCountry.some(
+      (e) => e.denominacion === denomination && e.nombre === name && e.anio === year
+    );
+
+    const images = context.cloudflare.env.IMAGES as R2Bucket | undefined;
+
+    const uploadOrKeep = async (slot: keyof Pick<Coin, "photo_obverse" | "photo_reverse" | "photo_edge" | "photo_detail">): Promise<string | null> => {
+      const file = form.get(slot as string);
+      if (!file || !(file instanceof File) || file.size === 0) return coin[slot];
+      if (file.size > 5 * 1024 * 1024) return coin[slot];
+      if (!images) return coin[slot];
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      if (bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return coin[slot];
+      const key = `${user.id}/${id}/${slot}`;
+      if (coin[slot]) await images.delete(coin[slot] as string);
+      await images.put(key, buffer, { httpMetadata: { contentType: "image/jpeg" } });
+      return key;
+    };
+
+    const [photoObverse, photoReverse, photoEdge, photoDetail] = await Promise.all([
+      uploadOrKeep("photo_obverse"),
+      uploadOrKeep("photo_reverse"),
+      uploadOrKeep("photo_edge"),
+      uploadOrKeep("photo_detail"),
+    ]);
+
+    try {
+      await db
+        .prepare(
+          `UPDATE coins SET name=?, country=?, year=?, denomination=?, condition=?, mint=?,
+           catalog_ref=?, estimated_value=?, notes=?,
+           photo_obverse=?, photo_reverse=?, photo_edge=?, photo_detail=?, registry_match=?
+           WHERE id=? AND user_id=?`
+        )
+        .bind(
+          name, country, year, denomination, condition, mint,
+          catalogRef, estimatedValue, notes,
+          photoObverse, photoReverse, photoEdge, photoDetail,
+          registryMatch ? 1 : 0,
+          id, user.id
+        )
+        .run();
+    } catch (e) {
+      return json({ error: "Error al guardar los cambios." }, { status: 500 });
+    }
+
+    return redirect("/mycollection");
   }
 
   if (intent !== "add_coin") {
@@ -437,12 +539,15 @@ function CoinCardItem({
   coin,
   claimStatus,
   onSelect,
+  onEdit,
 }: {
   coin: Coin;
   claimStatus: { status: string; expires_at?: number | null; coin_id_hash?: string | null; reject_reason?: string | null } | undefined;
   onSelect: () => void;
+  onEdit: () => void;
 }) {
   const [showSellForm, setShowSellForm] = useState(false);
+  const isLocked = claimStatus && ["pending", "approved", "claimed"].includes(claimStatus.status);
 
   return (
     <div className="flex flex-col rounded-xl border border-[rgba(210,180,130,0.18)] bg-[rgba(14,11,10,0.4)] overflow-hidden">
@@ -455,6 +560,19 @@ function CoinCardItem({
         ) : (
           <div className="flex items-center gap-1">
             <SellCoinControl coin={coin} onShowForm={() => setShowSellForm(true)} />
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={onEdit}
+                title="Editar moneda"
+                className="p-1.5 rounded-lg text-[rgba(201,164,106,0.4)] hover:text-[#C9A46A] hover:bg-[rgba(201,164,106,0.08)] transition-all shrink-0"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
             <DeleteCoinButton coinId={coin.id} coinName={coin.name} />
             <ClaimButton
               coinId={coin.id}
@@ -476,6 +594,7 @@ export default function MyCollection() {
   const navigation = useNavigation();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
+  const [editCoin, setEditCoin] = useState<Coin | null>(null);
 
   const coinsByCountry = allCoins.reduce<Record<string, number>>((acc, coin) => {
     if (coin.country) acc[coin.country] = (acc[coin.country] ?? 0) + 1;
@@ -577,6 +696,7 @@ export default function MyCollection() {
                 coin={coin}
                 claimStatus={claimStatuses[coin.id]}
                 onSelect={() => setSelectedCoin(coin)}
+                onEdit={() => setEditCoin(coin)}
               />
             ))}
           </div>
@@ -585,6 +705,7 @@ export default function MyCollection() {
 
       <AddCoinModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
       <CoinDetailModal coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
+      <EditCoinModal isOpen={editCoin !== null} onClose={() => setEditCoin(null)} coin={editCoin} />
     </main>
   );
 }

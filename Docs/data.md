@@ -151,6 +151,19 @@ Ventanas de rate limiting por usuario y acción. Usada por `checkRateLimit()` en
 
 PK compuesta: `(user_id, action, window_start)`.
 
+#### `chat_messages` — `migrations/0010_create_chat_messages.sql`
+
+Mensajes del chat global (feature pendiente de UI completa).
+
+| Columna | Tipo | Notas |
+|---------|------|-------|
+| `id` | INTEGER | PK AUTOINCREMENT |
+| `user_id` | TEXT NOT NULL | FK implícita → `users.id` |
+| `user_name` | TEXT NOT NULL | Nombre del autor en el momento del envío |
+| `user_picture` | TEXT | URL avatar (nullable) |
+| `message` | TEXT NOT NULL | Máx. 500 caracteres (CHECK constraint en DB) |
+| `created_at` | INTEGER NOT NULL | Unix timestamp (`DEFAULT (unixepoch())`) |
+
 ### Relaciones
 
 ```

@@ -47,6 +47,7 @@ binding = "IMAGES"    # bucket: album-monedas-images
 - `posts`: id, title, body, created_at
 - `messages`: id, coin_id, seller_id, buyer_id, buyer_name, buyer_email, buyer_contact, message, created_at, read_at
 - `rate_limits`: user_id, action, window_start, count
+- `chat_messages`: id, user_id, user_name, user_picture, message (max 500 chars), created_at
 
 ## Reglas
 
@@ -74,7 +75,7 @@ app/
     home.tsx                    # Dashboard protegido (requiere sesión)
     admin.tsx                   # Panel de administración (lista posts, delete, fix_registry_match)
     admin_.new-news.tsx         # Formulario para crear nueva noticia → /admin/new-news
-    mycollection.tsx            # Colección propia del usuario autenticado; incluye WalletConnectButton en controles del header junto a "Agregar pieza"
+    mycollection.tsx            # Colección propia del usuario autenticado; intents: add_coin, edit_coin, delete_coin; botón de lápiz en cada card (bloqueado si hay claim activo); incluye WalletConnectButton y EditCoinModal
     collection.$userId.tsx      # Colección pública de un usuario
     collections._index.tsx      # Ranking de coleccionistas por categorías (D1)
     collections.$category.tsx   # Detalle de categoría/ranking
@@ -109,6 +110,7 @@ app/
     ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
     WalletConnectButton.tsx     # Conexión/desconexión de wallet en el header; sin props (usa wagmi hooks); muestra prompt de conexión o dirección truncada + botón de desconectar
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
+    EditCoinModal.tsx           # Modal edición de moneda existente; pre-rellena todos los campos con datos de la coin; permite reemplazar fotos (crop + upload a R2, borra la anterior); bloqueado si hay claim pending|approved|claimed; envía intent="edit_coin" + coin_id
     WorldMap.tsx                # Mapa coropleta SVG (D3 + TopoJSON) — client-only; props: coinsByCountry (ISO-2 → count), colorScheme ("blue"|"amber"), title
   lib/
     auth.server.ts              # createAuth(): Authenticator + GoogleStrategy + cookieStorage

@@ -350,6 +350,36 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 
 ---
 
+## Edición de monedas (`edit_coin`)
+
+### Mecanismos implementados
+
+- **Auth**: mismo guard de sesión que todos los intents del action de `/mycollection`.
+- **Propiedad en doble capa**: SELECT inicial `WHERE id=? AND user_id=?` + UPDATE final `WHERE id=? AND user_id=?`. Un usuario no puede editar monedas ajenas aunque conozca el `coin_id`.
+- **Claim lock**: rechaza ediciones si existe un `claim_request` activo (`pending|approved|claimed`). Evita que el usuario altere datos de una pieza que el admin ya está revisando.
+- **Rate limiting**: 30 ediciones cada 24 h por usuario vía `checkRateLimit("edit_coin", 30, 24)`.
+- **Validación de entrada**: `name ≤ 200 chars`, `notes ≤ 1000 chars`; `condition` validado contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` sin validación ISO (pendiente, mismo estado que `add_coin`).
+- **Uploads**: magic bytes JPEG (`FF D8 FF`), límite 5 MB, misma lógica que `add_coin`.
+- **Limpieza de R2**: borra la key anterior antes de subir la nueva — sin acumulación de archivos huérfanos en R2.
+- **Queries parametrizadas**: todas las consultas D1 usan `.prepare().bind()`.
+
+### Sin riesgos nuevos
+
+`edit_coin` es simétrico a `add_coin` en validaciones. No introduce superficies de ataque adicionales respecto a los riesgos ya documentados.
+
+---
+
+## Chat global (`chat_messages`)
+
+### Mecanismos implementados
+
+- **Escritura (`home.tsx` action `send_chat`)**: requiere sesión activa; INSERT con `.bind()` (parametrizado); `user_id`, `user_name` y `user_picture` tomados del objeto de sesión — el usuario no puede falsificar su identidad.
+- **Límite de longitud**: `CHECK(length(message) <= 500)` en DB como defensa en profundidad; validación server-side previa recomendada (verificar si existe en el action).
+- **Limpieza automática**: el loader de `home.tsx` elimina mensajes con más de 14 días (`created_at < unixepoch() - 1209600`) en cada carga — evita crecimiento indefinido de la tabla.
+- **Admin**: loader de `admin.tsx` lee los últimos 100 mensajes; action `delete_chat_message` borra por `id` con validación `Number.isInteger(id) && id > 0` y query parametrizada. Ambos protegidos por el guard `ADMIN_EMAIL`.
+
+---
+
 ## Variables de entorno sensibles
 
 | Variable | Uso | Riesgo si se expone |

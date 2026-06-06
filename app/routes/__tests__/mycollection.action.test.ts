@@ -249,3 +249,151 @@ describe("mycollection action", () => {
     expect(images.put).not.toHaveBeenCalled();
   });
 });
+
+describe("mycollection action — edit_coin intent", () => {
+  const mockCoinRow = {
+    id: "coin-abc",
+    user_id: "user-123",
+    name: "1 Peso",
+    country: "MX",
+    year: 1964,
+    denomination: "1 Peso",
+    condition: "VF",
+    mint: null,
+    catalog_ref: null,
+    estimated_value: null,
+    notes: null,
+    photo_obverse: null,
+    photo_reverse: null,
+    photo_edge: null,
+    photo_detail: null,
+    created_at: 0,
+    for_sale: 0,
+    asking_price: null,
+    registry_match: 0,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+  });
+
+  it("returns 400 when coin_id is missing", async () => {
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", name: "Peso" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+    const data = await result.json();
+    expect(data.error).toContain("ID requerido");
+  });
+
+  it("returns 404 when coin is not found in DB", async () => {
+    const { db } = makeMockDb();
+    // bindObj.first defaults to null — coin not found
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(404);
+  });
+
+  it("returns 403 when coin has an active pending claim", async () => {
+    const { db, bindObj } = makeMockDb();
+    bindObj.first
+      .mockResolvedValueOnce(mockCoinRow)
+      .mockResolvedValueOnce({ status: "pending" });
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(403);
+    const data = await result.json();
+    expect(data.error).toContain("verificación");
+  });
+
+  it("redirects to /mycollection after successful update", async () => {
+    const { db, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(mockCoinRow);
+    // second call (claim check) uses default null
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso Editado" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(302);
+    expect(result.headers.get("Location")).toBe("/mycollection");
+  });
+
+  it("calls DB UPDATE (not INSERT) with coin_id and user_id in bind args", async () => {
+    const { db, prepareObj, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(mockCoinRow);
+    await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso Editado" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("UPDATE coins SET"));
+    const updateBindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
+    expect(updateBindArgs).toContain("coin-abc");
+    expect(updateBindArgs).toContain(mockUser.id);
+  });
+
+  it("keeps existing photo key when no new file is submitted", async () => {
+    const coinWithPhoto = { ...mockCoinRow, photo_obverse: "user-123/coin-abc/photo_obverse" };
+    const { db, prepareObj, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(coinWithPhoto);
+    await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    const updateBindArgs: unknown[] = prepareObj.bind.mock.calls.at(-1)!;
+    expect(updateBindArgs).toContain("user-123/coin-abc/photo_obverse");
+  });
+
+  it("does not call images.delete or images.put when no new file is submitted", async () => {
+    const { db, bindObj } = makeMockDb();
+    const images = { put: vi.fn(), delete: vi.fn() };
+    bindObj.first.mockResolvedValueOnce({ ...mockCoinRow, photo_obverse: "user-123/coin-abc/photo_obverse" });
+    await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso" }),
+      context: makeContext(db, images as any) as any,
+      params: {},
+    });
+    expect(images.put).not.toHaveBeenCalled();
+    expect(images.delete).not.toHaveBeenCalled();
+  });
+
+  it("uploads new photo and deletes old one when a valid JPEG is provided", async () => {
+    const coinWithPhoto = { ...mockCoinRow, photo_obverse: "user-123/coin-abc/photo_obverse" };
+    const { db, bindObj } = makeMockDb();
+    const images = { put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined) };
+    bindObj.first.mockResolvedValueOnce(coinWithPhoto);
+
+    const jpegBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]);
+    const file = new File([jpegBytes], "new.jpg", { type: "image/jpeg" });
+    const body = new FormData();
+    body.append("intent", "edit_coin");
+    body.append("coin_id", "coin-abc");
+    body.append("name", "Peso");
+    body.append("photo_obverse", file);
+    const request = new Request("https://example.com/mycollection", { method: "POST", body });
+
+    await action({ request, context: makeContext(db, images as any) as any, params: {} });
+
+    expect(images.delete).toHaveBeenCalledWith("user-123/coin-abc/photo_obverse");
+    expect(images.put).toHaveBeenCalledWith(
+      expect.stringContaining("photo_obverse"),
+      expect.any(ArrayBuffer),
+      { httpMetadata: { contentType: "image/jpeg" } }
+    );
+  });
+});
