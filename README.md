@@ -175,7 +175,7 @@ app/
       admin.rewards.id.approve.test.ts  # 4 tests: action aprobar claim, ventana 7 días
       admin.rewards.id.reject.test.ts   # 5 tests: action rechazar claim, motivo
       api.rewards.claimed.test.ts       # 5 tests: action marcar claim como reclamado
-      api.rewards.request.test.ts       # 9 tests: action solicitar claim onchain
+      api.rewards.request.test.ts       # 10 tests: action solicitar claim onchain
       api.rewards.sign.test.ts          # 7 tests: action firma EIP-712
       api.rewards.status.coinId.test.ts # 5 tests: loader estado del claim
       auth.google.callback.test.ts      # 5 tests: loader callback OAuth

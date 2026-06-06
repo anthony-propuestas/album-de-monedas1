@@ -44,7 +44,7 @@ if (!rl.allowed) return json({ error: "Demasiadas solicitudes" }, { status: 429 
 
 ---
 
-## 2. Validar formato de `walletAddress` con regex `[MEDIA]`
+## 2. Validar formato de `walletAddress` con regex `[MEDIA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.request.tsx` (línea 58, antes del INSERT)
 
@@ -407,7 +407,7 @@ La lógica de negocio no cambia — solo se evita la enumeración de estado de c
 | # | Mejora | Prioridad | Archivos afectados | Esfuerzo estimado |
 |---|--------|-----------|-------------------|-------------------|
 | 1 | Rate limiting en rewards | ALTA | api.rewards.request, api.rewards.sign | ✅ APLICADO |
-| 2 | Validar walletAddress regex | MEDIA | api.rewards.request | 5 min |
+| 2 | Validar walletAddress regex | MEDIA | api.rewards.request | ✅ APLICADO |
 | 3 | Verificar wallet en /sign contra DB | MEDIA | api.rewards.sign | ✅ ya implementado — ver nota |
 | 4 | ABI encoding en getCoinIdHash | MEDIA | rewards.server.ts | 20 min + migración si hay datos |
 | 5 | Sanitizar errores 500 | MEDIA | api.rewards.request | 5 min |

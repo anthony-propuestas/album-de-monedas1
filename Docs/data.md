@@ -145,7 +145,7 @@ Ventanas de rate limiting por usuario y acción. Usada por `checkRateLimit()` en
 | Columna | Tipo | Notas |
 |---------|------|-------|
 | `user_id` | TEXT NOT NULL | FK implícita → `users.id` |
-| `action` | TEXT NOT NULL | Tipo de acción (`add_coin`, `delete_coin`, `list_coin`, `unlist_coin`, `contact_seller`, `rewards_request`, `rewards_sign`) |
+| `action` | TEXT NOT NULL | Tipo de acción (`add_coin`, `edit_coin`, `delete_coin`, `list_coin`, `unlist_coin`, `contact_seller`, `rewards_request`, `rewards_sign`) |
 | `window_start` | INTEGER NOT NULL | Inicio de la ventana temporal (Unix timestamp) |
 | `count` | INTEGER DEFAULT 1 | Contador de acciones en esa ventana |
 
@@ -261,7 +261,7 @@ No requiere autenticación — las claves son UUIDs no predecibles.
 
 **Slugs de categorías sociales** — validados contra whitelist en `/collections/:category`:
 
-`most_coins`, `most_valuable`, `complete_series`, `argentina`, `international`, `oldest_coins`, `newest_coins`, `best_condition`
+`most-pieces`, `oldest`, `highest-value`, `most-countries`, `best-condition`, `most-active`, `most-denominations`, `veteran`
 
 ### Catálogo estático de monedas
 

@@ -275,15 +275,16 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Error handling en `isCoinClaimedOnchain`** (`rewards.server.ts`): envuelto en try/catch; devuelve `false` si el RPC falla, evitando que la excepción bloquee la acción completa.
 - **Error handling global en `api.rewards.request`**: todo el action está envuelto en try/catch; errores inesperados devuelven 500 en lugar de propagarse como excepción no capturada al worker.
 - **Rate limiting en endpoints de rewards**: `api.rewards.request` invoca `checkRateLimit(db, user.id, "rewards_request", 3, 1)` — máximo 3 solicitudes por hora por usuario. `api.rewards.sign` invoca `checkRateLimit(db, user.id, "rewards_sign", 5, 1)` — máximo 5 firmas por hora. Ambos devuelven 429 al superar el límite.
+- **Validación de formato de `walletAddress` en `api.rewards.request`**: se verifica `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`. Strings arbitrarios o malformados son rechazados con 400.
 - **Re-verificación de wallet en `api.rewards.sign`**: antes de firmar, el servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del `walletAddress` enviado en el body. La mitigación opera ahora tanto en servidor como onchain (EIP-712 incluye `recipient`).
 
 ### Nuevas superficies de ataque
 
+#### [MITIGADO] `walletAddress` se almacena sin validación de formato
+`api.rewards.request` verifica `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`. Strings arbitrarios o malformados son rechazados con 400.
+
 #### [MEDIUM] La firma EIP-712 no tiene expiración onchain
 El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez entregada, la firma es válida onchain indefinidamente hasta que `coinClaimed` sea `true`. Si se detecta fraude después de que el usuario obtiene la firma (pero antes de ejecutar la tx), no hay mecanismo para invalidarla onchain.
-
-#### [MEDIUM] `walletAddress` se almacena sin validación de formato
-`api.rewards.request` recibe `walletAddress` del body JSON y solo aplica `.toLowerCase()`. No se verifica que sea una dirección Ethereum válida (`/^0x[0-9a-f]{40}$/i`). Cualquier string arbitrario queda guardado en `claim_requests.wallet_address` y luego es incluido como parámetro en la firma EIP-712.
 
 #### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
 `rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
@@ -419,7 +420,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Sin límite de monedas por usuario | **Implementado** | Máximo 500 monedas por `user_id`; devuelve 429 al superarlo |
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
 | Sin rate limiting en endpoints de rewards | **Implementado** | 3 req/h en `rewards_request`, 5 req/h en `rewards_sign` vía `checkRateLimit` |
-| `walletAddress` sin validación de formato | **Pendiente** | Validar `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests` |
+| `walletAddress` sin validación de formato | **Implementado** | Regex `/^0x[0-9a-fA-F]{40}$/` validada en `api.rewards.request` antes del INSERT |
 | Hash EIP-712 vulnerable a colisión por `\|` | **Pendiente** | Usar ABI encoding (`encodeAbiParameters`) en lugar de concatenación con separador |
 | Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
@@ -444,7 +445,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] `BACKEND_SIGNER_KEY` configurado en Cloudflare Pages (nunca en el repo); dirección correspondiente debe coincidir con la desplegada en el contrato `RewardClaimer`.
 - [x] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (3 req/h y 5 req/h vía `checkRateLimit`).
-- [ ] Validar `walletAddress` con regex `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests`.
+- [x] Validar `walletAddress` con regex `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`.
 - [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
 - [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.

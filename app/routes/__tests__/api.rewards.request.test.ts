@@ -54,7 +54,7 @@ function makeContext(db: ReturnType<typeof makeDb>["db"]) {
   };
 }
 
-function makeRequest(body: object = { coinId: "coin-1", walletAddress: "0xwallet" }) {
+function makeRequest(body: object = { coinId: "coin-1", walletAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" }) {
   return new Request("https://example.com/api/rewards/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -170,5 +170,21 @@ describe("api.rewards.request action", () => {
     const { db } = makeDb();
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(res.status).toBe(429);
+  });
+
+  it("returns 400 when walletAddress is not a valid Ethereum address", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeDb();
+    const res = await action({
+      request: makeRequest({ coinId: "coin-1", walletAddress: "not-an-address" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as { error: string };
+    expect(data.error).toMatch(/wallet/i);
   });
 });

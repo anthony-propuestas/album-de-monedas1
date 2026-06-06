@@ -23,6 +23,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const { coinId, walletAddress } = body;
     if (!coinId || !walletAddress) return json({ error: "Parámetros requeridos" }, { status: 400 });
 
+    const ETH_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/;
+    if (!ETH_ADDRESS_REGEX.test(walletAddress)) {
+      return json({ error: "Dirección de wallet inválida" }, { status: 400 });
+    }
+
     const coin = await db
       .prepare(
         "SELECT id, user_id, country, denomination, name, year, registry_match FROM coins WHERE id = ? AND user_id = ?"

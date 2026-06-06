@@ -788,7 +788,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/api.rewards.request.test.ts`
-**Qué prueba:** el `action` de `app/routes/api.rewards.request.tsx`.
+**Qué prueba:** el `action` de `app/routes/api.rewards.request.tsx` — 10 tests.
 
 | Test | Descripción |
 |---|---|
@@ -801,6 +801,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 400 when missing coinId | Sin `coinId` en el body → 400 |
 | returns 500 on unexpected error | Error inesperado en el action → 500 con `{ error: string }` |
 | returns 429 when rate limit exceeded | Límite de 3 req/h superado → 429 |
+| returns 400 when walletAddress is not a valid Ethereum address | `walletAddress` con formato inválido → 400 con error que menciona wallet |
 
 ---
 
