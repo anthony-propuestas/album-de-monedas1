@@ -800,6 +800,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 200 with claimRequestId on happy path | Inserta registro y retorna `{ claimRequestId, status: "pending" }` |
 | returns 400 when missing coinId | Sin `coinId` en el body → 400 |
 | returns 500 on unexpected error | Error inesperado en el action → 500 con `{ error: string }` |
+| returns 429 when rate limit exceeded | Límite de 3 req/h superado → 429 |
 
 ---
 
@@ -814,6 +815,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 403 when wallet does not match | Wallet diferente → 403 |
 | returns 200 with signature on happy path | Retorna `{ signature, coinIdHash }` |
 | returns 400 when missing walletAddress | Sin wallet en body → 400 |
+| returns 429 when rate limit exceeded | Límite de 5 req/h superado → 429 |
 
 ---
 

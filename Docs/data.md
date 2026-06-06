@@ -145,7 +145,7 @@ Ventanas de rate limiting por usuario y acción. Usada por `checkRateLimit()` en
 | Columna | Tipo | Notas |
 |---------|------|-------|
 | `user_id` | TEXT NOT NULL | FK implícita → `users.id` |
-| `action` | TEXT NOT NULL | Tipo de acción (`add_coin`, `delete_coin`, `list_coin`, `unlist_coin`, `contact_seller`) |
+| `action` | TEXT NOT NULL | Tipo de acción (`add_coin`, `delete_coin`, `list_coin`, `unlist_coin`, `contact_seller`, `rewards_request`, `rewards_sign`) |
 | `window_start` | INTEGER NOT NULL | Inicio de la ventana temporal (Unix timestamp) |
 | `count` | INTEGER DEFAULT 1 | Contador de acciones en esa ventana |
 
@@ -375,7 +375,7 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 
 | Feature | Estado | Nota |
 |---------|--------|------|
-| D1 (SQLite) | Implementado | 9 migraciones, todas las tablas operativas |
+| D1 (SQLite) | Implementado | 10 migraciones, todas las tablas operativas |
 | R2 (imágenes) | Implementado | Upload con validación, serving con cache |
 | OAuth Google + sesiones | Implementado | Cookie HttpOnly, 30 días |
 | Protección de rutas | Implementado | `isAuthenticated()` en todos los loaders privados |

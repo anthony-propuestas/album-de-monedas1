@@ -84,8 +84,8 @@ app/
     news.$id.tsx                # Artículo de noticias individual
     markets.tsx                 # Precios de mercado de monedas
     inbox.tsx                   # Mensajería / notificaciones
-    api.rewards.request.tsx     # action POST → solicitar claim de recompensa onchain
-    api.rewards.sign.tsx        # action POST → obtener firma EIP-712 para reclamar
+    api.rewards.request.tsx     # action POST → solicitar claim de recompensa onchain (límite: 3 req/h)
+    api.rewards.sign.tsx        # action POST → obtener firma EIP-712 para reclamar (límite: 5 req/h)
     api.rewards.status.$coinId.tsx # loader GET → estado del claim de una moneda
     admin_.rewards.tsx          # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx # action → aprobar claim (expira en 7 días)

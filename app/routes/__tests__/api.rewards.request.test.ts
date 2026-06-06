@@ -6,8 +6,12 @@ vi.mock("~/lib/rewards.server", () => ({
   getCoinIdHash: vi.fn().mockReturnValue("0xhash" as `0x${string}`),
   isCoinClaimedOnchain: vi.fn().mockResolvedValue(false),
 }));
+vi.mock("~/lib/rateLimit.server", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 2, retryAfterSeconds: 0 }),
+}));
 
 import * as rewardsModule from "~/lib/rewards.server";
+import * as rateLimitModule from "~/lib/rateLimit.server";
 
 const { action } = await import("~/routes/api.rewards.request");
 
@@ -59,7 +63,10 @@ function makeRequest(body: object = { coinId: "coin-1", walletAddress: "0xwallet
 }
 
 describe("api.rewards.request action", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(rateLimitModule.checkRateLimit).mockResolvedValue({ allowed: true, remaining: 2, retryAfterSeconds: 0 });
+  });
 
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
@@ -152,5 +159,16 @@ describe("api.rewards.request action", () => {
     const { db } = makeDb();
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(res.status).toBe(500);
+  });
+
+  it("returns 429 when rate limit exceeded", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    vi.mocked(rateLimitModule.checkRateLimit).mockResolvedValue({ allowed: false, remaining: 0, retryAfterSeconds: 3600 });
+    const { db } = makeDb();
+    const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    expect(res.status).toBe(429);
   });
 });

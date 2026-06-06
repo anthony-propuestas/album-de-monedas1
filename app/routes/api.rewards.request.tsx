@@ -3,6 +3,7 @@ import { json } from "@remix-run/cloudflare";
 import { createAuth } from "~/lib/auth.server";
 import { getCoinIdHash, isCoinClaimedOnchain } from "~/lib/rewards.server";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
+import { checkRateLimit } from "~/lib/rateLimit.server";
 
 export async function loader() {
   return json({ error: "Method not allowed" }, { status: 405 });
@@ -14,11 +15,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const user = await authenticator.isAuthenticated(request);
     if (!user) return json({ error: "No autenticado" }, { status: 401 });
 
+    const db = context.cloudflare.env.DB;
+    const rl = await checkRateLimit(db, user.id, "rewards_request", 3, 1);
+    if (!rl.allowed) return json({ error: "Demasiadas solicitudes" }, { status: 429 });
+
     const body = await request.json<{ coinId?: string; walletAddress?: string }>();
     const { coinId, walletAddress } = body;
     if (!coinId || !walletAddress) return json({ error: "Parámetros requeridos" }, { status: 400 });
-
-    const db = context.cloudflare.env.DB;
 
     const coin = await db
       .prepare(

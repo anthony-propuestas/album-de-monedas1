@@ -93,8 +93,8 @@ app/
     news.$id.tsx              # Artículo de noticias individual
     markets.tsx               # Marketplace de monedas en venta
     inbox.tsx                 # Mensajería / notificaciones
-    api.rewards.request.tsx   # action POST → solicitar claim de recompensa onchain
-    api.rewards.sign.tsx      # action POST → obtener firma EIP-712 para reclamar
+    api.rewards.request.tsx   # action POST → solicitar claim de recompensa onchain (límite: 3 req/h)
+    api.rewards.sign.tsx      # action POST → obtener firma EIP-712 para reclamar (límite: 5 req/h)
     api.rewards.status.$coinId.tsx  # loader GET → estado del claim de una moneda
     api.rewards.claimed.tsx   # action POST → marcar claim como reclamado tras tx onchain
     admin_.rewards.tsx        # loader → panel admin de claims pendientes
@@ -117,7 +117,9 @@ app/
     YearTimeline.tsx          # Timeline de monedas por año
     AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes con detalle completo (fotos anverso/reverso, condición, ref. catálogo, valor estimado, notas, registry key); botones aprobar/rechazar
     ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
+    WalletConnectButton.tsx   # Conexión/desconexión de wallet en el header de /mycollection
     DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
+    EditCoinModal.tsx         # Modal edición de moneda existente; pre-rellena campos; permite reemplazar fotos; bloqueado si hay claim activo
     WorldMap.tsx              # Mapa coropleta SVG (D3 + TopoJSON) — client-only, color blue/amber según uso
     ui/__tests__/
       button.test.tsx             # 18 tests: variantes, tamaños, onClick, disabled, buttonVariants
@@ -134,6 +136,7 @@ app/
       ProfileSetupModal.test.tsx  # 14 tests: goals, validación, submit state, inputs ocultos
       WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
       WalletConnectButton.test.tsx # 5 tests: conectar/desconectar wallet, display de address truncada
+      EditCoinModal.test.tsx      # 21 tests: render, pre-relleno, fotos existentes, flujo de crop, submit state
   providers/
     WagmiProvider.tsx         # wagmi (Base Mainnet) + TanStack Query
     __tests__/
@@ -172,8 +175,8 @@ app/
       admin.rewards.id.approve.test.ts  # 4 tests: action aprobar claim, ventana 7 días
       admin.rewards.id.reject.test.ts   # 5 tests: action rechazar claim, motivo
       api.rewards.claimed.test.ts       # 5 tests: action marcar claim como reclamado
-      api.rewards.request.test.ts       # 8 tests: action solicitar claim onchain
-      api.rewards.sign.test.ts          # 6 tests: action firma EIP-712
+      api.rewards.request.test.ts       # 9 tests: action solicitar claim onchain
+      api.rewards.sign.test.ts          # 7 tests: action firma EIP-712
       api.rewards.status.coinId.test.ts # 5 tests: loader estado del claim
       auth.google.callback.test.ts      # 5 tests: loader callback OAuth
       auth.google.test.ts               # 5 tests: loader null + action POST OAuth
@@ -204,6 +207,7 @@ migrations/
   0008_rate_limits.sql        # Tabla rate_limits (rate limiting por usuario+acción)
   0009_create_claim_requests.sql   # Tabla claim_requests + columna registry_match en coins
   0009b_only_claim_requests.sql   # Tabla claim_requests (alternativa sin registry_match en coins)
+  0010_create_chat_messages.sql   # Tabla chat_messages (chat global)
 ```
 
 ## Dropdowns en cascada
@@ -228,7 +232,7 @@ npm run test:coverage  # reporte de cobertura en /coverage
 
 Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
-44 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
+45 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
 
 ## Seguridad
 

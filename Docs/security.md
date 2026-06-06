@@ -274,11 +274,10 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **SQL parametrizado**: todas las queries usan `.prepare().bind()`.
 - **Error handling en `isCoinClaimedOnchain`** (`rewards.server.ts`): envuelto en try/catch; devuelve `false` si el RPC falla, evitando que la excepción bloquee la acción completa.
 - **Error handling global en `api.rewards.request`**: todo el action está envuelto en try/catch; errores inesperados devuelven 500 en lugar de propagarse como excepción no capturada al worker.
+- **Rate limiting en endpoints de rewards**: `api.rewards.request` invoca `checkRateLimit(db, user.id, "rewards_request", 3, 1)` — máximo 3 solicitudes por hora por usuario. `api.rewards.sign` invoca `checkRateLimit(db, user.id, "rewards_sign", 5, 1)` — máximo 5 firmas por hora. Ambos devuelven 429 al superar el límite.
+- **Re-verificación de wallet en `api.rewards.sign`**: antes de firmar, el servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del `walletAddress` enviado en el body. La mitigación opera ahora tanto en servidor como onchain (EIP-712 incluye `recipient`).
 
 ### Nuevas superficies de ataque
-
-#### [HIGH] Sin rate limiting en endpoints de rewards
-`api.rewards.request` y `api.rewards.sign` no invocan `checkRateLimit` (la función existe en `app/lib/rateLimit.server.ts` pero no se usa aquí). Un usuario autenticado puede hacer spam de solicitudes sin restricción, saturando el flujo de revisión admin y forzando lecturas RPC al contrato.
 
 #### [MEDIUM] La firma EIP-712 no tiene expiración onchain
 El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez entregada, la firma es válida onchain indefinidamente hasta que `coinClaimed` sea `true`. Si se detecta fraude después de que el usuario obtiene la firma (pero antes de ejecutar la tx), no hay mecanismo para invalidarla onchain.
@@ -288,9 +287,6 @@ El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez 
 
 #### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
 `rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
-
-#### [MEDIUM] `api.rewards.sign` no re-verifica `walletAddress` del body contra `claim_requests`
-El cliente envía `walletAddress` en el body JSON. El servidor no consulta `claim_requests.wallet_address` para verificar que coincidan antes de firmar. La firma EIP-712 incluye el `recipient` enviado por el cliente, por lo que el contrato rechazará la tx si usa la address original del claim para validar — la mitigación real está onchain, no en el servidor. **Corrección pendiente**: `SELECT wallet_address FROM claim_requests WHERE coin_id = ? AND status = 'approved'` y rechazar si el valor del body difiere.
 
 #### [LOW] `api.rewards.sign` no verifica propiedad de la moneda por `user_id`
 La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
@@ -346,7 +342,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 
 - **Retorna `null` si `!address`**: la responsabilidad de conectar la wallet recae en `WalletConnectButton`; `ClaimButton` no intenta conectar por su cuenta.
 - **`wallet_watchAsset` (EIP-747)**: llamada puramente client-side que sugiere importar el token AlbumCoin a la wallet tras un claim exitoso. La address del token (`0xf078c79b0F52ABE81394DD455cBc0a63f76bC059`) está hardcodeada — si AlbumCoin se redespliega esta address debe actualizarse manualmente en el componente.
-- **`walletAddress` del cliente no re-verificado en `/api/rewards/sign`**: al ejecutar el claim, `ClaimButton` envía `walletAddress: currentAddress` en el body de `/api/rewards/sign`. El servidor firma sin consultar el `wallet_address` almacenado en `claim_requests`. Vector: un usuario con un claim aprobado puede solicitar la firma para una wallet distinta a la registrada. **Mitigación actual**: la firma EIP-712 incluye el `recipient` enviado por el cliente; si el contrato usa el `wallet_address` original del claim para validar, la firma será inválida onchain. **Mitigación pendiente**: ver tabla de riesgos.
+- **`walletAddress` verificado en `/api/rewards/sign`**: `ClaimButton` envía `walletAddress: currentAddress` en el body. El servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere — mitigación ahora activa en servidor y onchain (EIP-712 incluye `recipient`).
 
 ---
 
@@ -422,14 +418,14 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Sin límite de tamaño de archivo | **Implementado** | Rechaza archivos >5 MB antes de llamar a R2 |
 | Sin límite de monedas por usuario | **Implementado** | Máximo 500 monedas por `user_id`; devuelve 429 al superarlo |
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
-| Sin rate limiting en endpoints de rewards | **Pendiente** | Llamar a `checkRateLimit` en `api.rewards.request` y `api.rewards.sign` (función ya implementada en `rateLimit.server.ts`) |
+| Sin rate limiting en endpoints de rewards | **Implementado** | 3 req/h en `rewards_request`, 5 req/h en `rewards_sign` vía `checkRateLimit` |
 | `walletAddress` sin validación de formato | **Pendiente** | Validar `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests` |
 | Hash EIP-712 vulnerable a colisión por `\|` | **Pendiente** | Usar ABI encoding (`encodeAbiParameters`) en lugar de concatenación con separador |
 | Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
 | RPC público puede fallar silenciosamente en verificación onchain | **Pendiente** | Error handling añadido (no crashea), pero el fallback `false` puede generar claims inconsistentes; considerar RPC privado con retry o verificación admin explícita |
 | `String(e)` expuesto en errores 500 de `api.rewards.request` | **Pendiente** | Sanitizar: devolver mensaje genérico en producción, loguear el error real solo en server logs |
-| `walletAddress` del body no re-verificado en `/api/rewards/sign` | **Pendiente** | Consultar `claim_requests.wallet_address` antes de firmar y rechazar si difiere del body; mitigación actual está onchain (EIP-712 incluye `recipient`) |
+| `walletAddress` del body no re-verificado en `/api/rewards/sign` | **Implementado** | `api.rewards.sign` consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del body |
 | Address de AlbumCoin hardcodeada en `ClaimButton` (EIP-747) | Aceptado (MVP) | Si el contrato se redespliega, actualizar `0xf078c79b0F52ABE81394DD455cBc0a63f76bC059` en `ClaimButton.tsx` manualmente |
 
 ---
@@ -447,11 +443,11 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Validar `country` contra lista ISO y `collecting_since` contra valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] `BACKEND_SIGNER_KEY` configurado en Cloudflare Pages (nunca en el repo); dirección correspondiente debe coincidir con la desplegada en el contrato `RewardClaimer`.
-- [ ] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (usar `checkRateLimit` ya existente).
+- [x] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (3 req/h y 5 req/h vía `checkRateLimit`).
 - [ ] Validar `walletAddress` con regex `/^0x[0-9a-f]{40}$/i` antes de insertar en `claim_requests`.
 - [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
 - [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.
-- [ ] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.
+- [x] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.
 - [ ] Si AlbumCoin se redespliega, actualizar la address hardcodeada en `ClaimButton.tsx` (EIP-747).
 - [ ] Ejecutar `scripts/create-chat-table.mjs` (o la migración equivalente en D1) antes de desplegar el feature de chat global en `admin.tsx`.
