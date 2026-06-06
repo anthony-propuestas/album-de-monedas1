@@ -1047,17 +1047,6 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
     km: "KM# 111",
   })),
 
-  // 1 Peso Bimetálica
-  ...Array.from({ length: 13 }, (_, i) => ({
-    pais: "Argentina",
-    denominacion: "1 Peso",
-    nombre: "Un Peso — Serie 1 Bimetálica",
-    anio: 2000 + i,
-    casa_acunacion: "Casa de Moneda de la Argentina",
-    serie: "Serie 1",
-    km: "KM# 112",
-  })),
-
   // ── CONMEMORATIVAS ───────────────────────────────────────────
 
   {
