@@ -819,12 +819,12 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
 
   // 2 Pesos — Bimetálica
   ...([
-    { anio: 2010, nombre: "Diseño Bicentenario" },
-    { anio: 2011, nombre: "Diseño Bicentenario" },
+    { anio: 2010, nombre: "Diseño Bicentenario — Bimetálica" },
+    { anio: 2011, nombre: "Diseño Bicentenario — Bimetálica" },
     { anio: 2012, nombre: "Recuperación Malvinas" },
-    { anio: 2014, nombre: "Diseño Bicentenario" },
-    { anio: 2015, nombre: "Diseño Bicentenario" },
-    { anio: 2016, nombre: "Diseño Bicentenario" },
+    { anio: 2014, nombre: "Diseño Bicentenario — Bimetálica" },
+    { anio: 2015, nombre: "Diseño Bicentenario — Bimetálica" },
+    { anio: 2016, nombre: "Diseño Bicentenario — Bimetálica" },
     { anio: 2016, nombre: "Aniversario Independencia" },
   ]).map(({ anio, nombre }) => ({
     pais: "Argentina",
@@ -1056,17 +1056,6 @@ export const MONEDAS_ARGENTINA: CoinEntry[] = [
     casa_acunacion: "Casa de Moneda de la Argentina",
     serie: "Serie 1",
     km: "KM# 112",
-  })),
-
-  // 2 Pesos Bimetálica
-  ...Array.from({ length: 6 }, (_, i) => ({
-    pais: "Argentina",
-    denominacion: "2 Pesos",
-    nombre: "Dos Pesos — Serie 1 Bimetálica",
-    anio: 2011 + i,
-    casa_acunacion: "Casa de Moneda de la Argentina",
-    serie: "Serie 1",
-    km: "KM# 127",
   })),
 
   // ── CONMEMORATIVAS ───────────────────────────────────────────
