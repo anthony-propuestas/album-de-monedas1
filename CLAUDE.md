@@ -90,7 +90,7 @@ app/
     admin_.rewards.tsx          # loader → panel admin de claims pendientes
     admin.rewards.$id.approve.tsx # action → aprobar claim (expira en 7 días)
     admin.rewards.$id.reject.tsx  # action → rechazar claim con motivo
-    api.rewards.claimed.tsx     # action POST → marcar claim como reclamado tras tx onchain
+    api.rewards.claimed.tsx     # loader → 405 Method Not Allowed; action POST → marcar claim como reclamado tras tx onchain; valida formato txHash (0x + 64 hex chars)
     full-collection.tsx         # loader → vista completa de colección propia con filtros
   components/
     ui/

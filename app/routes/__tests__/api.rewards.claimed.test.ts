@@ -3,7 +3,7 @@ import type { Env } from "~/types/env";
 
 vi.mock("~/lib/auth.server");
 
-const { action } = await import("~/routes/api.rewards.claimed");
+const { action, loader } = await import("~/routes/api.rewards.claimed");
 
 const mockUser = { id: "user-1", email: "user@example.com", name: "User", picture: "" };
 
@@ -32,7 +32,7 @@ function makeContext(db: ReturnType<typeof makeDb>["db"]) {
   };
 }
 
-function makeRequest(body: object = { coinId: "coin-1", txHash: "0xtx" }) {
+function makeRequest(body: object = { coinId: "coin-1", txHash: "0x" + "a".repeat(64) }) {
   return new Request("https://example.com/api/rewards/claimed", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -90,7 +90,26 @@ describe("api.rewards.claimed action", () => {
     await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(run).toHaveBeenCalledOnce();
     expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("status = 'approved'"));
-    expect(bind).toHaveBeenCalledWith("0xtx", expect.any(Number), "coin-1", mockUser.id);
+    expect(bind).toHaveBeenCalledWith("0x" + "a".repeat(64), expect.any(Number), "coin-1", mockUser.id);
+  });
+
+  it("returns 400 when txHash has invalid format", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeDb();
+    const res = await action({
+      request: makeRequest({ coinId: "coin-1", txHash: "not-a-hash" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("loader returns 405", async () => {
+    const res = await loader();
+    expect(res.status).toBe(405);
   });
 
   it("returns { ok: true } on success", async () => {

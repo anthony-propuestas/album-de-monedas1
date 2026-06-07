@@ -137,7 +137,7 @@ export function getCoinIdHash(country: string, denomination: string, name: strin
 
 ---
 
-## 5. Sanitizar errores 500 en `api.rewards.request` `[MEDIA]`
+## 5. Sanitizar errores 500 en `api.rewards.request` `[MEDIA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.request.tsx` (líneas 62-64)
 
@@ -165,7 +165,7 @@ El `console.error` ya envía el detalle a Cloudflare Workers Logs — visible en
 
 ---
 
-## 6. Validar `txHash` en `api.rewards.claimed` `[BAJA]`
+## 6. Validar `txHash` en `api.rewards.claimed` `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.claimed.tsx` (línea 10)
 
@@ -190,7 +190,7 @@ if (!TX_HASH_REGEX.test(txHash)) {
 
 ---
 
-## 7. Loader 405 en `api.rewards.claimed` `[BAJA]`
+## 7. Loader 405 en `api.rewards.claimed` `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.claimed.tsx`
 
@@ -410,9 +410,9 @@ La lógica de negocio no cambia — solo se evita la enumeración de estado de c
 | 2 | Validar walletAddress regex | MEDIA | api.rewards.request | ✅ APLICADO |
 | 3 | Verificar wallet en /sign contra DB | MEDIA | api.rewards.sign | ✅ APLICADO |
 | 4 | ABI encoding en getCoinIdHash | MEDIA | rewards.server.ts | ✅ APLICADO |
-| 5 | Sanitizar errores 500 | MEDIA | api.rewards.request | 5 min |
-| 6 | Validar txHash | BAJA | api.rewards.claimed | 5 min |
-| 7 | Loader 405 en claimed | BAJA | api.rewards.claimed | 5 min |
+| 5 | Sanitizar errores 500 | MEDIA | api.rewards.request | ✅ APLICADO |
+| 6 | Validar txHash | BAJA | api.rewards.claimed | ✅ APLICADO |
+| 7 | Loader 405 en claimed | BAJA | api.rewards.claimed | ✅ APLICADO |
 | 8 | Validar coinId como UUID | BAJA | 3 endpoints de rewards | 10 min |
 | 9 | Longitud de mint y catalog_ref | BAJA | mycollection | 5 min |
 | 10 | Validar for_sale y asking_price | BAJA | mycollection | 10 min |

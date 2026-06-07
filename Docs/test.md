@@ -950,13 +950,15 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ---
 
 ### `app/routes/__tests__/api.rewards.claimed.test.ts`
-**Qué prueba:** el `action` de `app/routes/api.rewards.claimed.tsx`, que marca un claim como `claimed` en D1 con el txHash de la TX onchain.
+**Qué prueba:** el `action` y el `loader` de `app/routes/api.rewards.claimed.tsx`, que marca un claim como `claimed` en D1 con el txHash de la TX onchain.
 
 | Test | Descripción |
 |---|---|
 | returns 401 when unauthenticated | Sin sesión devuelve 401 |
 | returns 400 when coinId is missing | Body sin coinId → 400 |
 | returns 400 when txHash is missing | Body sin txHash → 400 |
+| returns 400 when txHash has invalid format | txHash que no cumple `^0x[0-9a-fA-F]{64}$` → 400 |
+| loader returns 405 | GET al endpoint devuelve 405 (Method Not Allowed) |
 | runs UPDATE filtering by user_id and status=approved | UPDATE incluye `status = 'approved'` en el WHERE y pasa user_id |
 | returns { ok: true } on success | Respuesta 200 con `{ ok: true }` |
 

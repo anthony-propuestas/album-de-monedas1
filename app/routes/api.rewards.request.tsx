@@ -69,6 +69,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ claimRequestId, status: "pending" });
   } catch (e) {
     console.error("[rewards/request]", e);
-    return json({ error: String(e) }, { status: 500 });
+    return json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
