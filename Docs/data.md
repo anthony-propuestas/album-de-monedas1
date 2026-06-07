@@ -47,7 +47,7 @@ Migraciones en `migrations/` — se aplican con `wrangler d1 migrations apply`.
 | `profile_completed` | INTEGER DEFAULT 0 | 0 = mostrar `ProfileSetupModal`, 1 = ya completado |
 | `created_at` | INTEGER | Unix timestamp (`unixepoch()`) |
 
-#### `coins` — `migrations/0002_create_coins.sql` + `0005_market.sql`
+#### `coins` — `migrations/0002_create_coins.sql` + `0005_market.sql` + `0009_create_claim_requests.sql`
 
 | Columna | Tipo | Notas |
 |---------|------|-------|

@@ -23,9 +23,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   const claim = await db
     .prepare(
-      "SELECT id, expires_at, coin_id_hash, wallet_address FROM claim_requests WHERE coin_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, expires_at, coin_id_hash, wallet_address FROM claim_requests WHERE coin_id = ? AND user_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1"
     )
-    .bind(coinId)
+    .bind(coinId, user.id)
     .first<{ id: string; expires_at: number; coin_id_hash: string; wallet_address: string }>();
 
   if (!claim) return json({ error: "No hay solicitud aprobada para esta moneda" }, { status: 404 });

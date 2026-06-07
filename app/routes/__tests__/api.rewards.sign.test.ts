@@ -30,7 +30,7 @@ function makeDb(firstResult: object | null = mockClaim) {
   const first = vi.fn().mockResolvedValue(firstResult);
   const bind = vi.fn().mockReturnValue({ first });
   const prepare = vi.fn().mockReturnValue({ bind });
-  return { db: { prepare }, first };
+  return { db: { prepare }, first, bind };
 }
 
 const mockEnv: Env = {
@@ -148,5 +148,20 @@ describe("api.rewards.sign action", () => {
     const { db } = makeDb();
     const res = await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(res.status).toBe(429);
+  });
+
+  it("scopes DB query to the authenticated user's claims only", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    vi.mocked(rewardsModule.signClaim).mockResolvedValue({
+      signature: "0xsignature" as `0x${string}`,
+      signerAddress: "0xsigner",
+      signedWallet: WALLET,
+    });
+    const { db, bind } = makeDb(mockClaim);
+    await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
+    expect(bind).toHaveBeenCalledWith("coin-1", "user-1");
   });
 });

@@ -817,6 +817,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 200 with signature on happy path | Retorna `{ signature, coinIdHash }` |
 | returns 400 when missing walletAddress | Sin wallet en body → 400 |
 | returns 429 when rate limit exceeded | Límite de 5 req/h superado → 429 |
+| scopes DB query to the authenticated user's claims only | bind recibe coinId + user.id → claims ajenos devuelven 404 en lugar de 403 |
 
 ---
 

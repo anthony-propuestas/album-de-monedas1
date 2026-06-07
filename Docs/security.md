@@ -277,6 +277,7 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Rate limiting en endpoints de rewards**: `api.rewards.request` invoca `checkRateLimit(db, user.id, "rewards_request", 3, 1)` — máximo 3 solicitudes por hora por usuario. `api.rewards.sign` invoca `checkRateLimit(db, user.id, "rewards_sign", 5, 1)` — máximo 5 firmas por hora. Ambos devuelven 429 al superar el límite.
 - **Validación de formato de `walletAddress` en `api.rewards.request`**: se verifica `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`. Strings arbitrarios o malformados son rechazados con 400.
 - **Re-verificación de wallet en `api.rewards.sign`**: antes de firmar, el servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del `walletAddress` enviado en el body. La mitigación opera ahora tanto en servidor como onchain (EIP-712 incluye `recipient`).
+- **Aislamiento por user_id en `api.rewards.sign`**: la query busca `WHERE coin_id = ? AND user_id = ? AND status = 'approved'` — un usuario solo puede obtener la firma de sus propios claims; sondear claims ajenos devuelve 404.
 
 ### Nuevas superficies de ataque
 
@@ -289,8 +290,8 @@ El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez 
 #### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
 `rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
 
-#### [LOW] `api.rewards.sign` no verifica propiedad de la moneda por `user_id`
-La query busca `WHERE coin_id = ? AND status = 'approved'` sin filtrar por `user_id`. Cualquier usuario autenticado puede sondear si un `coinId` arbitrario tiene un claim aprobado. El wallet check previene que obtenga una firma útil, pero la información de estado queda expuesta.
+#### [MITIGADO] `api.rewards.sign` no verificaba propiedad de la moneda por `user_id`
+La query ahora filtra `WHERE coin_id = ? AND user_id = ? AND status = 'approved'`. Intentar obtener la firma de un claim ajeno devuelve 404, sin revelar si el claim existe.
 
 #### [MEDIUM] `isCoinClaimedOnchain` falla silenciosamente ante error RPC
 El try/catch en `isCoinClaimedOnchain` devuelve `false` si el RPC falla. Esto evita que la acción crashee, pero permite insertar un `claim_request` para una moneda que *podría* ya estar reclamada onchain (si el RPC estaba caído al momento de la verificación). El contrato rechazará la tx en el momento de ejecutar, por lo que el impacto real es operativo (inconsistencia de estado en DB, no pérdida de fondos). Se elimina el riesgo anterior de crash total por RPC no disponible.

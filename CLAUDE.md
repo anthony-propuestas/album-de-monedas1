@@ -93,8 +93,9 @@ app/
     api.rewards.claimed.tsx     # action POST → marcar claim como reclamado tras tx onchain
     full-collection.tsx         # loader → vista completa de colección propia con filtros
   components/
-    ui/button.tsx               # Button shadcn/ui
-    ui/CustomSelect.tsx         # Select accesible para dropdowns en cascada
+    ui/
+      button.tsx               # Button shadcn/ui
+      CustomSelect.tsx         # Select accesible para dropdowns en cascada
     AddCoinModal.tsx            # Modal agregar moneda a colección
     BadgesGrid.tsx              # Grid de logros del usuario
     CategoryTile.tsx            # Tile de categoría en rankings
