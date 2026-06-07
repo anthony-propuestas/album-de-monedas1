@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from "wagmi";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
 import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
 import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 
@@ -12,6 +12,7 @@ interface Props {
   initialExpiresAt?: number | null;
   initialCoinIdHash?: string | null;
   initialRejectReason?: string | null;
+  inCooldown: boolean;
 }
 
 function formatCountdown(expiresAt: number): string {
@@ -29,40 +30,9 @@ export function ClaimButton({
   initialExpiresAt,
   initialCoinIdHash,
   initialRejectReason,
+  inCooldown,
 }: Props) {
   const { address } = useAccount();
-
-  const { data: lastClaimTime } = useReadContract({
-    address: REWARD_CLAIMER_ADDRESS,
-    abi: REWARD_CLAIMER_ABI,
-    functionName: "lastClaimTime",
-    args: [address as `0x${string}`],
-    query: { enabled: !!address },
-  });
-
-  const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-  const nextMintAt = lastClaimTime != null ? Number(lastClaimTime) * 1000 + COOLDOWN_MS : null;
-  const inCooldown = nextMintAt != null && nextMintAt > Date.now();
-
-  const [cooldownRemaining, setCooldownRemaining] = useState("");
-
-  useEffect(() => {
-    if (!inCooldown || nextMintAt == null) {
-      setCooldownRemaining("");
-      return;
-    }
-    const tick = () => {
-      const diff = nextMintAt - Date.now();
-      if (diff <= 0) { setCooldownRemaining(""); return; }
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      const s = Math.floor((diff % 60_000) / 1_000);
-      setCooldownRemaining(`${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [inCooldown, nextMintAt]);
 
   const [status, setStatus] = useState<ClaimStatus>(initialStatus);
   const [expiresAt, setExpiresAt] = useState<number | null>(initialExpiresAt ?? null);
@@ -210,10 +180,9 @@ export function ClaimButton({
   // eligible or expired — but wallet is in cooldown
   if (inCooldown) {
     return (
-      <div className="mt-1.5 w-full text-center py-1.5">
-        <p className="text-[9px] uppercase tracking-widest text-[rgba(201,164,106,0.45)]">Próximo minteo en</p>
-        <p className="font-mono text-[11px] font-bold text-amber-400/80">{cooldownRemaining || "..."}</p>
-      </div>
+      <button disabled className={`${base} border-[rgba(210,180,130,0.1)] text-[rgba(201,164,106,0.3)]`}>
+        En espera
+      </button>
     );
   }
 

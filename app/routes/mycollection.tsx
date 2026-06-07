@@ -5,7 +5,10 @@ import type {
 } from "@remix-run/cloudflare";
 import { json, redirect } from "@remix-run/cloudflare";
 import { useLoaderData, useNavigation, useFetcher } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAccount, useReadContract } from "wagmi";
+import { REWARD_CLAIMER_ABI } from "~/lib/contracts/abi";
+import { REWARD_CLAIMER_ADDRESS } from "~/lib/contracts/addresses";
 import { AddCoinModal } from "~/components/AddCoinModal";
 import { EditCoinModal } from "~/components/EditCoinModal";
 import { CoinCard } from "~/components/CoinCard";
@@ -547,11 +550,13 @@ function DeleteCoinButton({ coinId, coinName }: { coinId: string; coinName: stri
 function CoinCardItem({
   coin,
   claimStatus,
+  inCooldown,
   onSelect,
   onEdit,
 }: {
   coin: Coin;
   claimStatus: { status: string; expires_at?: number | null; coin_id_hash?: string | null; reject_reason?: string | null } | undefined;
+  inCooldown: boolean;
   onSelect: () => void;
   onEdit: () => void;
 }) {
@@ -590,6 +595,7 @@ function CoinCardItem({
               initialExpiresAt={claimStatus?.expires_at}
               initialCoinIdHash={claimStatus?.coin_id_hash}
               initialRejectReason={claimStatus?.reject_reason}
+              inCooldown={inCooldown}
             />
           </div>
         )}
@@ -604,6 +610,33 @@ export default function MyCollection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   const [editCoin, setEditCoin] = useState<Coin | null>(null);
+
+  const { address } = useAccount();
+  const { data: lastClaimTime } = useReadContract({
+    address: REWARD_CLAIMER_ADDRESS,
+    abi: REWARD_CLAIMER_ABI,
+    functionName: "lastClaimTime",
+    args: [address as `0x${string}`],
+    query: { enabled: !!address },
+  });
+  const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+  const nextMintAt = lastClaimTime != null ? Number(lastClaimTime) * 1000 + COOLDOWN_MS : null;
+  const inCooldown = nextMintAt != null && nextMintAt > Date.now();
+  const [cooldownRemaining, setCooldownRemaining] = useState("");
+  useEffect(() => {
+    if (!inCooldown || nextMintAt == null) { setCooldownRemaining(""); return; }
+    const tick = () => {
+      const diff = nextMintAt - Date.now();
+      if (diff <= 0) { setCooldownRemaining(""); return; }
+      const h = Math.floor(diff / 3_600_000);
+      const m = Math.floor((diff % 3_600_000) / 60_000);
+      const s = Math.floor((diff % 60_000) / 1_000);
+      setCooldownRemaining(`${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [inCooldown, nextMintAt]);
 
   const coinsByCountry = allCoins.reduce<Record<string, number>>((acc, coin) => {
     if (coin.country) acc[coin.country] = (acc[coin.country] ?? 0) + 1;
@@ -675,6 +708,15 @@ export default function MyCollection() {
           <CoinFilters filters={filters} />
         </div>
 
+        {/* Banner cooldown — se muestra una sola vez cuando la wallet está en espera */}
+        {inCooldown && cooldownRemaining && (
+          <div className="mb-4 flex items-center gap-2 text-[11px] bg-[rgba(201,164,106,0.06)] border border-[rgba(210,180,130,0.18)] rounded-lg px-3 py-2">
+            <span>🕐</span>
+            <span className="uppercase tracking-widest text-[rgba(201,164,106,0.5)]">Próximo minteo en</span>
+            <span className="font-mono font-bold text-amber-400/80">{cooldownRemaining}</span>
+          </div>
+        )}
+
         {/* Galería */}
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-[rgba(242,236,224,0.3)]">
@@ -704,6 +746,7 @@ export default function MyCollection() {
                 key={coin.id}
                 coin={coin}
                 claimStatus={claimStatuses[coin.id]}
+                inCooldown={inCooldown}
                 onSelect={() => setSelectedCoin(coin)}
                 onEdit={() => setEditCoin(coin)}
               />

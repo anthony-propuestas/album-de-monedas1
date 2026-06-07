@@ -3,7 +3,6 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
-  useReadContract,
 } from "wagmi";
 import { ClaimButton } from "~/components/ClaimButton";
 
@@ -11,7 +10,6 @@ vi.mock("wagmi", () => ({
   useWriteContract: vi.fn(),
   useWaitForTransactionReceipt: vi.fn(),
   useAccount: vi.fn(),
-  useReadContract: vi.fn(() => ({ data: 0n })),
 }));
 vi.mock("~/lib/contracts/abi", () => ({ REWARD_CLAIMER_ABI: [] }));
 vi.mock("~/lib/contracts/addresses", () => ({ REWARD_CLAIMER_ADDRESS: "0xaddr" }));
@@ -23,6 +21,7 @@ function defaultProps(overrides = {}) {
     coinId: "coin-1",
     registryMatch: 1,
     initialStatus: "eligible" as const,
+    inCooldown: false,
     ...overrides,
   };
 }
@@ -145,11 +144,9 @@ describe("ClaimButton", () => {
     await waitFor(() => expect(screen.getByText(/wallet no coincide/i)).toBeInTheDocument());
   });
 
-  it("muestra countdown cuando el wallet está en cooldown", () => {
-    const recentClaimTime = BigInt(Math.floor(Date.now() / 1000) - 3600); // hace 1h → faltan 23h
-    vi.mocked(useReadContract).mockReturnValue({ data: recentClaimTime } as any);
-    render(<ClaimButton {...defaultProps()} />);
-    expect(screen.getByText("Próximo minteo en")).toBeInTheDocument();
+  it("muestra En espera cuando inCooldown=true", () => {
+    render(<ClaimButton {...defaultProps({ inCooldown: true })} />);
+    expect(screen.getByRole("button", { name: /en espera/i })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /reclamar token/i })).not.toBeInTheDocument();
   });
 

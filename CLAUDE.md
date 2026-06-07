@@ -75,7 +75,7 @@ app/
     home.tsx                    # Dashboard protegido (requiere sesión)
     admin.tsx                   # Panel de administración (lista posts, delete, fix_registry_match)
     admin_.new-news.tsx         # Formulario para crear nueva noticia → /admin/new-news
-    mycollection.tsx            # Colección propia del usuario autenticado; intents: add_coin, edit_coin, delete_coin; botón de lápiz en cada card (bloqueado si hay claim activo); incluye WalletConnectButton y EditCoinModal
+    mycollection.tsx            # Colección propia del usuario autenticado; intents: add_coin, edit_coin, delete_coin; botón de lápiz en cada card (bloqueado si hay claim activo); incluye WalletConnectButton y EditCoinModal; lee lastClaimTime del contrato una sola vez y muestra banner de cooldown único encima del grid; pasa inCooldown a cada ClaimButton
     collection.$userId.tsx      # Colección pública de un usuario
     collections._index.tsx      # Ranking de coleccionistas por categorías (D1)
     collections.$category.tsx   # Detalle de categoría/ranking
@@ -108,7 +108,7 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes con detalle completo (fotos anverso/reverso, condición, ref. catálogo, valor estimado, notas, registry key); botones aprobar/rechazar
-    ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; lee lastClaimTime del contrato (useReadContract) y muestra countdown regresivo si hay cooldown de 24h activo; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
+    ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; recibe prop inCooldown (bool) desde mycollection — muestra "En espera" si cooldown activo; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
     WalletConnectButton.tsx     # Conexión/desconexión de wallet en el header; sin props (usa wagmi hooks); muestra prompt de conexión o dirección truncada + botón de desconectar
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
     EditCoinModal.tsx           # Modal edición de moneda existente; pre-rellena todos los campos con datos de la coin; permite reemplazar fotos (crop + upload a R2, borra la anterior); bloqueado si hay claim pending|approved|claimed; envía intent="edit_coin" + coin_id
