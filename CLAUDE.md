@@ -108,7 +108,7 @@ app/
     SeriesProgress.tsx          # Progreso de una serie numismática
     YearTimeline.tsx            # Timeline de monedas por año
     AdminRewardsPanel.tsx       # Panel admin: lista claims pendientes con detalle completo (fotos anverso/reverso, condición, ref. catálogo, valor estimado, notas, registry key); botones aprobar/rechazar
-    ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
+    ClaimButton.tsx             # Botón de claim onchain; retorna null si no hay wallet conectada; lee lastClaimTime del contrato (useReadContract) y muestra countdown regresivo si hay cooldown de 24h activo; envía solicitud al admin o ejecuta la TX; sugiere token AlbumCoin vía wallet_watchAsset (EIP-747) tras claim exitoso
     WalletConnectButton.tsx     # Conexión/desconexión de wallet en el header; sin props (usa wagmi hooks); muestra prompt de conexión o dirección truncada + botón de desconectar
     DeleteConfirmModal.tsx      # Modal de confirmación para eliminar una moneda
     EditCoinModal.tsx           # Modal edición de moneda existente; pre-rellena todos los campos con datos de la coin; permite reemplazar fotos (crop + upload a R2, borra la anterior); bloqueado si hay claim pending|approved|claimed; envía intent="edit_coin" + coin_id

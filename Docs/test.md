@@ -941,7 +941,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/components/__tests__/ClaimButton.test.tsx`
 **Qué prueba:** el componente `ClaimButton` de `app/components/ClaimButton.tsx`, que gestiona el ciclo de vida del claim de recompensa onchain por moneda.
 
-> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`. La lógica de conexión de wallet fue migrada a `WalletConnectButton`; `ClaimButton` retorna `null` directamente cuando no hay address.
+> `wagmi` (`useWriteContract`, `useWaitForTransactionReceipt`, `useAccount`, `useReadContract`), `~/lib/contracts/abi` y `~/lib/contracts/addresses` se mockean completamente. `global.fetch` se mockea con `vi.fn()` para interceptar los POST a `/api/rewards/request` y `/api/rewards/sign`. La lógica de conexión de wallet fue migrada a `WalletConnectButton`; `ClaimButton` retorna `null` directamente cuando no hay address. `useReadContract` devuelve `{ data: 0n }` por defecto (sin cooldown).
 
 | Test | Descripción |
 |---|---|
@@ -955,6 +955,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | shows countdown Confirmar button when status=approved and not expired | `expiresAt` futuro → botón "🎁 Confirmar — Xd Xh" |
 | shows Reclamar Token when approved but expired | `expiresAt` pasado → trata el claim como eligible |
 | click Reclamar Token calls fetch POST /api/rewards/request | Clic manda POST con coinId + walletAddress del hook |
+| muestra countdown cuando el wallet está en cooldown | `lastClaimTime` reciente → muestra "Próximo minteo en" y oculta botón "Reclamar Token" |
 | handleClaim muestra error de API cuando /api/rewards/sign falla | Fetch retorna !ok → el mensaje de error del servidor aparece debajo del botón |
 | approved muestra writeError cuando el contrato falla | Error de wagmi en useWriteContract → se muestra el mensaje debajo del botón |
 

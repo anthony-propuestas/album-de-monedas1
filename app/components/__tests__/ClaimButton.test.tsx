@@ -3,6 +3,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
+  useReadContract,
 } from "wagmi";
 import { ClaimButton } from "~/components/ClaimButton";
 
@@ -10,6 +11,7 @@ vi.mock("wagmi", () => ({
   useWriteContract: vi.fn(),
   useWaitForTransactionReceipt: vi.fn(),
   useAccount: vi.fn(),
+  useReadContract: vi.fn(() => ({ data: 0n })),
 }));
 vi.mock("~/lib/contracts/abi", () => ({ REWARD_CLAIMER_ABI: [] }));
 vi.mock("~/lib/contracts/addresses", () => ({ REWARD_CLAIMER_ADDRESS: "0xaddr" }));
@@ -141,6 +143,14 @@ describe("ClaimButton", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
     await waitFor(() => expect(screen.getByText(/wallet no coincide/i)).toBeInTheDocument());
+  });
+
+  it("muestra countdown cuando el wallet está en cooldown", () => {
+    const recentClaimTime = BigInt(Math.floor(Date.now() / 1000) - 3600); // hace 1h → faltan 23h
+    vi.mocked(useReadContract).mockReturnValue({ data: recentClaimTime } as any);
+    render(<ClaimButton {...defaultProps()} />);
+    expect(screen.getByText("Próximo minteo en")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reclamar token/i })).not.toBeInTheDocument();
   });
 
   it("approved muestra writeError cuando el contrato falla", () => {

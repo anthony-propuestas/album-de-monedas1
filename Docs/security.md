@@ -350,6 +350,8 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - **Retorna `null` si `!address`**: la responsabilidad de conectar la wallet recae en `WalletConnectButton`; `ClaimButton` no intenta conectar por su cuenta.
 - **`wallet_watchAsset` (EIP-747)**: llamada puramente client-side que sugiere importar el token AlbumCoin a la wallet tras un claim exitoso. La address del token (`0xf078c79b0F52ABE81394DD455cBc0a63f76bC059`) está hardcodeada — si AlbumCoin se redespliega esta address debe actualizarse manualmente en el componente.
 - **`walletAddress` verificado en `/api/rewards/sign`**: `ClaimButton` envía `walletAddress: currentAddress` en el body. El servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere — mitigación ahora activa en servidor y onchain (EIP-712 incluye `recipient`).
+- **Cooldown onchain (24h)**: `useReadContract` consulta `lastClaimTime(address)` en el contrato `RewardClaimer` (Base Mainnet). Si el tiempo transcurrido es < 24h, se oculta el botón "Reclamar Token" y se muestra un countdown regresivo. Esta verificación es **cosmética**: el contrato enforcea el cooldown onchain independientemente. Si el RPC está caído, `lastClaimTime` devuelve `undefined`, el cooldown UI no se muestra, pero el contrato rechazará la tx de todas formas. Sin impacto de seguridad — sí impacto de UX.
+- **Sin input de usuario en el RPC call**: `args: [address]` usa la dirección proveniente de wagmi (`useAccount`), nunca de un campo de texto ni de una prop externa.
 
 ---
 
@@ -435,6 +437,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | `String(e)` expuesto en errores 500 de `api.rewards.request` | **Implementado** | Mensajes genéricos en todos los endpoints de rewards; detalles solo en server logs |
 | `walletAddress` del body no re-verificado en `/api/rewards/sign` | **Implementado** | `api.rewards.sign` consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del body |
 | Address de AlbumCoin hardcodeada en `ClaimButton` (EIP-747) | Aceptado (MVP) | Si el contrato se redespliega, actualizar `0xf078c79b0F52ABE81394DD455cBc0a63f76bC059` en `ClaimButton.tsx` manualmente |
+| RPC caído → cooldown UI oculto en `ClaimButton` | Aceptado | El contrato enforcea el cooldown onchain; si el RPC falla la UI muestra el botón igual, pero la tx es rechazada por el contrato. Sin pérdida de fondos ni bypass real. |
 
 ---
 

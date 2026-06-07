@@ -116,7 +116,7 @@ app/
     SeriesProgress.tsx        # Progreso de una serie numismática
     YearTimeline.tsx          # Timeline de monedas por año
     AdminRewardsPanel.tsx     # Panel admin: lista claims pendientes con detalle completo (fotos anverso/reverso, condición, ref. catálogo, valor estimado, notas, registry key); botones aprobar/rechazar
-    ClaimButton.tsx           # Botón de claim de recompensa onchain (conecta wallet + ejecuta tx)
+    ClaimButton.tsx           # Botón de claim onchain; lee lastClaimTime (useReadContract) y muestra countdown de 24h si hay cooldown activo; envía solicitud al admin o ejecuta la TX
     WalletConnectButton.tsx   # Conexión/desconexión de wallet en el header de /mycollection
     DeleteConfirmModal.tsx    # Modal de confirmación para eliminar una moneda
     EditCoinModal.tsx         # Modal edición de moneda existente; pre-rellena campos; permite reemplazar fotos; bloqueado si hay claim activo
@@ -124,16 +124,16 @@ app/
     ui/__tests__/
       button.test.tsx             # 18 tests: variantes, tamaños, onClick, disabled, buttonVariants
     __tests__/
-      AddCoinModal.test.tsx       # 37 tests: render/flujo de fotos + cascada (selects, opciones, reset)
+      AddCoinModal.test.tsx       # 29 tests: render/flujo de fotos + cascada (selects, opciones, reset)
       AdminRewardsPanel.test.tsx  # 21 tests: nombre, denominación, país/año, fotos obverso/reverso, condición, ceca, ref. catálogo, valor estimado, notas, empty state, aprobar/rechazar, modal de rechazo
       CategoryTile.test.tsx       # 11 tests: link, título, descripción, sin datos, topName/stat/picture, iconos
-      ClaimButton.test.tsx        # 13 tests: registry_match guard, estados del claim, fetch POST
+      ClaimButton.test.tsx        # 13 tests: registry_match guard, estados del claim, cooldown countdown, fetch POST
       CoinCard.test.tsx           # 12 tests: foto placeholder/img, rounded-full, estimated_value
       CoinDetailModal.test.tsx    # 18 tests: render, datos opcionales, galería de fotos, cierre
       CoinFilters.test.tsx        # 7 tests: inputs de búsqueda, selects de país/condición, prefill
       CollectorRow.test.tsx       # 16 tests: medallas, link con/sin ?from=, avatar, stat
       ImageCropEditor.test.tsx    # 9 tests: zoom, crop vía canvas, cancelar/confirmar
-      ProfileSetupModal.test.tsx  # 14 tests: goals, validación, submit state, inputs ocultos
+      ProfileSetupModal.test.tsx  # 17 tests: goals, validación, submit state, inputs ocultos
       WorldMap.test.tsx           # 5 tests: render, title, leyenda piezas (singular/plural), sin monedas
       WalletConnectButton.test.tsx # 5 tests: conectar/desconectar wallet, display de address truncada
       EditCoinModal.test.tsx      # 21 tests: render, pre-relleno, fotos existentes, flujo de crop, submit state
