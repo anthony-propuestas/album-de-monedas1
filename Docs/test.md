@@ -795,7 +795,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | returns 401 when unauthenticated | Sin sesión activa retorna 401 |
 | returns 404 when coin not found | Moneda no encontrada en D1 retorna 404 |
 | returns 400 when coin not in catalog | Coin no encontrado en el catálogo → 400 |
-| returns 409 when active claim request exists | Ya hay pending/approved → 409 |
+| returns 409 when active claim request exists | Ya hay pending/approved/claimed → 409 |
 | returns 409 when already claimed onchain | Reclamado onchain → 409 |
 | returns 200 with claimRequestId on happy path | Inserta registro y retorna `{ claimRequestId, status: "pending" }` |
 | returns 400 when missing coinId | Sin `coinId` en el body → 400 |

@@ -1,4 +1,4 @@
-import { keccak256, toHex, createPublicClient, http } from "viem";
+import { keccak256, encodeAbiParameters, createPublicClient, http } from "viem";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Env } from "~/types/env";
@@ -21,8 +21,11 @@ export function getCoinIdHash(
   name: string,
   year: number
 ): `0x${string}` {
-  const registryKey = `${country}|${denomination}|${name}|${year}`;
-  return keccak256(toHex(registryKey));
+  const encoded = encodeAbiParameters(
+    [{ type: "string" }, { type: "string" }, { type: "string" }, { type: "uint256" }],
+    [country, denomination, name, BigInt(year)]
+  );
+  return keccak256(encoded);
 }
 
 export async function signClaim(

@@ -266,6 +266,8 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Verificación de registro**: solo monedas verificadas pueden iniciar un claim. Tanto el loader de `/mycollection` como `api.rewards.request` verifican en memoria contra `COINS_BY_COUNTRY` — ninguno confía en el valor almacenado en `registry_match` para tomar la decisión de autorización.
 - **Double-spend onchain**: antes de crear una solicitud, se consulta `coinClaimed()` en el contrato para evitar duplicados.
 - **Firma EIP-712**: el backend firma `{wallet, coinId}` con la clave privada del signer (`BACKEND_SIGNER_KEY`). El dominio incluye `chainId: 8453` (Base Mainnet) y la dirección del contrato para evitar replay cross-chain. Las firmas emitidas en testnet (chainId 84532) son inválidas en mainnet por diseño.
+- **`getCoinIdHash` con ABI encoding**: `rewards.server.ts` usa `encodeAbiParameters` de viem para calcular el hash del coin ID — sin concatenación con separador, eliminando colisiones entre combinaciones de campos con caracteres especiales.
+- **Bloqueo de re-claim para monedas ya reclamadas**: `api.rewards.request` filtra `status IN ('pending', 'approved', 'claimed')` al verificar si ya existe una solicitud activa. Una moneda con status `'claimed'` (ya ejecutada onchain) no puede iniciar un nuevo proceso de claim.
 - **BACKEND_SIGNER_KEY en producción**: al operar en Base Mainnet, esta clave firma operaciones con valor real (tokens ERC-20). Debe estar en los env vars de Cloudflare Pages (nunca en el repo) y rotarse si se compromete.
 - **Expiración de aprobación**: las aprobaciones admin expiran a los 7 días (`expires_at`), verificado en `api.rewards.sign` antes de entregar la firma.
 - **Registro de claim onchain**: `api.rewards.claimed` actualiza el status a `'claimed'` filtrando por `user_id` y `status = 'approved'` — solo el dueño del claim puede marcarlo.
@@ -287,8 +289,8 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 #### [MEDIUM] La firma EIP-712 no tiene expiración onchain
 El backend verifica `claim.expires_at` antes de entregar la firma, pero una vez entregada, la firma es válida onchain indefinidamente hasta que `coinClaimed` sea `true`. Si se detecta fraude después de que el usuario obtiene la firma (pero antes de ejecutar la tx), no hay mecanismo para invalidarla onchain.
 
-#### [MEDIUM] Colisión de hash por carácter separador en `getCoinIdHash`
-`rewards.server.ts` concatena con `|` sin escapar: `` `${country}|${denomination}|${name}|${year}` ``. Un campo que contenga `|` puede producir el mismo `keccak256` que otra combinación legítima. Ejemplo: `denomination="1|AR"` + `name="peso"` colisiona con `denomination="1"` + `name="AR|peso"`.
+#### [MITIGADO] Colisión de hash por carácter separador en `getCoinIdHash`
+`rewards.server.ts` usaba concatenación con `|` sin escapar, lo que permitía colisiones entre combinaciones distintas de campos. Ahora usa `encodeAbiParameters([{ type: "string" }, { type: "string" }, { type: "string" }, { type: "uint256" }], [country, denomination, name, BigInt(year)])` de viem, que produce encodings binarios sin ambigüedad de separador — eliminando el riesgo de colisión.
 
 #### [MITIGADO] `api.rewards.sign` no verificaba propiedad de la moneda por `user_id`
 La query ahora filtra `WHERE coin_id = ? AND user_id = ? AND status = 'approved'`. Intentar obtener la firma de un claim ajeno devuelve 404, sin revelar si el claim existe.
@@ -422,7 +424,8 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Imágenes R2 accesibles sin autenticación | Aceptado | Las claves contienen UUIDs no predecibles; considerar signed URLs si se requiere mayor restricción |
 | Sin rate limiting en endpoints de rewards | **Implementado** | 3 req/h en `rewards_request`, 5 req/h en `rewards_sign` vía `checkRateLimit` |
 | `walletAddress` sin validación de formato | **Implementado** | Regex `/^0x[0-9a-fA-F]{40}$/` validada en `api.rewards.request` antes del INSERT |
-| Hash EIP-712 vulnerable a colisión por `\|` | **Pendiente** | Usar ABI encoding (`encodeAbiParameters`) en lugar de concatenación con separador |
+| Hash EIP-712 vulnerable a colisión por `\|` | **Implementado** | `encodeAbiParameters([string, string, string, uint256])` de viem — sin ambigüedad de separador |
+| Re-claim de moneda con status `claimed` | **Implementado** | Filtro extendido a `pending\|approved\|claimed` en `api.rewards.request` |
 | Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
 | RPC público puede fallar silenciosamente en verificación onchain | **Pendiente** | Error handling añadido (no crashea), pero el fallback `false` puede generar claims inconsistentes; considerar RPC privado con retry o verificación admin explícita |
@@ -447,7 +450,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] `BACKEND_SIGNER_KEY` configurado en Cloudflare Pages (nunca en el repo); dirección correspondiente debe coincidir con la desplegada en el contrato `RewardClaimer`.
 - [x] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (3 req/h y 5 req/h vía `checkRateLimit`).
 - [x] Validar `walletAddress` con regex `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`.
-- [ ] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
+- [x] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
 - [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.
 - [x] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.

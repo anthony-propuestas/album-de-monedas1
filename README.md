@@ -8,8 +8,8 @@ Red social MVP para coleccionistas de monedas (numismática) — stack 100% Clou
 - **Auth**: remix-auth + remix-auth-google · sesiones en cookie HttpOnly (`__session`, 30 días)
 - **Infra**: Cloudflare Pages Advanced Mode (`worker.ts` → `build/client/_worker.js`) · `functions/[[path]].ts` solo para dev local
 
-> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Mainnet vía EIP-712) · Mapas coropletas D3 (colección personal + colección colaborativa onchain)
-> **Pendiente:** Durable Objects (chat) · KV · WAF · Turnstile
+> **Implementado:** D1 (SQLite) · Autenticación Google OAuth · Perfil de usuario · R2 (imágenes de monedas) · Colección personal con galería y filtros · Dropdowns en cascada por país con módulos de datos de monedas · Sección social /collections con rankings por categoría y vistas públicas de colecciones · Stats públicas en landing · Rewards onchain (claim de recompensas en Base Mainnet vía EIP-712) · Mapas coropletas D3 (colección personal + colección colaborativa onchain) · Chat global (D1) · Turnstile (anti-bot en login, condicional por env)
+> **Pendiente:** Durable Objects (chat en tiempo real) · KV · WAF
 
 ## Variables de entorno
 
@@ -196,6 +196,8 @@ functions/
 worker.ts                     # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
 scripts/
   build-worker.mjs            # esbuild: compila worker.ts → build/client/_worker.js
+  deploy.mjs                  # deploy helper: renombra functions/ temporalmente para Advanced Mode
+  create-chat-table.mjs       # crea tabla chat_messages en D1 (ejecutar antes de desplegar chat)
 migrations/
   0001_create_users.sql       # Tabla users
   0002_create_coins.sql       # Tabla coins (fotos, condición, valor)

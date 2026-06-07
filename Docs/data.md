@@ -375,7 +375,7 @@ Definidas en `.dev.vars` (local) y en el dashboard de Cloudflare Pages (producci
 
 | Feature | Estado | Nota |
 |---------|--------|------|
-| D1 (SQLite) | Implementado | 10 migraciones, todas las tablas operativas |
+| D1 (SQLite) | Implementado | 11 archivos en `migrations/` — 10 migraciones lógicas (0001–0010); `0009` y `0009b` son variantes del mismo número, la canónica es `0009b` |
 | R2 (imágenes) | Implementado | Upload con validación, serving con cache |
 | OAuth Google + sesiones | Implementado | Cookie HttpOnly, 30 días |
 | Protección de rutas | Implementado | `isAuthenticated()` en todos los loaders privados |

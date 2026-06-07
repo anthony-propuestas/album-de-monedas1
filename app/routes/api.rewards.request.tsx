@@ -44,7 +44,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!isVerified) return json({ error: "Esta moneda no está verificada en el registro" }, { status: 400 });
 
     const existing = await db
-      .prepare("SELECT id FROM claim_requests WHERE coin_id = ? AND status IN ('pending', 'approved')")
+      .prepare("SELECT id FROM claim_requests WHERE coin_id = ? AND status IN ('pending', 'approved', 'claimed')")
       .bind(coinId)
       .first<{ id: string }>();
     if (existing) return json({ error: "Ya existe una solicitud activa para esta moneda" }, { status: 409 });

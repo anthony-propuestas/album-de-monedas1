@@ -68,7 +68,7 @@ if (!ETH_ADDRESS_REGEX.test(walletAddress)) {
 
 ---
 
-## 3. Re-verificar `walletAddress` del body contra la DB en `/api/rewards/sign` `[MEDIA]`
+## 3. Re-verificar `walletAddress` del body contra la DB en `/api/rewards/sign` `[MEDIA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.sign.tsx`
 
@@ -96,7 +96,7 @@ Y pasar `user.id` en el `.bind()`.
 
 ---
 
-## 4. ABI encoding en `getCoinIdHash` para eliminar colisiones `[MEDIA]`
+## 4. ABI encoding en `getCoinIdHash` para eliminar colisiones `[MEDIA]` ✅ APLICADO
 
 **Archivo:** `app/lib/rewards.server.ts` (línea 24)
 
@@ -376,7 +376,7 @@ if (country && !VALID_COUNTRIES.has(country)) {
 
 ---
 
-## 14. Verificar propiedad de la moneda en `/api/rewards/sign` `[BAJA]`
+## 14. Verificar propiedad de la moneda en `/api/rewards/sign` `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/api.rewards.sign.tsx` (línea 22)
 
@@ -408,8 +408,8 @@ La lógica de negocio no cambia — solo se evita la enumeración de estado de c
 |---|--------|-----------|-------------------|-------------------|
 | 1 | Rate limiting en rewards | ALTA | api.rewards.request, api.rewards.sign | ✅ APLICADO |
 | 2 | Validar walletAddress regex | MEDIA | api.rewards.request | ✅ APLICADO |
-| 3 | Verificar wallet en /sign contra DB | MEDIA | api.rewards.sign | ✅ ya implementado — ver nota |
-| 4 | ABI encoding en getCoinIdHash | MEDIA | rewards.server.ts | 20 min + migración si hay datos |
+| 3 | Verificar wallet en /sign contra DB | MEDIA | api.rewards.sign | ✅ APLICADO |
+| 4 | ABI encoding en getCoinIdHash | MEDIA | rewards.server.ts | ✅ APLICADO |
 | 5 | Sanitizar errores 500 | MEDIA | api.rewards.request | 5 min |
 | 6 | Validar txHash | BAJA | api.rewards.claimed | 5 min |
 | 7 | Loader 405 en claimed | BAJA | api.rewards.claimed | 5 min |
@@ -419,6 +419,6 @@ La lógica de negocio no cambia — solo se evita la enumeración de estado de c
 | 11 | Validar buyer_contact y message | BAJA | markets | 10 min |
 | 12 | Headers HTTP en worker.ts | MEDIA | worker.ts | 15 min |
 | 13 | Validar country vs ISO | BAJA | mycollection, home | 10 min |
-| 14 | user_id en query de /sign | BAJA | api.rewards.sign | 5 min |
+| 14 | user_id en query de /sign | BAJA | api.rewards.sign | ✅ APLICADO |
 
 > **Nota sobre la mejora 3:** Al revisar el código actual de `api.rewards.sign.tsx`, la comparación de wallet ya está implementada en línea 32 (`claim.wallet_address !== walletAddress.toLowerCase()`). Lo que falta es la mejora 14 (filtrar por `user_id` para evitar enumeración de claims ajenos).
