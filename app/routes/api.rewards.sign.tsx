@@ -21,6 +21,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const { coinId, walletAddress } = body;
   if (!coinId || !walletAddress) return json({ error: "Parámetros requeridos" }, { status: 400 });
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!UUID_REGEX.test(coinId)) return json({ error: "ID de moneda inválido" }, { status: 400 });
+
   const claim = await db
     .prepare(
       "SELECT id, expires_at, coin_id_hash, wallet_address FROM claim_requests WHERE coin_id = ? AND user_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1"

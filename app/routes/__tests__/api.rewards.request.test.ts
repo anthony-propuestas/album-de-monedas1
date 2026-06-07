@@ -16,6 +16,7 @@ import * as rateLimitModule from "~/lib/rateLimit.server";
 const { action } = await import("~/routes/api.rewards.request");
 
 const mockUser = { id: "user-1", email: "user@example.com", name: "User", picture: "" };
+const COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
 
 const mockCoin = {
   id: "coin-1",
@@ -54,7 +55,7 @@ function makeContext(db: ReturnType<typeof makeDb>["db"]) {
   };
 }
 
-function makeRequest(body: object = { coinId: "coin-1", walletAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" }) {
+function makeRequest(body: object = { coinId: COIN_ID, walletAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" }) {
   return new Request("https://example.com/api/rewards/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -179,7 +180,7 @@ describe("api.rewards.request action", () => {
     });
     const { db } = makeDb();
     const res = await action({
-      request: makeRequest({ coinId: "coin-1", walletAddress: "not-an-address" }),
+      request: makeRequest({ coinId: COIN_ID, walletAddress: "not-an-address" }),
       context: makeContext(db) as any,
       params: {},
     });

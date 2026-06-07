@@ -229,6 +229,50 @@ describe("mycollection action", () => {
     expect(bindArgs).toContain(null);
   });
 
+  it("returns 400 when mint exceeds 200 chars", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "add_coin", name: "Peso", mint: "x".repeat(201) }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+  });
+
+  it("returns 400 when catalog_ref exceeds 200 chars", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "add_coin", name: "Peso", catalog_ref: "x".repeat(201) }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+  });
+
+  it("returns 400 when country is not a valid ISO code", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({ intent: "add_coin", name: "Peso", country: "XX" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+    const data = await result.json();
+    expect(data.error).toMatch(/pa[ií]s/i);
+  });
+
   it("does not upload to R2 when file is empty", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
@@ -370,6 +414,41 @@ describe("mycollection action — edit_coin intent", () => {
     });
     expect(images.put).not.toHaveBeenCalled();
     expect(images.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when mint exceeds 200 chars", async () => {
+    const { db, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(mockCoinRow);
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso", mint: "x".repeat(201) }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+  });
+
+  it("returns 400 when catalog_ref exceeds 200 chars", async () => {
+    const { db, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(mockCoinRow);
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso", catalog_ref: "x".repeat(201) }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+  });
+
+  it("returns 400 when country is not a valid ISO code", async () => {
+    const { db, bindObj } = makeMockDb();
+    bindObj.first.mockResolvedValueOnce(mockCoinRow);
+    const result = await action({
+      request: makeRequest({ intent: "edit_coin", coin_id: "coin-abc", name: "Peso", country: "XX" }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+    const data = await result.json();
+    expect(data.error).toMatch(/pa[ií]s/i);
   });
 
   it("uploads new photo and deletes old one when a valid JPEG is provided", async () => {

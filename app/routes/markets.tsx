@@ -91,6 +91,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!message) return json({ ok: false, error: "El mensaje no puede estar vacío." });
     if (seller_id === user.id) return json({ ok: false, error: "No podés contactarte a vos mismo." });
 
+    if (buyer_contact && buyer_contact.trim().length > 200) {
+      return json({ ok: false, error: "buyer_contact demasiado largo" });
+    }
+    if (message.trim().length > 1000) {
+      return json({ ok: false, error: "Mensaje demasiado largo (máx. 1000 chars)" });
+    }
+
     const db = context.cloudflare.env.DB;
     const rl = await checkRateLimit(db, user.id, "contact_seller", 5, 1);
     if (!rl.allowed) {

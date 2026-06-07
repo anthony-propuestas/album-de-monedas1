@@ -79,7 +79,7 @@ Puntos clave:
 ### Validación de entrada en los actions
 
 - El `action` de `/home` valida que `name`, `country`, `collecting_since` y `goals` sean strings no vacíos (tras `.trim()`) antes de escribir en la DB.
-- El `action` de `/mycollection` requiere que `intent === "add_coin"`. El campo `name` se valida que no sea vacío (devuelve 400 si lo es). Se validan longitudes máximas (`name` ≤ 200, `notes` ≤ 1000 chars). `condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
+- El `action` de `/mycollection` requiere que `intent === "add_coin"`. El campo `name` se valida que no sea vacío (devuelve 400 si lo es). Se validan longitudes máximas: `name` ≤ 200, `notes` ≤ 1000, `mint` ≤ 100, `catalog_ref` ≤ 50 chars. `condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. `country` se valida contra whitelist ISO-3166 alpha-2 (lista completa de `app/lib/countries.ts`). Los campos opcionales se almacenan como `null` si están vacíos, nunca como string vacío.
 
 ### Almacenamiento de imágenes en R2
 
@@ -106,7 +106,7 @@ Puntos clave:
 | `id` | `crypto.randomUUID()` en servidor | Ninguno |
 | `user_id` | Sesión autenticada (servidor) | Ninguno — el cliente no puede falsificarlo |
 | `name`, `denomination`, `mint`, `catalog_ref`, `notes` | Input de formulario | Bajo — React escapa al renderizar; sin ejecución como código |
-| `country`, `condition` | Input de formulario | Bajo — `condition` validada contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` libre |
+| `country`, `condition` | Input de formulario | Bajo — `condition` validada contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` validada contra whitelist ISO-3166 alpha-2 |
 | `year`, `estimated_value` | Input numérico, parseado con `parseInt`/`parseFloat` | Bajo — NaN se convierte en `null` antes de guardar |
 | `photo_*` | Clave R2 generada en servidor | Ninguno — el cliente nunca decide el nombre del archivo |
 
@@ -124,7 +124,7 @@ Los dropdowns en cascada (País → Denominación → Nombre → Año → Casa d
 
 **Consecuencia para `mint`:** un atacante puede enviar valores arbitrarios para `mint`, ya que este campo no se valida server-side. Para `denomination` y `name`, el servidor verifica que correspondan a valores del módulo `COINS_BY_COUNTRY[country]` cuando el país existe; si no coinciden devuelve 400.
 
-`condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. `country` sigue siendo libre (sin validación ISO).
+`condition` se valida contra el enum `MS/AU/XF/VF/F/VG/G/P`. `country` se valida contra whitelist ISO-3166 alpha-2.
 
 ### Riesgos introducidos
 
@@ -234,7 +234,7 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 
 - **Auth**: sesión requerida tanto en loader como en action.
 - **Loader**: devuelve todas las monedas con `for_sale = 1` de todos los usuarios — comportamiento público intencional (marketplace). Los filtros de búsqueda (`q`, `country`, `condition`) se construyen dinámicamente pero siempre con `.bind(...values)`.
-- **Action (`contact_seller`)**: INSERT en `messages` con 8 parámetros bound. Validaciones: `coin_id` y `seller_id` requeridos, mensaje no vacío, `seller_id ≠ user.id` (no se puede contactar uno mismo). Rate limiting: `checkRateLimit(db, user.id, "contact_seller", 5, 1)` — 5 mensajes por minuto por usuario.
+- **Action (`contact_seller`)**: INSERT en `messages` con 8 parámetros bound. Validaciones: `coin_id` y `seller_id` requeridos, mensaje no vacío, `seller_id ≠ user.id` (no se puede contactar uno mismo), `buyer_contact` ≤ 200 chars, `message` ≤ 1000 chars. Rate limiting: `checkRateLimit(db, user.id, "contact_seller", 5, 1)` — 5 mensajes por minuto por usuario.
 - **Sin superficies adicionales**: `buyer_contact` es opcional y se guarda directamente (no se renderiza como HTML).
 
 ### `/full-collection`
@@ -280,6 +280,9 @@ No se introduce ningún vector nuevo de inyección, privilege escalation ni fuga
 - **Validación de formato de `walletAddress` en `api.rewards.request`**: se verifica `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`. Strings arbitrarios o malformados son rechazados con 400.
 - **Re-verificación de wallet en `api.rewards.sign`**: antes de firmar, el servidor consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del `walletAddress` enviado en el body. La mitigación opera ahora tanto en servidor como onchain (EIP-712 incluye `recipient`).
 - **Aislamiento por user_id en `api.rewards.sign`**: la query busca `WHERE coin_id = ? AND user_id = ? AND status = 'approved'` — un usuario solo puede obtener la firma de sus propios claims; sondear claims ajenos devuelve 404.
+- **Validación de formato `coinId`**: los tres endpoints de rewards verifican que `coinId` sea un UUID v4 válido (`/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`) antes de cualquier query a D1. Inputs malformados devuelven 400.
+- **Validación de formato `txHash` en `api.rewards.claimed`**: el hash de transacción se verifica contra `/^0x[0-9a-f]{64}$/i` antes de almacenarse en `claim_requests.tx_hash`. El loader de la ruta devuelve 405 Method Not Allowed para peticiones GET, previniendo exploración manual del endpoint.
+- **Sanitización de errores 500**: todos los endpoints de rewards devuelven mensajes genéricos en errores inesperados (`"Invalid request"`, `"Internal error"`) — sin exponer stack traces, mensajes de D1 ni detalles de viem al cliente.
 
 ### Nuevas superficies de ataque
 
@@ -298,11 +301,11 @@ La query ahora filtra `WHERE coin_id = ? AND user_id = ? AND status = 'approved'
 #### [MEDIUM] `isCoinClaimedOnchain` falla silenciosamente ante error RPC
 El try/catch en `isCoinClaimedOnchain` devuelve `false` si el RPC falla. Esto evita que la acción crashee, pero permite insertar un `claim_request` para una moneda que *podría* ya estar reclamada onchain (si el RPC estaba caído al momento de la verificación). El contrato rechazará la tx en el momento de ejecutar, por lo que el impacto real es operativo (inconsistencia de estado en DB, no pérdida de fondos). Se elimina el riesgo anterior de crash total por RPC no disponible.
 
-#### [LOW] `catch (e)` en `api.rewards.request` expone `String(e)` al cliente
-El handler global devuelve `{ error: String(e) }` en respuestas 500. En producción puede filtrar stack traces, mensajes de D1, o información interna de viem si la excepción proviene de esas capas.
+#### [MITIGADO] `catch (e)` en `api.rewards.request` exponía `String(e)` al cliente
+El handler global ahora devuelve mensajes genéricos (`"Invalid request"`, `"Internal error"`) en errores 500. Los detalles solo se logean en servidor.
 
-#### [LOW] `api.rewards.claimed` — `txHash` no se valida
-`api.rewards.claimed.tsx` recibe `txHash` del body JSON y lo almacena directamente en `claim_requests.tx_hash` sin validar que sea un hash de transacción Ethereum válido (`/^0x[0-9a-f]{64}$/i`). No tiene loader que retorne 405 para GET. Impacto bajo: el campo es solo informativo y el UPDATE filtra por `user_id` y `status = 'approved'`.
+#### [MITIGADO] `api.rewards.claimed` — `txHash` sin validación y sin loader 405
+`api.rewards.claimed.tsx` ahora valida el hash con `/^0x[0-9a-f]{64}$/i` antes de almacenarlo. El loader retorna 405 Method Not Allowed para peticiones GET, previniendo exploración del endpoint.
 
 #### [LOW] Sin mecanismo de revocación de aprobación
 El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se detecta irregularidad entre la aprobación y la ejecución onchain, la única opción es esperar que expire el `expires_at`.
@@ -358,7 +361,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - **Propiedad en doble capa**: SELECT inicial `WHERE id=? AND user_id=?` + UPDATE final `WHERE id=? AND user_id=?`. Un usuario no puede editar monedas ajenas aunque conozca el `coin_id`.
 - **Claim lock**: rechaza ediciones si existe un `claim_request` activo (`pending|approved|claimed`). Evita que el usuario altere datos de una pieza que el admin ya está revisando.
 - **Rate limiting**: 30 ediciones cada 24 h por usuario vía `checkRateLimit("edit_coin", 30, 24)`.
-- **Validación de entrada**: `name ≤ 200 chars`, `notes ≤ 1000 chars`; `condition` validado contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` sin validación ISO (pendiente, mismo estado que `add_coin`).
+- **Validación de entrada**: `name` ≤ 200 chars, `notes` ≤ 1000 chars, `mint` ≤ 200 chars, `catalog_ref` ≤ 200 chars; `condition` validado contra enum `MS/AU/XF/VF/F/VG/G/P`; `country` validado contra whitelist ISO-3166 alpha-2.
 - **Uploads**: magic bytes JPEG (`FF D8 FF`), límite 5 MB, misma lógica que `add_coin`.
 - **Limpieza de R2**: borra la key anterior antes de subir la nueva — sin acumulación de archivos huérfanos en R2.
 - **Queries parametrizadas**: todas las consultas D1 usan `.prepare().bind()`.
@@ -416,7 +419,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Sin scope OAuth explícito | **Implementado** | `scope: ["openid", "email", "profile"]` en `GoogleStrategy` |
 | Sin validación de longitud máxima en inputs | **Implementado** | `name` ≤ 100, `goals` ≤ 500 en `/home`; `name` ≤ 200, `notes` ≤ 1000 en `/mycollection` |
 | Sin validación de `condition` de monedas | **Implementado** | Validado contra enum `MS/AU/XF/VF/F/VG/G/P` |
-| Sin validación de `country` de monedas | Pendiente | `country` sigue siendo libre (sin validación ISO) |
+| Sin validación de `country` de monedas | **Implementado** | Whitelist ISO-3166 alpha-2 en `add_coin` y `edit_coin`; limita entradas a códigos de país conocidos |
 | Sin validación server-side de `denomination` y `name` vs módulos | **Implementado** | Validados contra `COINS_BY_COUNTRY[country]` cuando el país existe; `mint` sigue libre |
 | Sin validación de magic bytes de imágenes | **Implementado** | Se verifica FF D8 FF antes de subir a R2; `contentType` forzado a `image/jpeg` |
 | Sin límite de tamaño de archivo | **Implementado** | Rechaza archivos >5 MB antes de llamar a R2 |
@@ -429,7 +432,7 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 | Firma EIP-712 sin expiración onchain | Aceptado (MVP) | Aceptable mientras `coinClaimed` sea la fuente de verdad onchain; revisar si se necesita nonce en el contrato |
 | Sin revocación de aprobación admin | Aceptado (MVP) | Mitigado por la expiración de 7 días; agregar endpoint de revocación post-MVP |
 | RPC público puede fallar silenciosamente en verificación onchain | **Pendiente** | Error handling añadido (no crashea), pero el fallback `false` puede generar claims inconsistentes; considerar RPC privado con retry o verificación admin explícita |
-| `String(e)` expuesto en errores 500 de `api.rewards.request` | **Pendiente** | Sanitizar: devolver mensaje genérico en producción, loguear el error real solo en server logs |
+| `String(e)` expuesto en errores 500 de `api.rewards.request` | **Implementado** | Mensajes genéricos en todos los endpoints de rewards; detalles solo en server logs |
 | `walletAddress` del body no re-verificado en `/api/rewards/sign` | **Implementado** | `api.rewards.sign` consulta `claim_requests.wallet_address` y rechaza con 400 si difiere del body |
 | Address de AlbumCoin hardcodeada en `ClaimButton` (EIP-747) | Aceptado (MVP) | Si el contrato se redespliega, actualizar `0xf078c79b0F52ABE81394DD455cBc0a63f76bC059` en `ClaimButton.tsx` manualmente |
 
@@ -445,13 +448,18 @@ El admin puede aprobar un claim pero no existe endpoint para revertirlo. Si se d
 - [ ] Activar Cloudflare WAF (dashboard).
 - [ ] Configurar rate limiting en `/auth/google` (dashboard).
 - [ ] Revisar CSP vía Cloudflare Transform Rules.
-- [ ] Validar `country` contra lista ISO y `collecting_since` contra valores del enum antes de escribir en D1.
+- [x] Validar `country` contra lista ISO-3166 alpha-2 en `add_coin` y `edit_coin`.
+- [ ] Validar `collecting_since` contra valores del enum antes de escribir en D1.
 - [ ] Aplicar principio de mínimo privilegio al binding de D1 en `wrangler.toml` cuando se configure producción.
 - [ ] `BACKEND_SIGNER_KEY` configurado en Cloudflare Pages (nunca en el repo); dirección correspondiente debe coincidir con la desplegada en el contrato `RewardClaimer`.
 - [x] Agregar rate limiting a `api.rewards.request` y `api.rewards.sign` (3 req/h y 5 req/h vía `checkRateLimit`).
 - [x] Validar `walletAddress` con regex `/^0x[0-9a-fA-F]{40}$/` antes de insertar en `claim_requests`.
 - [x] Reemplazar concatenación con `|` en `getCoinIdHash` por ABI encoding para eliminar colisiones de hash.
-- [ ] Sanitizar errores 500 en `api.rewards.request`: devolver mensaje genérico al cliente, no `String(e)`.
+- [x] Sanitizar errores 500 en endpoints de rewards: mensajes genéricos al cliente, no `String(e)`.
+- [x] Validar `coinId` como UUID v4 en los tres endpoints de rewards.
+- [x] Validar `txHash` con regex `/^0x[0-9a-f]{64}$/i` en `api.rewards.claimed`.
+- [x] Loader 405 en `api.rewards.claimed` para peticiones GET.
+- [x] Límites de longitud en `mint` (≤200), `catalog_ref` (≤200), `buyer_contact` (≤200), `message` (≤1000).
 - [ ] Considerar RPC privado (Alchemy/QuickNode) con timeout explícito en `isCoinClaimedOnchain` para evitar inconsistencias por RPC público caído.
 - [x] En `/api/rewards/sign`: consultar `claim_requests.wallet_address` y rechazar si difiere del `walletAddress` enviado en el body.
 - [ ] Si AlbumCoin se redespliega, actualizar la address hardcodeada en `ClaimButton.tsx` (EIP-747).

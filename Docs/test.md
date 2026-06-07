@@ -171,6 +171,7 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | send_chat: calls INSERT INTO chat_messages with user data and message | Verifica que `prepare` recibe el INSERT y `bind` los 4 valores (user_id, user_name, user_picture, message) |
 | send_chat: returns 400 and no DB call for empty message | Mensaje vacío → status 400 sin llamar a `prepare` con INSERT |
 | send_chat: returns 400 for whitespace-only message | Mensaje de solo espacios → status 400 (el trim lo deja vacío) |
+| returns 400 when country is not in the ISO whitelist | `country: "XX"` (no existe en `NUMERIC_TO_ALPHA2`) → 400 con error que menciona "país" |
 
 ---
 
@@ -351,6 +352,9 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | parses year as integer and estimated_value as float | Los campos numéricos se convierten antes de guardar (`parseInt`, `parseFloat`) |
 | stores null for empty optional text fields | Los campos opcionales no enviados se guardan como `null`, no como string vacío |
 | does not upload to R2 when file is empty | Un `File` de 0 bytes no dispara `images.put` |
+| returns 400 when mint exceeds 200 chars | Campo `mint` con 201 caracteres → 400 |
+| returns 400 when catalog_ref exceeds 200 chars | Campo `catalog_ref` con 201 caracteres → 400 |
+| returns 400 when country is not a valid ISO code | `country: "XX"` → 400 con error que menciona "país" |
 
 #### Intent `edit_coin`
 
@@ -364,6 +368,24 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 | keeps existing photo key when no new file is submitted | Si no llega un file nuevo, el key existente de R2 se mantiene en los args de `bind` |
 | does not call images.delete or images.put when no new file is submitted | Sin nuevo archivo, el bucket R2 no se toca en ningún slot |
 | uploads new photo and deletes old one when a valid JPEG is provided | Con JPEG válido para `photo_obverse`, llama a `images.delete(oldKey)` e `images.put(newKey, buffer)` |
+| returns 400 when mint exceeds 200 chars | Campo `mint` con 201 caracteres → 400 |
+| returns 400 when catalog_ref exceeds 200 chars | Campo `catalog_ref` con 201 caracteres → 400 |
+| returns 400 when country is not a valid ISO code | `country: "XX"` → 400 con error que menciona "país" |
+
+---
+
+### `app/routes/__tests__/markets.action.test.ts`
+**Qué prueba:** el `action` de `app/routes/markets.tsx` — intent `contact_seller` (validaciones y flujo completo).
+
+| Test | Descripción |
+|---|---|
+| throws redirect to '/' when unauthenticated | Sin sesión lanza `Response` 302 → `/` |
+| returns error when coin_id is missing | Sin `coin_id` en el form → `{ ok: false, error: "Datos inválidos." }` |
+| returns error when message is empty | `message` vacío → `{ ok: false, error: "El mensaje no puede estar vacío." }` |
+| returns error when contacting self | `seller_id === user.id` → `{ ok: false, error: "No podés contactarte a vos mismo." }` |
+| returns error when buyer_contact exceeds 200 chars | `buyer_contact` de 201 chars → `{ ok: false }` con error que menciona `buyer_contact` |
+| returns error when message exceeds 1000 chars | `message` de 1001 chars → `{ ok: false }` con error que menciona "largo" |
+| returns { ok: true } on success | Mensaje válido con seller distinto → `{ ok: true, error: null }` |
 
 ---
 
@@ -790,6 +812,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 ### `app/routes/__tests__/api.rewards.request.test.ts`
 **Qué prueba:** el `action` de `app/routes/api.rewards.request.tsx` — 10 tests.
 
+> Los fixtures usan la constante `COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"` (UUID v4 válido) para que las requests pasen la validación UUID antes de llegar a los mocks de D1.
+
 | Test | Descripción |
 |---|---|
 | returns 401 when unauthenticated | Sin sesión activa retorna 401 |
@@ -807,6 +831,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ### `app/routes/__tests__/api.rewards.sign.test.ts`
 **Qué prueba:** el `action` de `app/routes/api.rewards.sign.tsx`.
+
+> Usa `COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"` en todos los requests. El test de scoping verifica `bind(COIN_ID, "user-1")`.
 
 | Test | Descripción |
 |---|---|
@@ -951,6 +977,8 @@ npm run test:coverage # genera reporte de cobertura en /coverage
 
 ### `app/routes/__tests__/api.rewards.claimed.test.ts`
 **Qué prueba:** el `action` y el `loader` de `app/routes/api.rewards.claimed.tsx`, que marca un claim como `claimed` en D1 con el txHash de la TX onchain.
+
+> Usa `COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"`. El test de bind verifica `(txHash, timestamp, COIN_ID, user.id)`.
 
 | Test | Descripción |
 |---|---|

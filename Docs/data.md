@@ -241,6 +241,10 @@ No requiere autenticación — las claves son UUIDs no predecibles.
 | `coins` | `name` | 200 chars | trim + length check en action |
 | `coins` | `notes` | 1000 chars | trim + length check en action |
 | `coins` | `condition` | enum | validado contra `["MS","AU","XF","VF","F","VG","G","P"]` |
+| `coins` | `mint` | 200 chars | trim + length check en action |
+| `coins` | `catalog_ref` | 200 chars | trim + length check en action |
+| `messages` | `buyer_contact` | 200 chars | trim + length check en action |
+| `messages` | `message` | 1000 chars | trim + length check en action |
 | `users` | `name` | — | trim + not empty |
 | `users` | `goals` | — | trim + not empty |
 
@@ -262,6 +266,8 @@ No requiere autenticación — las claves son UUIDs no predecibles.
 **Slugs de categorías sociales** — validados contra whitelist en `/collections/:category`:
 
 `most-pieces`, `oldest`, `highest-value`, `most-countries`, `best-condition`, `most-active`, `most-denominations`, `veteran`
+
+**País (ISO alpha-2)** — `users.country` y `coins.country` — validados contra whitelist de códigos ISO 3166-1 alpha-2 en los actions de `home.tsx` y `mycollection.tsx`. Valores no reconocidos son rechazados con error antes de persistir en D1.
 
 ### Catálogo estático de monedas
 

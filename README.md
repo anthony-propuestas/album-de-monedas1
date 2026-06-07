@@ -174,20 +174,21 @@ app/
       admin_.rewards.test.ts            # 4 tests: loader panel de claims pendientes
       admin.rewards.id.approve.test.ts  # 4 tests: action aprobar claim, ventana 7 días
       admin.rewards.id.reject.test.ts   # 5 tests: action rechazar claim, motivo
-      api.rewards.claimed.test.ts       # 5 tests: action marcar claim como reclamado
+      api.rewards.claimed.test.ts       # 7 tests: action marcar claim como reclamado
       api.rewards.request.test.ts       # 10 tests: action solicitar claim onchain
-      api.rewards.sign.test.ts          # 7 tests: action firma EIP-712
+      api.rewards.sign.test.ts          # 8 tests: action firma EIP-712
       api.rewards.status.coinId.test.ts # 5 tests: loader estado del claim
       auth.google.callback.test.ts      # 5 tests: loader callback OAuth
       auth.google.test.ts               # 5 tests: loader null + action POST OAuth
       collection.userId.loader.test.ts  # 11 tests: loader colección pública ajena
       collections.category.loader.test.ts # 7 tests: loader top 10 por categoría
       collections.loader.test.ts        # 9 tests: loader rankings — 8 queries en paralelo, shuffle
-      home.action.test.ts               # 13 tests: action dashboard — update perfil
+      home.action.test.ts               # 14 tests: action dashboard — update perfil + send_chat
       home.component.test.tsx           # 14 tests: render dashboard, ProfileSetupModal visibility
       home.loader.test.ts               # 19 tests: loader dashboard — stats, auth redirect
       images.$.test.ts                  # 7 tests: loader proxy R2, Cache-Control, 404
-      mycollection.action.test.ts       # 9 tests: action add_coin — upload R2, insert D1
+      markets.action.test.ts            # 7 tests: action contact_seller — validaciones y flujo completo
+      mycollection.action.test.ts       # 23 tests: action add_coin (12) y edit_coin (11) — R2, D1, validaciones
       mycollection.loader.test.ts       # 16 tests: loader colección propia — galería, filtros
   types/
     env.d.ts                  # Env interface (DB: D1Database, IMAGES?: R2Bucket, BACKEND_SIGNER_KEY?)
@@ -234,7 +235,7 @@ npm run test:coverage  # reporte de cobertura en /coverage
 
 Stack: **Vitest** + **@testing-library/react** + **happy-dom**
 
-45 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
+46 suites en total. Ver `Docs/test.md` para la lista y descripción completa de cada suite.
 
 ## Seguridad
 

@@ -15,6 +15,7 @@ import * as rateLimitModule from "~/lib/rateLimit.server";
 const { action } = await import("~/routes/api.rewards.sign");
 
 const mockUser = { id: "user-1", email: "user@example.com", name: "User", picture: "" };
+const COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
 
 const WALLET = "0xdeadbeef";
 const NOW_SECS = Math.floor(Date.now() / 1000);
@@ -53,7 +54,7 @@ function makeContext(db: ReturnType<typeof makeDb>["db"]) {
   };
 }
 
-function makeRequest(body: object = { coinId: "coin-1", walletAddress: WALLET }) {
+function makeRequest(body: object = { coinId: COIN_ID, walletAddress: WALLET }) {
   return new Request("https://example.com/api/rewards/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -104,7 +105,7 @@ describe("api.rewards.sign action", () => {
     });
     const { db } = makeDb(mockClaim);
     const res = await action({
-      request: makeRequest({ coinId: "coin-1", walletAddress: "0xdifferentwallet" }),
+      request: makeRequest({ coinId: COIN_ID, walletAddress: "0xdifferentwallet" }),
       context: makeContext(db) as any,
       params: {},
     });
@@ -132,7 +133,7 @@ describe("api.rewards.sign action", () => {
     });
     const { db } = makeDb();
     const res = await action({
-      request: makeRequest({ coinId: "coin-1" }),
+      request: makeRequest({ coinId: COIN_ID }),
       context: makeContext(db) as any,
       params: {},
     });
@@ -162,6 +163,6 @@ describe("api.rewards.sign action", () => {
     });
     const { db, bind } = makeDb(mockClaim);
     await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
-    expect(bind).toHaveBeenCalledWith("coin-1", "user-1");
+    expect(bind).toHaveBeenCalledWith(COIN_ID, "user-1");
   });
 });

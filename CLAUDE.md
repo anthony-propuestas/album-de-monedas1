@@ -137,7 +137,7 @@ public/
 vite.config.ts                  # Remix plugin + Tailwind v4 plugin + tsconfigPaths
 wrangler.toml                   # Config Cloudflare Pages + D1 + R2 bindings
 .dev.vars                       # Variables de entorno locales (no commitear)
-worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) → _worker.js
+worker.ts                       # Entry point Cloudflare Pages (Advanced Mode) → _worker.js; inyecta security headers en todas las respuestas (X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy: strict-origin-when-cross-origin)
 scripts/
   build-worker.mjs              # esbuild: compila worker.ts → build/client/_worker.js; stubPlugin reemplaza paquetes browser-only (wagmi, WalletConnect…) con exports vacíos en el Worker SSR
   deploy.mjs                    # deploy helper: renombra functions/ temporalmente para evitar errores de Pages Functions en Advanced Mode

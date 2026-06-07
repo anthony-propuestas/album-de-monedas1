@@ -14,6 +14,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const { coinId, txHash } = await request.json<{ coinId: string; txHash: string }>();
   if (!coinId || !txHash) return json({ error: "Parámetros requeridos." }, { status: 400 });
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!UUID_REGEX.test(coinId)) return json({ error: "ID de moneda inválido" }, { status: 400 });
+
   const TX_HASH_REGEX = /^0x[0-9a-fA-F]{64}$/;
   if (!TX_HASH_REGEX.test(txHash)) {
     return json({ error: "Hash de transacción inválido" }, { status: 400 });

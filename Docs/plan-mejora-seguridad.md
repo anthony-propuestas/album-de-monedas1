@@ -211,7 +211,7 @@ Los otros dos endpoints de rewards (`api.rewards.request.tsx` y `api.rewards.sig
 
 ---
 
-## 8. Validar `coinId` como UUID en endpoints de rewards `[BAJA]`
+## 8. Validar `coinId` como UUID en endpoints de rewards `[BAJA]` ✅ APLICADO
 
 **Archivos:** `api.rewards.request.tsx`, `api.rewards.sign.tsx`, `api.rewards.claimed.tsx`
 
@@ -235,7 +235,7 @@ Agregar en los tres endpoints, justo después de extraer `coinId` del body.
 
 ---
 
-## 9. Longitud máxima en `mint` y `catalog_ref` `[BAJA]`
+## 9. Longitud máxima en `mint` y `catalog_ref` `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/mycollection.tsx` (action `add_coin` y `edit_coin`)
 
@@ -259,7 +259,7 @@ if (catalogRef && catalogRef.trim().length > 200) return json({ error: "catalog_
 
 ---
 
-## 10. Validar `for_sale` y `asking_price` en `add_coin` y `edit_coin` `[BAJA]`
+## 10. Validar `for_sale` y `asking_price` en `add_coin` y `edit_coin` `[BAJA]` ✅ N/A
 
 **Archivo:** `app/routes/mycollection.tsx`
 
@@ -287,7 +287,7 @@ if (askingPrice !== null && (isNaN(askingPrice) || askingPrice < 0)) {
 
 ---
 
-## 11. Validar `buyer_contact` y longitud de `message` en markets `[BAJA]`
+## 11. Validar `buyer_contact` y longitud de `message` en markets `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/markets.tsx` (action `contact_seller`)
 
@@ -316,7 +316,7 @@ if (message.trim().length > 1000) {
 
 ---
 
-## 12. Headers HTTP de seguridad en `worker.ts` `[MEDIA]`
+## 12. Headers HTTP de seguridad en `worker.ts` `[MEDIA]` ✅ APLICADO
 
 **Archivo:** `worker.ts`
 
@@ -350,7 +350,7 @@ Content Security Policy requiere listar los dominios de Google OAuth, Cloudflare
 
 ---
 
-## 13. Validar `country` contra whitelist ISO-3166 `[BAJA]`
+## 13. Validar `country` contra whitelist ISO-3166 `[BAJA]` ✅ APLICADO
 
 **Archivo:** `app/routes/mycollection.tsx` (action `add_coin` y `edit_coin`), también `app/routes/home.tsx` (profile setup)
 
@@ -413,12 +413,12 @@ La lógica de negocio no cambia — solo se evita la enumeración de estado de c
 | 5 | Sanitizar errores 500 | MEDIA | api.rewards.request | ✅ APLICADO |
 | 6 | Validar txHash | BAJA | api.rewards.claimed | ✅ APLICADO |
 | 7 | Loader 405 en claimed | BAJA | api.rewards.claimed | ✅ APLICADO |
-| 8 | Validar coinId como UUID | BAJA | 3 endpoints de rewards | 10 min |
-| 9 | Longitud de mint y catalog_ref | BAJA | mycollection | 5 min |
-| 10 | Validar for_sale y asking_price | BAJA | mycollection | 10 min |
-| 11 | Validar buyer_contact y message | BAJA | markets | 10 min |
-| 12 | Headers HTTP en worker.ts | MEDIA | worker.ts | 15 min |
-| 13 | Validar country vs ISO | BAJA | mycollection, home | 10 min |
+| 8 | Validar coinId como UUID | BAJA | 3 endpoints de rewards | ✅ APLICADO |
+| 9 | Longitud de mint y catalog_ref | BAJA | mycollection | ✅ APLICADO |
+| 10 | Validar for_sale y asking_price | BAJA | mycollection | ✅ N/A (campos no usados en esos intents) |
+| 11 | Validar buyer_contact y message | BAJA | markets | ✅ APLICADO |
+| 12 | Headers HTTP en worker.ts | MEDIA | worker.ts | ✅ APLICADO |
+| 13 | Validar country vs ISO | BAJA | mycollection, home | ✅ APLICADO |
 | 14 | user_id en query de /sign | BAJA | api.rewards.sign | ✅ APLICADO |
 
 > **Nota sobre la mejora 3:** Al revisar el código actual de `api.rewards.sign.tsx`, la comparación de wallet ya está implementada en línea 32 (`claim.wallet_address !== walletAddress.toLowerCase()`). Lo que falta es la mejora 14 (filtrar por `user_id` para evitar enumeración de claims ajenos).

@@ -20,7 +20,10 @@ import { WorldMap } from "~/components/WorldMap";
 import { createAuth } from "~/lib/auth.server";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import { checkRateLimit } from "~/lib/rateLimit.server";
+import { NUMERIC_TO_ALPHA2 } from "~/lib/country-numeric-map";
 import type { Coin } from "~/components/CoinCard";
+
+const VALID_COUNTRIES = new Set(Object.values(NUMERIC_TO_ALPHA2));
 
 export const meta: MetaFunction = () => [
   { title: "Mi Colección — Album de Monedas" },
@@ -241,11 +244,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (name.length > 200 || (notes && notes.length > 1000)) {
       return json({ error: "Texto demasiado largo." }, { status: 400 });
     }
+    if (mint && mint.trim().length > 200) return json({ error: "mint demasiado largo" }, { status: 400 });
+    if (catalogRef && catalogRef.trim().length > 200) return json({ error: "catalog_ref demasiado largo" }, { status: 400 });
 
     const VALID_CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"] as const;
     if (condition && !(VALID_CONDITIONS as readonly string[]).includes(condition)) {
       return json({ error: "Condición inválida." }, { status: 400 });
     }
+    if (country && !VALID_COUNTRIES.has(country)) return json({ error: "País inválido" }, { status: 400 });
 
     const coinsForCountry = country ? COINS_BY_COUNTRY[country] : null;
     const registryMatch = coinsForCountry != null && year != null && coinsForCountry.some(
@@ -321,11 +327,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
   if (name.length > 200 || (notes && notes.length > 1000)) {
     return json({ error: "Texto demasiado largo." }, { status: 400 });
   }
+  if (mint && mint.trim().length > 200) return json({ error: "mint demasiado largo" }, { status: 400 });
+  if (catalogRef && catalogRef.trim().length > 200) return json({ error: "catalog_ref demasiado largo" }, { status: 400 });
 
   const VALID_CONDITIONS = ["MS", "AU", "XF", "VF", "F", "VG", "G", "P"] as const;
   if (condition && !(VALID_CONDITIONS as readonly string[]).includes(condition)) {
     return json({ error: "Condición inválida." }, { status: 400 });
   }
+  if (country && !VALID_COUNTRIES.has(country)) return json({ error: "País inválido" }, { status: 400 });
 
   const coinsForCountry = country ? COINS_BY_COUNTRY[country] : null;
   const registryMatch = coinsForCountry != null && year != null && coinsForCountry.some(

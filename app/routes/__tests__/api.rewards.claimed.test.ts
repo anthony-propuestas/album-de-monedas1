@@ -6,6 +6,7 @@ vi.mock("~/lib/auth.server");
 const { action, loader } = await import("~/routes/api.rewards.claimed");
 
 const mockUser = { id: "user-1", email: "user@example.com", name: "User", picture: "" };
+const COIN_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
 
 function makeDb() {
   const run = vi.fn().mockResolvedValue({});
@@ -32,7 +33,7 @@ function makeContext(db: ReturnType<typeof makeDb>["db"]) {
   };
 }
 
-function makeRequest(body: object = { coinId: "coin-1", txHash: "0x" + "a".repeat(64) }) {
+function makeRequest(body: object = { coinId: COIN_ID, txHash: "0x" + "a".repeat(64) }) {
   return new Request("https://example.com/api/rewards/claimed", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -74,7 +75,7 @@ describe("api.rewards.claimed action", () => {
     });
     const { db } = makeDb();
     const res = await action({
-      request: makeRequest({ coinId: "coin-1" }),
+      request: makeRequest({ coinId: COIN_ID }),
       context: makeContext(db) as any,
       params: {},
     });
@@ -90,7 +91,7 @@ describe("api.rewards.claimed action", () => {
     await action({ request: makeRequest(), context: makeContext(db) as any, params: {} });
     expect(run).toHaveBeenCalledOnce();
     expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining("status = 'approved'"));
-    expect(bind).toHaveBeenCalledWith("0x" + "a".repeat(64), expect.any(Number), "coin-1", mockUser.id);
+    expect(bind).toHaveBeenCalledWith("0x" + "a".repeat(64), expect.any(Number), COIN_ID, mockUser.id);
   });
 
   it("returns 400 when txHash has invalid format", async () => {
@@ -100,7 +101,7 @@ describe("api.rewards.claimed action", () => {
     });
     const { db } = makeDb();
     const res = await action({
-      request: makeRequest({ coinId: "coin-1", txHash: "not-a-hash" }),
+      request: makeRequest({ coinId: COIN_ID, txHash: "not-a-hash" }),
       context: makeContext(db) as any,
       params: {},
     });

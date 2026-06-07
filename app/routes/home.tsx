@@ -9,7 +9,10 @@ import { BadgesGrid } from "~/components/BadgesGrid";
 import { WorldMap } from "~/components/WorldMap";
 import { COINS_BY_COUNTRY } from "~/lib/coins";
 import { computeEarnedBadgeIds, BADGE_MAP } from "~/lib/badges";
+import { NUMERIC_TO_ALPHA2 } from "~/lib/country-numeric-map";
 import type { Coin } from "~/components/CoinCard";
+
+const VALID_COUNTRIES = new Set(Object.values(NUMERIC_TO_ALPHA2));
 
 type ChatMessage = {
   id: number;
@@ -156,6 +159,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
     if (name.length > 100 || goals.length > 500) {
       return json({ error: "Texto demasiado largo." }, { status: 400 });
+    }
+    if (!VALID_COUNTRIES.has(country)) {
+      return json({ error: "País inválido" }, { status: 400 });
     }
 
     const db = context.cloudflare.env.DB;

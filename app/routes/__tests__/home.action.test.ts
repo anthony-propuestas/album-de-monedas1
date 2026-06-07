@@ -303,6 +303,28 @@ describe("home action", () => {
     expect(result.status).toBe(400);
   });
 
+  it("returns 400 when country is not in the ISO whitelist", async () => {
+    vi.mocked(authModule.createAuth).mockReturnValue({
+      authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
+      sessionStorage: {} as any,
+    });
+    const { db } = makeMockDb();
+    const result = await action({
+      request: makeRequest({
+        intent: "complete_profile",
+        name: "John Doe",
+        country: "XX",
+        collecting_since: "iniciante",
+        goals: "aprender",
+      }),
+      context: makeContext(db) as any,
+      params: {},
+    });
+    expect(result.status).toBe(400);
+    const data = await result.json();
+    expect(data.error).toMatch(/pa[ií]s/i);
+  });
+
   it("trims whitespace from fields", async () => {
     vi.mocked(authModule.createAuth).mockReturnValue({
       authenticator: { isAuthenticated: vi.fn().mockResolvedValue(mockUser) } as any,
